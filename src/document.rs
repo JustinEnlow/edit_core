@@ -26,8 +26,8 @@ pub struct Document{
     text: Rope,
     file_path: Option<PathBuf>,
     modified: bool,
-    selections: Selections,
-    client_view: View,
+    selections: Selections, //Hashmap<ClientID, Selections>
+    client_view: View,      //Hashmap<ClientID, View>
     //undo_stack: Vec<Operation>,   Operation{Insert, Delete}
     //redo_stack: Vec<Operation>
     last_saved_text: Rope,

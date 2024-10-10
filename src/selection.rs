@@ -7,9 +7,6 @@ use crate::{
 
 
 
-// if a block cursor is treated as a bar cursor with its head extended 1 grapheme to the right,
-// i think these can be treated equally for cursor movements.(maybe excluding end of file?)
-// however, they may need to behave differently for selection extension
 #[derive(Clone, Copy, Debug)]
 pub enum CursorSemantics{
     // default selection has width of 0

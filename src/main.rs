@@ -1,4 +1,11 @@
-use edit_core::{editor::Editor, ServerAction, ServerResponse};
+use edit_core::{
+    editor::{
+        Editor, 
+        ClientID
+    }, 
+    ServerAction, 
+    ServerResponse
+};
 use edit_core::selection::{CursorSemantics, Movement};
 
 
@@ -40,8 +47,8 @@ fn main(){
         server.handle_new_connections();
         let request = server.listen();
         println!("server received: {:#?}", request);
-        let client_address = editor.id_manager_mut().assign_id().to_string();
-        let response = server_action_to_response(request, &client_address, &mut editor);
+        let client_address = editor.id_manager_mut().assign_id();
+        let response = server_action_to_response(request, client_address, &mut editor);
         match response{
             Some(response) => {
                 println!("server emitted: {:#?}\n", response);
@@ -56,7 +63,7 @@ fn main(){
 ideally limiting the amount of data being transferred between client/server, and restricting logging
 to actual state changes
 */
-pub fn server_action_to_response(action: ServerAction, client_address: &str, editor: &mut Editor) -> Option<ServerResponse>{
+pub fn server_action_to_response(action: ServerAction, client_address: ClientID, editor: &mut Editor) -> Option<ServerResponse>{
     match action{
         ServerAction::NoOp => {Some(ServerResponse::Acknowledge)}
         ServerAction::Backspace => {
