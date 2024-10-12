@@ -1,8 +1,11 @@
+//use std::{fs::File, path::PathBuf};
+
 use edit_core::{
-    editor::{
-        Editor, 
-        ClientID
-    }, 
+    id::{
+        ClientID,
+        ClientIDManager
+    },
+    editor::Editor, 
     ServerAction, 
     ServerResponse
 };
@@ -15,8 +18,8 @@ const CURSOR_SEMANTICS: CursorSemantics = CursorSemantics::Bar;
 
 
 pub trait Server{
-    fn listen(&mut self) -> ServerAction;   //and client id?    (ServerAction, ClientId)
-    fn respond(&mut self, response: ServerResponse);    //and client id?
+    fn listen(&mut self) -> ServerAction;
+    fn respond(&mut self, response: ServerResponse);
     fn handle_new_connections(&mut self);
 }
 
@@ -27,15 +30,9 @@ impl ServerOverNamedPipes{
     }
 }
 impl Server for ServerOverNamedPipes{
-    fn listen(&mut self) -> ServerAction{
-        ServerAction::NoOp
-    }
-    fn respond(&mut self, response: ServerResponse){
-        
-    }
-    fn handle_new_connections(&mut self){
-        
-    }
+    fn listen(&mut self) -> ServerAction{ServerAction::NoOp}
+    fn respond(&mut self, _response: ServerResponse){}
+    fn handle_new_connections(&mut self){}
 }
 
 
@@ -47,15 +44,11 @@ fn main(){
         server.handle_new_connections();
         let request = server.listen();
         println!("server received: {:#?}", request);
-        let client_address = editor.id_manager_mut().assign_id();
-        let response = server_action_to_response(request, client_address, &mut editor);
-        match response{
-            Some(response) => {
-                println!("server emitted: {:#?}\n", response);
-                server.respond(response);
-            }
-            None => {}
-        }
+        let id = ClientIDManager::default().assign_id();
+        if let Some(response) = server_action_to_response(request, id, &mut editor){
+            println!("server emitted: {:#?}", response);
+            server.respond(response);
+        }else{}
     }
 }
 
