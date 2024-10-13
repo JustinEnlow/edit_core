@@ -20,6 +20,7 @@ const CURSOR_SEMANTICS: CursorSemantics = CursorSemantics::Bar;
 pub trait Server{
     fn listen(&mut self) -> ServerAction;
     fn respond(&mut self, response: ServerResponse);
+    //fn process(&mut self);    // read request, process, respond
     fn handle_new_connections(&mut self);
 }
 
@@ -56,11 +57,11 @@ fn main(){
 ideally limiting the amount of data being transferred between client/server, and restricting logging
 to actual state changes
 */
-pub fn server_action_to_response(action: ServerAction, client_address: ClientID, editor: &mut Editor) -> Option<ServerResponse>{
+pub fn server_action_to_response(action: ServerAction, client_id: ClientID, editor: &mut Editor) -> Option<ServerResponse>{
     match action{
         ServerAction::NoOp => {Some(ServerResponse::Acknowledge)}
         ServerAction::Backspace => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 doc.backspace(CURSOR_SEMANTICS);
                 
                 let text = doc.text().clone();
@@ -79,15 +80,15 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         }
         ServerAction::CloseConnection => {
-            if let Some(doc) = editor.document(client_address){
-                println!("{}: closing {}", client_address, doc.file_name().unwrap());
+            if let Some(doc) = editor.document(client_id){
+                println!("{}: closing {}", client_id, doc.file_name().unwrap());
             }
-            editor.close_document(client_address);
+            editor.close_document(client_id);
 
             None
         },
         ServerAction::Delete => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 doc.delete(CURSOR_SEMANTICS);
                 
                 let text = doc.text().clone();
@@ -106,7 +107,7 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         }
         ServerAction::ExtendSelectionDown => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 let text = doc.text().clone();
                 
                 //doc.selections_mut().extend_selections_down(&text);
@@ -134,7 +135,7 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         }
         ServerAction::ExtendSelectionEnd => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 let text = doc.text().clone();
                 
                 //doc.selections_mut().extend_selections_end(&text);
@@ -162,7 +163,7 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         }
         ServerAction::ExtendSelectionHome => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 let text = doc.text().clone();
                 
                 //doc.selections_mut().extend_selections_home(&text);
@@ -190,7 +191,7 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         }
         ServerAction::ExtendSelectionLeft => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 let text = doc.text().clone();
                 
                 //doc.selections_mut().extend_selections_left(&text);
@@ -218,7 +219,7 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         }
         ServerAction::ExtendSelectionRight => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 let text = doc.text().clone();
                 
                 //doc.selections_mut().extend_selections_right(&text);
@@ -246,7 +247,7 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         }
         ServerAction::ExtendSelectionUp => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 let text = doc.text().clone();
                 
                 //doc.selections_mut().extend_selections_up(&text);
@@ -274,7 +275,7 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         }
         ServerAction::GoTo{line_number} => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 let text = doc.text().clone();
                 
                 doc.selections_mut().clear_non_primary_selections();
@@ -295,9 +296,9 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         }
         ServerAction::OpenFile{file_path} => {
-            match editor.open_document(&file_path, client_address){
+            match editor.open_document(&file_path, client_id){
                 Ok(_) => {
-                    if let Some(doc) = editor.document(client_address){
+                    if let Some(doc) = editor.document(client_id){
                         Some(ServerResponse::FileOpened {file_name: doc.file_name(), document_length: doc.len()})
                     }else{
                         Some(ServerResponse::Failed("no document open".to_string()))
@@ -309,7 +310,7 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         },
         ServerAction::UpdateClientViewSize{width, height} => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 doc.view_mut().set_size(width as usize, height as usize);
                 
                 let text = doc.text().clone();
@@ -328,7 +329,7 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         },
         ServerAction::ScrollClientViewDown{amount} => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 let text = doc.text().clone();
                 
                 doc.view_mut().scroll_down(amount, &text);
@@ -346,7 +347,7 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         },
         ServerAction::ScrollClientViewLeft{amount} => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 let text = doc.text().clone();
                 
                 doc.view_mut().scroll_left(amount);
@@ -364,7 +365,7 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         },
         ServerAction::ScrollClientViewRight{amount} => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 let text = doc.text().clone();
                 
                 doc.view_mut().scroll_right(amount, &text);
@@ -382,7 +383,7 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         },
         ServerAction::ScrollClientViewUp{amount} => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 let text = doc.text().clone();
                 
                 doc.view_mut().scroll_up(amount);
@@ -400,7 +401,7 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         },
         ServerAction::MoveCursorDocumentEnd => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 let text = doc.text().clone();
                 
                 //doc.selections_mut().move_cursors_document_end(&text);
@@ -428,7 +429,7 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         }
         ServerAction::MoveCursorDocumentStart => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 let text = doc.text().clone();
                 
                 //doc.selections_mut().move_cursors_document_start();
@@ -456,7 +457,7 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         }
         ServerAction::MoveCursorDown => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 let text = doc.text().clone();
                 
                 //doc.selections_mut().move_cursors_down(&text);
@@ -484,7 +485,7 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         },
         ServerAction::MoveCursorUp => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 let text = doc.text().clone();
                 
                 //doc.selections_mut().move_cursors_up(&text);
@@ -512,7 +513,7 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         },
         ServerAction::MoveCursorRight => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 let text = doc.text().clone();
                 
                 //doc.selections_mut().move_cursors_right(&text);
@@ -540,7 +541,7 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         },
         ServerAction::MoveCursorLeft => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 let text = doc.text().clone();
                 
                 //doc.selections_mut().move_cursors_left(&text);
@@ -568,7 +569,7 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         },
         ServerAction::MoveCursorLineEnd => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 let text = doc.text().clone();
                 
                 //doc.selections_mut().move_cursors_end(&text);
@@ -596,7 +597,7 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         },
         ServerAction::MoveCursorLineStart => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 let text = doc.text().clone();
                 
                 //doc.selections_mut().move_cursors_home(&text);
@@ -624,7 +625,7 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         },
         ServerAction::MoveCursorPageDown => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 let text = doc.text().clone();
                 let view = doc.view().clone();
                 
@@ -653,7 +654,7 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         },
         ServerAction::MoveCursorPageUp => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 let text = doc.text().clone();
                 let view = doc.view().clone();
                 
@@ -682,7 +683,7 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         },
         ServerAction::InserChar(c) => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 doc.insert_char(c, CURSOR_SEMANTICS);
                 
                 let text = doc.text().clone();
@@ -701,7 +702,7 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         }
         ServerAction::InsertNewline => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 doc.enter(CURSOR_SEMANTICS);
                 
                 let text = doc.text().clone();
@@ -720,7 +721,7 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         }
         ServerAction::InsertTab => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 doc.tab(CURSOR_SEMANTICS);
                 
                 let text = doc.text().clone();
@@ -739,7 +740,7 @@ pub fn server_action_to_response(action: ServerAction, client_address: ClientID,
             }
         }
         ServerAction::Save => {
-            if let Some(doc) = editor.document_mut(client_address){
+            if let Some(doc) = editor.document_mut(client_id){
                 match doc.save(){
                     Ok(_) => {
                         let text = doc.text();

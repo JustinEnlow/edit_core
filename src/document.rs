@@ -31,6 +31,7 @@ pub struct Document{
     //undo_stack: Vec<Operation>,   Operation{Insert, Delete}
     //redo_stack: Vec<Operation>
     last_saved_text: Rope,
+    clipboard: String,
 }
 impl Document{
     pub fn open(path: &PathBuf, cursor_semantics: CursorSemantics) -> Result<Self, Box<dyn Error>>{
@@ -46,6 +47,7 @@ impl Document{
             },
             client_view: View::default(),
             last_saved_text: text.clone(),
+            clipboard: String::new(),
         })
     }
     pub fn new(cursor_semantics: CursorSemantics) -> Self{
@@ -59,6 +61,7 @@ impl Document{
             },
             client_view: View::default(),
             last_saved_text: Rope::new(),
+            clipboard: String::new(),
         }
     }
     pub fn with_text(&self, text: Rope) -> Self{
@@ -69,6 +72,7 @@ impl Document{
             selections: self.selections.clone(),
             client_view: self.client_view.clone(),
             last_saved_text: text.clone(),
+            clipboard: self.clipboard.clone(),
         }
     }
     pub fn with_selections(&self, selections: Selections) -> Self{
@@ -79,6 +83,7 @@ impl Document{
             selections,
             client_view: self.client_view.clone(),
             last_saved_text: self.last_saved_text.clone(),
+            clipboard: self.clipboard.clone(),
         }
     }
     pub fn with_view(&self, view: View) -> Self{
@@ -89,6 +94,18 @@ impl Document{
             selections: self.selections.clone(),
             client_view: view,
             last_saved_text: self.last_saved_text.clone(),
+            clipboard: self.clipboard.clone(),
+        }
+    }
+    pub fn with_clipboard(&self, clipboard: String) -> Self{
+        Self{
+            text: self.text.clone(),
+            file_path: self.file_path.clone(),
+            modified: self.modified,
+            selections: self.selections.clone(),
+            client_view: self.client_view.clone(),
+            last_saved_text: self.last_saved_text.clone(),
+            clipboard,
         }
     }
     pub fn file_name(&self) -> Option<String>{
@@ -120,6 +137,9 @@ impl Document{
     }
     pub fn view_mut(&mut self) -> &mut View{
         &mut self.client_view
+    }
+    pub fn clipboard(&self) -> &str{
+        &self.clipboard
     }
     pub fn save(&mut self) -> Result<(), Box<dyn Error>>{
         if let Some(path) = &self.file_path{ // does nothing if path is None
@@ -173,18 +193,98 @@ impl Document{
         (selection, new_text)
     }
 
-    // TODO: impl and test
-    pub fn cut(&mut self, _clipboard: &str){}
-    pub fn copy(&self, _clipboard: &str){}
-    pub fn paste(&mut self, _clipboard: &str){
+    /// Cut single selection.
+    /// Copies text to clipboard and removes selected text from document.
+    /// Ensure single selection when calling this function.
+    /// ```
+    /// # use ropey::Rope;
+    /// # use edit_core::document::Document;
+    /// # use edit_core::selection::{Selection, Selections, CursorSemantics};
+    /// 
+    /// fn test(selection: Selection, expected: Rope, expected_selection: Selection, semantics: CursorSemantics) -> bool{
+    ///     let text = Rope::from("idk\nsome\nshit\n");
+    ///     let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![selection], 0, &text));
+    ///     doc.cut(semantics);
+    ///     println!("expected: {:#?}\ngot: {:#?}\nexpected_position: {:#?}\ngot: {:#?}\n", expected, doc.text().clone(), expected_selection, doc.selections().first().clone());
+    ///     doc.text().clone() == expected && doc.selections().first().clone() == expected_selection
+    /// 
+    ///     //TODO: ensure clipboard text is correct as well
+    /// }
+    /// 
+    /// assert!(test(Selection::new(4, 9), Rope::from("idk\nshit\n"), Selection::with_stored_line_position(4, 4, 0), CursorSemantics::Bar));
+    /// assert!(test(Selection::new(4, 9), Rope::from("idk\nshit\n"), Selection::with_stored_line_position(4, 5, 0), CursorSemantics::Block));
+    /// ```
+    pub fn cut(&mut self, semantics: CursorSemantics){  //-> Result<(), Error>  if multiple selections
+        // if multiple selections, trigger warning  //prob to be done in client code
+        //assert!(single selection)
+        let selection = self.selections.first_mut();
+        self.clipboard = self.text.slice(selection.start()..selection.end()).to_string();
+        // remove from text
+        (self.text, *selection) = Document::delete_at_cursor(selection.clone(), &self.text.clone(), semantics);
+        // set cursor to selection start
+    }
+    /// Copy single selection to clipboard.
+    /// Ensure single selection when calling this function.
+    /// ```
+    /// # use ropey::Rope;
+    /// # use edit_core::document::Document;
+    /// # use edit_core::selection::{Selection, Selections, CursorSemantics};
+    /// 
+    /// fn test(selection: Selection, expected: &str, semantics: CursorSemantics) -> bool{
+    ///     let text = Rope::from("idk\nsome\nshit\n");
+    ///     let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![selection], 0, &text));
+    ///     doc.copy();
+    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, doc.clipboard());
+    ///     doc.clipboard() == expected
+    /// }
+    /// 
+    /// assert!(test(Selection::new(4, 9), "some\n", CursorSemantics::Bar));
+    /// assert!(test(Selection::new(4, 9), "some\n", CursorSemantics::Block));    //idk\n|some:\n>shit\n
+    /// ```
+    pub fn copy(&mut self){ //-> Result<(), Error>  if multiple selections
+        // if multiple selections, trigger warning  //prob to be done in client code
+        //assert!(single selection)
+        let selection = self.selections.first().clone();
+        self.clipboard = self.text.slice(selection.start()..selection.end()).to_string();
+    }
+    /// Insert clipboard contents at cursor position(s).
+    /// ```
+    /// # use ropey::Rope;
+    /// # use edit_core::document::Document;
+    /// # use edit_core::selection::{Selection, Selections, CursorSemantics};
+    /// 
+    /// fn test(selection: Selection, string: &str, expected: Rope, expected_selection: Selection, semantics: CursorSemantics) -> bool{
+    ///     let text = Rope::from("idk\nsome\nshit\n");
+    ///     let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![selection], 0, &text)).with_clipboard(string.to_string());
+    ///     doc.paste(semantics);
+    ///     println!("expected: {:#?}\ngot: {:#?}\nexpected_position: {:#?}\ngot: {:#?}\n", expected, doc.text().clone(), expected_selection, doc.selections().first().clone());
+    ///     doc.text().clone() == expected && doc.selections().first().clone() == expected_selection
+    /// }
+    /// 
+    /// assert!(test(Selection::new(9, 9), "other\n", Rope::from("idk\nsome\nother\nshit\n"), Selection::with_stored_line_position(15, 15, 0), CursorSemantics::Bar));
+    /// assert!(test(Selection::new(9, 10), "other\n", Rope::from("idk\nsome\nother\nshit\n"), Selection::with_stored_line_position(15, 16, 0), CursorSemantics::Block));
+    /// ```
+    pub fn paste(&mut self, semantics: CursorSemantics){
         for selection in self.selections.iter_mut().rev(){
-            //(*selection, self.text) = Document::insert_string_at_cursor(
-            //    selection.clone(),
-            //    &self.text,
-            //    _clipboard,
-            //    semantics
-            //)
+            (*selection, self.text) = Document::insert_string_at_cursor(
+                selection.clone(),
+                &self.text,
+                &self.clipboard,
+                semantics
+            )
         }
+    }
+    fn insert_string_at_cursor(mut selection: Selection, text: &Rope, string: &str, semantics: CursorSemantics) -> (Selection, Rope){
+        let mut new_text = text.clone();
+        if selection.is_extended(semantics){
+            (new_text, selection) = Document::delete_at_cursor(selection.clone(), text, semantics);
+        }
+        new_text.insert(selection.cursor(semantics), string);
+        for _ in 0..string.len(){
+            selection.move_right(&new_text, semantics);
+        }
+
+        (selection, new_text)
     }
 
     /// Inserts specified char, replacing selected text if selection extended.
