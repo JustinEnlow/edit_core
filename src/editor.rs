@@ -4,10 +4,10 @@ use std::{collections::HashMap, error::Error, path::PathBuf};
 
 
 
-/// An Editor holds documents. Document interactions are performed through the editor
+/// An Editor holds documents, and handles document interactions.
 #[derive(Default)]
 pub struct Editor{
-    documents: HashMap<ClientID, Document>,
+    documents: HashMap<ClientID, Document>, //how could this be made to handle multiple clients manipulating the same document?
 }
 impl Editor{
     /// Returns a reference to the document associated with ClientID, if one exists.

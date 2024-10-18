@@ -64,6 +64,7 @@ impl Document{
             clipboard: String::new(),
         }
     }
+    /// Add [Rope]-based text to an existing instance of [Document]. Only for testing.
     pub fn with_text(&self, text: Rope) -> Self{
         Self{
             text: text.clone(),
@@ -75,6 +76,7 @@ impl Document{
             clipboard: self.clipboard.clone(),
         }
     }
+    /// Add [Selections] to an existing instance of [Document]. Only for testing.
     pub fn with_selections(&self, selections: Selections) -> Self{
         Self{
             text: self.text.clone(),
@@ -86,6 +88,7 @@ impl Document{
             clipboard: self.clipboard.clone(),
         }
     }
+    /// Add a [View] to an existing instance of [Document]. Only for testing.
     pub fn with_view(&self, view: View) -> Self{
         Self{
             text: self.text.clone(),
@@ -97,6 +100,7 @@ impl Document{
             clipboard: self.clipboard.clone(),
         }
     }
+    /// Add [String]-based text to an existing instance of [Document]. Clipboard is scoped to the editor only, not the system clipboard. Only for testing.
     pub fn with_clipboard(&self, clipboard: String) -> Self{
         Self{
             text: self.text.clone(),
@@ -120,6 +124,16 @@ impl Document{
             None => None
         }
     }
+    /// 1-based number of lines
+    /// ```
+    /// # use ropey::Rope;
+    /// # use edit_core::document::Document;
+    /// # use edit_core::selection::CursorSemantics;
+    /// 
+    /// let text = Rope::from("idk\nsome\nshit\n"); //4     //technically another empty line after last newline
+    /// let doc = Document::new(CursorSemantics::Bar).with_text(text.clone());
+    /// assert_eq!(doc.len(), 4);
+    /// ```
     pub fn len(&self) -> usize{
         self.text.len_lines()
     }
@@ -429,13 +443,13 @@ impl Document{
 
         use std::cmp::Ordering;
         match selection.cursor(semantics).cmp(&selection.anchor()){
-            Ordering::Less => {
+            Ordering::Less => { //cursor < anchor
                 //i<dk|\nsome\nshit\n   //i|>\nsome\nshit\n
                 //i<dk|\nsome\nshit\n   //i|:\n>some\nshit\n
                 new_text.remove(selection.head()..selection.anchor());
                 selection.put_cursor(selection.cursor(semantics), text, Movement::Move, semantics, true);
             }
-            Ordering::Greater => {
+            Ordering::Greater => {  //cursor > anchor
                 match semantics{
                     CursorSemantics::Bar => {
                         //|id>k\nsome\nshit\n   //|>k\nsome\nshit\n
@@ -456,7 +470,7 @@ impl Document{
                     }
                 }
             }
-            Ordering::Equal => {
+            Ordering::Equal => {    //cursor == anchor
                 //idk\nsome\nshit\n|>   //idk\nsome\nshit\n|>
                 //idk\nsome\nshit\n|: > //idk\nsome\nshit\n|: >
                 if selection.cursor(semantics) == text.len_chars(){}    //do nothing

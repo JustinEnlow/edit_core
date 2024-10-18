@@ -88,51 +88,39 @@ impl Selection{
         std::cmp::max(self.anchor, self.head)
     }
 
-    /// Returns true if selection > 0 with bar cursor semantics, or 
-    /// selection > 1 with block cursor semantics, or else returns false.
+    /// Returns true if selection len > 0 with bar cursor semantics, or 
+    /// selection len > 1 with block cursor semantics, or else returns false.
     /// ```
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
-    /// fn test(selection: Selection, expected: bool, semantics: CursorSemantics) -> bool{
-    ///     let result = selection.is_extended(semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, result);
-    ///     result == expected
-    /// }
+    /// assert_eq!(Selection::new(0, 0).is_extended(CursorSemantics::Bar), false);
+    /// assert_eq!(Selection::new(0, 1).is_extended(CursorSemantics::Bar), true);
+    /// assert_eq!(Selection::new(1, 0).is_extended(CursorSemantics::Bar), true);
     /// 
-    /// assert!(test(Selection::new(0, 0), false, CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 1), true, CursorSemantics::Bar));
-    /// assert!(test(Selection::new(1, 0), true, CursorSemantics::Bar));
-    /// 
-    /// assert!(test(Selection::new(0, 1), false, CursorSemantics::Block));
-    /// //assert!(test(Selection::new(1, 0), false, CursorSemantics::Block)); //currently failing
-    /// assert!(test(Selection::new(0, 2), true, CursorSemantics::Block));
-    /// assert!(test(Selection::new(2, 0), true, CursorSemantics::Block));
+    /// assert_eq!(Selection::new(0, 1).is_extended(CursorSemantics::Block), false);
+    /// assert_eq!(Selection::new(1, 0).is_extended(CursorSemantics::Block), false);
+    /// assert_eq!(Selection::new(0, 2).is_extended(CursorSemantics::Block), true);
+    /// assert_eq!(Selection::new(2, 0).is_extended(CursorSemantics::Block), true);
     /// ```
     pub fn is_extended(&self, semantics: CursorSemantics) -> bool{
-        self.anchor != self.cursor(semantics)
-        //match semantics{
-        //    CursorSemantics::Bar => self.len() > 0,   
-        //    CursorSemantics::Block => self.len() > 1  //if selection is greater than one grapheme //currently uses char count though...
-        //}
+        //self.anchor != self.cursor(semantics)
+        match semantics{
+            CursorSemantics::Bar => self.end().saturating_sub(self.start()) > 0,
+            CursorSemantics::Block => self.end().saturating_sub(self.start()) > 1  //if selection is greater than one grapheme //currently uses char count though...
+        }
     }
 
     /// returns the direction of [Selection]
     /// ```
     /// # use edit_core::selection::{Selection, Direction, CursorSemantics};
     /// 
-    /// fn test(selection: Selection, expected: Direction, semantics: CursorSemantics) -> bool{
-    ///     let result = selection.direction(semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, result);
-    ///     result == expected
-    /// }
-    /// 
-    /// assert!(test(Selection::new(0, 0), Direction::Forward, CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 1), Direction::Forward, CursorSemantics::Bar));
-    /// assert!(test(Selection::new(1, 0), Direction::Backward, CursorSemantics::Bar));
-    /// //assert!(test(Selection::new(0, 0), Direction::Backward, CursorSemantics::Block)); //state should't be possible with block cursor semantics, so this failure is fine
-    /// assert!(test(Selection::new(0, 1), Direction::Forward, CursorSemantics::Block));
-    /// assert!(test(Selection::new(1, 0), Direction::Backward, CursorSemantics::Block));
-    /// assert!(test(Selection::new(1, 1), Direction::Backward, CursorSemantics::Block));   //but this state could be possible maybe?
+    /// assert_eq!(Selection::new(0, 0).direction(CursorSemantics::Bar), Direction::Forward);
+    /// assert_eq!(Selection::new(0, 1).direction(CursorSemantics::Bar), Direction::Forward);
+    /// assert_eq!(Selection::new(1, 0).direction(CursorSemantics::Bar), Direction::Backward);
+    /// //assert_eq!(Selection::new(0, 0).direction(CursorSemantics::Block), Direction::Backward);    //state shouldn't be possible with block cursor semantics, so this failure is fine.
+    /// assert_eq!(Selection::new(0, 1).direction(CursorSemantics::Block), Direction::Forward);
+    /// assert_eq!(Selection::new(1, 0).direction(CursorSemantics::Block), Direction::Backward);
+    /// assert_eq!(Selection::new(1, 1).direction(CursorSemantics::Block), Direction::Backward); //state shouldn't be possible with block cursor semantics, but the result is still valid.
     /// ```
     pub fn direction(&self, semantics: CursorSemantics) -> Direction{
         if self.cursor(semantics) < self.anchor{
@@ -187,12 +175,6 @@ impl Selection{
     /// # use ropey::Rope;
     /// # use edit_core::selection::Selection;
     /// 
-    /// fn test(selection: Selection, other: Selection, expected: bool) -> bool{
-    ///     let result = selection.overlaps(other);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, result);
-    ///     result == expected
-    /// }
-    /// 
     /// let text = Rope::from("idk\nsome\nshit\n");
     /// 
     /// // test key: 
@@ -202,51 +184,47 @@ impl Selection{
     /// //    selection2 head   = >
     /// 
     /// // non zero width selections, no overlap
-    /// assert!(test(Selection::new(0, 3), Selection::new(3, 6), false));   //[idk]<\nso>me\nshit\n
-    /// assert!(test(Selection::new(0, 3), Selection::new(6, 3), false));   //[idk]>\nso<me\nshit\n
-    /// assert!(test(Selection::new(3, 0), Selection::new(3, 6), false));   //]idk[<\nso>me\nshit\n
-    /// assert!(test(Selection::new(3, 0), Selection::new(6, 3), false));   //]idk[>\nso<me\nshit\n
-    /// assert!(test(Selection::new(3, 6), Selection::new(0, 3), false));   //<idk>[\nso]me\nshit\n
-    /// assert!(test(Selection::new(3, 6), Selection::new(3, 0), false));   //>idk<[\nso]me\nshit\n
-    /// assert!(test(Selection::new(6, 3), Selection::new(0, 3), false));   //<idk>]\nso[me\nshit\n
-    /// assert!(test(Selection::new(6, 3), Selection::new(3, 0), false));   //>idk<]\nso[me\nshit\n
+    /// assert_eq!(Selection::new(0, 3).overlaps(Selection::new(3, 6)), false); //[idk]<\nso>me\nshit\n
+    /// assert_eq!(Selection::new(0, 3).overlaps(Selection::new(6, 3)), false); //[idk]>\nso<me\nshit\n
+    /// assert_eq!(Selection::new(3, 0).overlaps(Selection::new(3, 6)), false); //]idk[<\nso>me\nshit\n
+    /// assert_eq!(Selection::new(3, 0).overlaps(Selection::new(6, 3)), false); //]idk[>\nso<me\nshit\n
+    /// assert_eq!(Selection::new(3, 6).overlaps(Selection::new(0, 3)), false); //<idk>[\nso]me\nshit\n
+    /// assert_eq!(Selection::new(3, 6).overlaps(Selection::new(3, 0)), false); //>idk<[\nso]me\nshit\n
+    /// assert_eq!(Selection::new(6, 3).overlaps(Selection::new(0, 3)), false); //<idk>]\nso[me\nshit\n
+    /// assert_eq!(Selection::new(6, 3).overlaps(Selection::new(3, 0)), false); //>idk<]\nso[me\nshit\n
     /// 
     /// // non-zero-width selections, overlap.
-    /// assert!(test(Selection::new(0, 4), Selection::new(3, 6), true));   //[idk<\n]so>me\nshit\n
-    /// assert!(test(Selection::new(0, 4), Selection::new(6, 3), true));   //[idk>\n]so<me\nshit\n
-    /// assert!(test(Selection::new(4, 0), Selection::new(3, 6), true));   //]idk<\n[so>me\nshit\n
-    /// assert!(test(Selection::new(4, 0), Selection::new(6, 3), true));   //]idk>\n[so<me\nshit\n
-    /// assert!(test(Selection::new(3, 6), Selection::new(0, 4), true));   //<idk[\n>so]me\nshit\n
-    /// assert!(test(Selection::new(3, 6), Selection::new(4, 0), true));   //>idk[\n<so]me\nshit\n
-    /// assert!(test(Selection::new(6, 3), Selection::new(0, 4), true));   //<idk]\n>so[me\nshit\n
-    /// assert!(test(Selection::new(6, 3), Selection::new(4, 0), true));   //>idk]\n<so[me\nshit\n
-    /// 
-    /// // Zero-width and non-zero-width selections, no overlap.    //i think this should count as overlap...
-    ///// assert!(test(Selection::new(0, 3), Selection::new(3, 3), false));   //[idk]<>\nsome\nshit\n
-    ///// assert!(test(Selection::new(3, 0), Selection::new(3, 3), false));   //]idk[<>\nsome\nshit\n
-    ///// assert!(test(Selection::new(3, 3), Selection::new(0, 3), false));   //<idk>[]\nsome\nshit\n
-    ///// assert!(test(Selection::new(3, 3), Selection::new(3, 0), false));   //>idk<[]\nsome\nshit\n
-    /// assert!(test(Selection::new(0, 3), Selection::new(3, 3), true));   //[idk<>]\nsome\nshit\n
-    /// assert!(test(Selection::new(3, 0), Selection::new(3, 3), true));   //]idk<>[\nsome\nshit\n
-    /// assert!(test(Selection::new(3, 3), Selection::new(0, 3), true));   //<idk[]>\nsome\nshit\n
-    /// assert!(test(Selection::new(3, 3), Selection::new(3, 0), true));   //>idk[]<\nsome\nshit\n
+    /// assert_eq!(Selection::new(0, 4).overlaps(Selection::new(3, 6)), true);  //[idk<\n]so>me\nshit\n
+    /// assert_eq!(Selection::new(0, 4).overlaps(Selection::new(6, 3)), true);  //[idk>\n]so<me\nshit\n
+    /// assert_eq!(Selection::new(4, 0).overlaps(Selection::new(3, 6)), true);  //]idk<\n[so>me\nshit\n
+    /// assert_eq!(Selection::new(4, 0).overlaps(Selection::new(6, 3)), true);  //]idk>\n[so<me\nshit\n
+    /// assert_eq!(Selection::new(3, 6).overlaps(Selection::new(0, 4)), true);  //<idk[\n>so]me\nshit\n
+    /// assert_eq!(Selection::new(3, 6).overlaps(Selection::new(4, 0)), true);  //>idk[\n<so]me\nshit\n
+    /// assert_eq!(Selection::new(6, 3).overlaps(Selection::new(0, 4)), true);  //<idk]\n>so[me\nshit\n
+    /// assert_eq!(Selection::new(6, 3).overlaps(Selection::new(4, 0)), true);  //>idk]\n<so[me\nshit\n
     /// 
     /// // Zero-width and non-zero-width selections, overlap.
-    /// assert!(test(Selection::new(1, 4), Selection::new(1, 1), true));    //i[<>dk\n]some\nshit\n
-    /// assert!(test(Selection::new(4, 1), Selection::new(1, 1), true));    //i]<>dk\n[some\nshit\n
-    /// assert!(test(Selection::new(1, 1), Selection::new(1, 4), true));    //i[<]dk\n>some\nshit\n
-    /// assert!(test(Selection::new(1, 1), Selection::new(4, 1), true));    //i[>]dk\n<some\nshit\n
-    /// assert!(test(Selection::new(1, 4), Selection::new(3, 3), true));    //i[dk<>\n]some\nshit\n
-    /// assert!(test(Selection::new(4, 1), Selection::new(3, 3), true));    //i]dk<>\n[some\nshit\n
-    /// assert!(test(Selection::new(3, 3), Selection::new(1, 4), true));    //i<dk[]\n>some\nshit\n
-    /// assert!(test(Selection::new(3, 3), Selection::new(4, 1), true));    //i>dk[]\n<some\nshit\n
+    /// assert_eq!(Selection::new(0, 3).overlaps(Selection::new(3, 3)), true);  //[idk<>]\nsome\nshit\n
+    /// assert_eq!(Selection::new(3, 0).overlaps(Selection::new(3, 3)), true);  //]idk<>[\nsome\nshit\n
+    /// assert_eq!(Selection::new(3, 3).overlaps(Selection::new(0, 3)), true);  //<idk[]>\nsome\nshit\n
+    /// assert_eq!(Selection::new(3, 3).overlaps(Selection::new(3, 0)), true);  //>idk[]<\nsome\nshit\n
+    /// 
+    /// // Zero-width and non-zero-width selections, overlap.
+    /// assert_eq!(Selection::new(1, 4).overlaps(Selection::new(1, 1)), true);  //i[<>dk\n]some\nshit\n
+    /// assert_eq!(Selection::new(4, 1).overlaps(Selection::new(1, 1)), true);  //i]<>dk\n[some\nshit\n
+    /// assert_eq!(Selection::new(1, 1).overlaps(Selection::new(1, 4)), true);  //i[<]dk\n>some\nshit\n
+    /// assert_eq!(Selection::new(1, 1).overlaps(Selection::new(4, 1)), true);  //i[>]dk\n<some\nshit\n
+    /// assert_eq!(Selection::new(1, 4).overlaps(Selection::new(3, 3)), true);  //i[dk<>\n]some\nshit\n
+    /// assert_eq!(Selection::new(4, 1).overlaps(Selection::new(3, 3)), true);  //i]dk<>\n[some\nshit\n
+    /// assert_eq!(Selection::new(3, 3).overlaps(Selection::new(1, 4)), true);  //i<dk[]\n>some\nshit\n
+    /// assert_eq!(Selection::new(3, 3).overlaps(Selection::new(4, 1)), true);  //i>dk[]\n<some\nshit\n
     /// 
     /// // zero-width selections, no overlap.
-    /// assert!(test(Selection::new(0, 0), Selection::new(1, 1), false));   //[]i<>dk\nsome\nshit\n
-    /// assert!(test(Selection::new(1, 1), Selection::new(0, 0), false));   //<>i[]dk\nsome\nshit\n
+    /// assert_eq!(Selection::new(0, 0).overlaps(Selection::new(1, 1)), false); //[]i<>dk\nsome\nshit\n
+    /// assert_eq!(Selection::new(1, 1).overlaps(Selection::new(0, 0)), false); //<>i[]dk\nsome\nshit\n
     /// 
     /// // zero-width selections, overlap.
-    /// assert!(test(Selection::new(1, 1), Selection::new(1, 1), true));    //i[<>]dk\nsome\nshit\n
+    /// assert_eq!(Selection::new(1, 1).overlaps(Selection::new(1, 1)), true);  //i[<>]dk\nsome\nshit\n
     /// ```
     pub fn overlaps(&self, other: Selection) -> bool{
         self.start() == other.start() || 
@@ -263,69 +241,63 @@ impl Selection{
     /// # use ropey::Rope;
     /// # use edit_core::selection::Selection;
     /// 
-    /// fn test(selection: Selection, other: Selection, expected: Selection, text: &Rope) -> bool{
-    ///     let result = selection.merge(&other, text);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, result);
-    ///     result == expected
-    /// }
-    /// 
     /// let text = Rope::from("idk\nsome\nshit\n");
     /// 
     /// // when self.anchor > self.head && other.anchor > other.head
-    /// assert!(test(Selection::new(4, 0), Selection::new(5, 1), Selection::with_stored_line_position(0, 5, 1), &text));
-    /// assert!(test(Selection::new(5, 1), Selection::new(4, 0), Selection::with_stored_line_position(0, 5, 1), &text));
+    /// assert_eq!(Selection::new(4, 0).merge(&Selection::new(5, 1), &text), Selection::with_stored_line_position(0, 5, 1));
+    /// assert_eq!(Selection::new(5, 1).merge(&Selection::new(4, 0), &text), Selection::with_stored_line_position(0, 5, 1));
     /// 
     /// // when self.anchor < self.head && other.anchor < other.head
-    /// assert!(test(Selection::new(0, 4), Selection::new(1, 5), Selection::with_stored_line_position(0, 5, 1), &text));
-    /// assert!(test(Selection::new(1, 5), Selection::new(0, 4), Selection::with_stored_line_position(0, 5, 1), &text));
+    /// assert_eq!(Selection::new(0, 4).merge(&Selection::new(1, 5), &text), Selection::with_stored_line_position(0, 5, 1));
+    /// assert_eq!(Selection::new(1, 5).merge(&Selection::new(0, 4), &text), Selection::with_stored_line_position(0, 5, 1));
     /// 
     /// // when self.anchor > self.head && other.anchor < other.head
-    /// assert!(test(Selection::new(4, 0), Selection::new(1, 5), Selection::with_stored_line_position(0, 5, 1), &text));
-    /// assert!(test(Selection::new(1, 5), Selection::new(4, 0), Selection::with_stored_line_position(0, 5, 1), &text));
+    /// assert_eq!(Selection::new(4, 0).merge(&Selection::new(1, 5), &text), Selection::with_stored_line_position(0, 5, 1));
+    /// assert_eq!(Selection::new(1, 5).merge(&Selection::new(4, 0), &text), Selection::with_stored_line_position(0, 5, 1));
     /// 
     /// // when self.anchor < self.head && other.anchor > other.head
-    /// assert!(test(Selection::new(0, 4), Selection::new(5, 1), Selection::with_stored_line_position(0, 5, 1), &text));
-    /// assert!(test(Selection::new(5, 1), Selection::new(0, 4), Selection::with_stored_line_position(0, 5, 1), &text));
+    /// assert_eq!(Selection::new(0, 4).merge(&Selection::new(5, 1), &text), Selection::with_stored_line_position(0, 5, 1));
+    /// assert_eq!(Selection::new(5, 1).merge(&Selection::new(0, 4), &text), Selection::with_stored_line_position(0, 5, 1));
     /// 
     /// // consecutive
-    /// assert!(test(Selection::new(0, 1), Selection::new(1, 2), Selection::with_stored_line_position(0, 2, 2), &text));
-    /// assert!(test(Selection::new(1, 0), Selection::new(1, 2), Selection::with_stored_line_position(0, 2, 2), &text));
-    /// assert!(test(Selection::new(1, 0), Selection::new(2, 1), Selection::with_stored_line_position(0, 2, 2), &text));
-    /// assert!(test(Selection::new(0, 1), Selection::new(2, 1), Selection::with_stored_line_position(0, 2, 2), &text));
-    /// assert!(test(Selection::new(1, 2), Selection::new(0, 1), Selection::with_stored_line_position(0, 2, 2), &text));
-    /// assert!(test(Selection::new(2, 1), Selection::new(0, 1), Selection::with_stored_line_position(0, 2, 2), &text));
-    /// assert!(test(Selection::new(2, 1), Selection::new(1, 0), Selection::with_stored_line_position(0, 2, 2), &text));
-    /// assert!(test(Selection::new(1, 2), Selection::new(1, 0), Selection::with_stored_line_position(0, 2, 2), &text));
+    /// assert_eq!(Selection::new(0, 1).merge(&Selection::new(1, 2), &text), Selection::with_stored_line_position(0, 2, 2));
+    /// assert_eq!(Selection::new(1, 0).merge(&Selection::new(1, 2), &text), Selection::with_stored_line_position(0, 2, 2));
+    /// assert_eq!(Selection::new(1, 0).merge(&Selection::new(2, 1), &text), Selection::with_stored_line_position(0, 2, 2));
+    /// assert_eq!(Selection::new(0, 1).merge(&Selection::new(2, 1), &text), Selection::with_stored_line_position(0, 2, 2));
+    /// assert_eq!(Selection::new(1, 2).merge(&Selection::new(0, 1), &text), Selection::with_stored_line_position(0, 2, 2));
+    /// assert_eq!(Selection::new(2, 1).merge(&Selection::new(0, 1), &text), Selection::with_stored_line_position(0, 2, 2));
+    /// assert_eq!(Selection::new(2, 1).merge(&Selection::new(1, 0), &text), Selection::with_stored_line_position(0, 2, 2));
+    /// assert_eq!(Selection::new(1, 2).merge(&Selection::new(1, 0), &text), Selection::with_stored_line_position(0, 2, 2));
     ///
     /// // overlapping
-    /// assert!(test(Selection::new(0, 2), Selection::new(1, 4), Selection::with_stored_line_position(0, 4, 0), &text));
-    /// assert!(test(Selection::new(2, 0), Selection::new(1, 4), Selection::with_stored_line_position(0, 4, 0), &text));
-    /// assert!(test(Selection::new(2, 0), Selection::new(4, 1), Selection::with_stored_line_position(0, 4, 0), &text));
-    /// assert!(test(Selection::new(0, 2), Selection::new(4, 1), Selection::with_stored_line_position(0, 4, 0), &text));
-    /// assert!(test(Selection::new(1, 4), Selection::new(0, 2), Selection::with_stored_line_position(0, 4, 0), &text));
-    /// assert!(test(Selection::new(4, 1), Selection::new(0, 2), Selection::with_stored_line_position(0, 4, 0), &text));
-    /// assert!(test(Selection::new(4, 1), Selection::new(2, 0), Selection::with_stored_line_position(0, 4, 0), &text));
-    /// assert!(test(Selection::new(1, 4), Selection::new(2, 0), Selection::with_stored_line_position(0, 4, 0), &text));
+    /// assert_eq!(Selection::new(0, 2).merge(&Selection::new(1, 4), &text), Selection::with_stored_line_position(0, 4, 0));
+    /// assert_eq!(Selection::new(2, 0).merge(&Selection::new(1, 4), &text), Selection::with_stored_line_position(0, 4, 0));
+    /// assert_eq!(Selection::new(2, 0).merge(&Selection::new(4, 1), &text), Selection::with_stored_line_position(0, 4, 0));
+    /// assert_eq!(Selection::new(0, 2).merge(&Selection::new(4, 1), &text), Selection::with_stored_line_position(0, 4, 0));
+    /// assert_eq!(Selection::new(1, 4).merge(&Selection::new(0, 2), &text), Selection::with_stored_line_position(0, 4, 0));
+    /// assert_eq!(Selection::new(4, 1).merge(&Selection::new(0, 2), &text), Selection::with_stored_line_position(0, 4, 0));
+    /// assert_eq!(Selection::new(4, 1).merge(&Selection::new(2, 0), &text), Selection::with_stored_line_position(0, 4, 0));
+    /// assert_eq!(Selection::new(1, 4).merge(&Selection::new(2, 0), &text), Selection::with_stored_line_position(0, 4, 0));
     /// 
     /// // contained
-    /// assert!(test(Selection::new(0, 6), Selection::new(2, 4), Selection::with_stored_line_position(0, 6, 2), &text));
-    /// assert!(test(Selection::new(6, 0), Selection::new(2, 4), Selection::with_stored_line_position(0, 6, 2), &text));
-    /// assert!(test(Selection::new(6, 0), Selection::new(4, 2), Selection::with_stored_line_position(0, 6, 2), &text));
-    /// assert!(test(Selection::new(0, 6), Selection::new(4, 2), Selection::with_stored_line_position(0, 6, 2), &text));
-    /// assert!(test(Selection::new(2, 4), Selection::new(0, 6), Selection::with_stored_line_position(0, 6, 2), &text));
-    /// assert!(test(Selection::new(4, 2), Selection::new(0, 6), Selection::with_stored_line_position(0, 6, 2), &text));
-    /// assert!(test(Selection::new(4, 2), Selection::new(6, 0), Selection::with_stored_line_position(0, 6, 2), &text));
-    /// assert!(test(Selection::new(2, 4), Selection::new(6, 0), Selection::with_stored_line_position(0, 6, 2), &text));
+    /// assert_eq!(Selection::new(0, 6).merge(&Selection::new(2, 4), &text), Selection::with_stored_line_position(0, 6, 2));
+    /// assert_eq!(Selection::new(6, 0).merge(&Selection::new(2, 4), &text), Selection::with_stored_line_position(0, 6, 2));
+    /// assert_eq!(Selection::new(6, 0).merge(&Selection::new(4, 2), &text), Selection::with_stored_line_position(0, 6, 2));
+    /// assert_eq!(Selection::new(0, 6).merge(&Selection::new(4, 2), &text), Selection::with_stored_line_position(0, 6, 2));
+    /// assert_eq!(Selection::new(2, 4).merge(&Selection::new(0, 6), &text), Selection::with_stored_line_position(0, 6, 2));
+    /// assert_eq!(Selection::new(4, 2).merge(&Selection::new(0, 6), &text), Selection::with_stored_line_position(0, 6, 2));
+    /// assert_eq!(Selection::new(4, 2).merge(&Selection::new(6, 0), &text), Selection::with_stored_line_position(0, 6, 2));
+    /// assert_eq!(Selection::new(2, 4).merge(&Selection::new(6, 0), &text), Selection::with_stored_line_position(0, 6, 2));
     /// 
     /// // disconnected
-    /// assert!(test(Selection::new(0, 2), Selection::new(4, 6), Selection::with_stored_line_position(0, 6, 2), &text));
-    /// assert!(test(Selection::new(2, 0), Selection::new(4, 6), Selection::with_stored_line_position(0, 6, 2), &text));
-    /// assert!(test(Selection::new(2, 0), Selection::new(6, 4), Selection::with_stored_line_position(0, 6, 2), &text));
-    /// assert!(test(Selection::new(0, 2), Selection::new(6, 4), Selection::with_stored_line_position(0, 6, 2), &text));
-    /// assert!(test(Selection::new(4, 6), Selection::new(0, 2), Selection::with_stored_line_position(0, 6, 2), &text));
-    /// assert!(test(Selection::new(6, 4), Selection::new(0, 2), Selection::with_stored_line_position(0, 6, 2), &text));
-    /// assert!(test(Selection::new(6, 4), Selection::new(2, 0), Selection::with_stored_line_position(0, 6, 2), &text));
-    /// assert!(test(Selection::new(4, 6), Selection::new(2, 0), Selection::with_stored_line_position(0, 6, 2), &text));
+    /// assert_eq!(Selection::new(0, 2).merge(&Selection::new(4, 6), &text), Selection::with_stored_line_position(0, 6, 2));
+    /// assert_eq!(Selection::new(2, 0).merge(&Selection::new(4, 6), &text), Selection::with_stored_line_position(0, 6, 2));
+    /// assert_eq!(Selection::new(2, 0).merge(&Selection::new(6, 4), &text), Selection::with_stored_line_position(0, 6, 2));
+    /// assert_eq!(Selection::new(0, 2).merge(&Selection::new(6, 4), &text), Selection::with_stored_line_position(0, 6, 2));
+    /// assert_eq!(Selection::new(4, 6).merge(&Selection::new(0, 2), &text), Selection::with_stored_line_position(0, 6, 2));
+    /// assert_eq!(Selection::new(6, 4).merge(&Selection::new(0, 2), &text), Selection::with_stored_line_position(0, 6, 2));
+    /// assert_eq!(Selection::new(6, 4).merge(&Selection::new(2, 0), &text), Selection::with_stored_line_position(0, 6, 2));
+    /// assert_eq!(Selection::new(4, 6).merge(&Selection::new(2, 0), &text), Selection::with_stored_line_position(0, 6, 2));
     /// ```
     pub fn merge(&self, other: &Selection, text: &Rope) -> Selection{
         let anchor = self.start().min(other.start());
@@ -346,23 +318,17 @@ impl Selection{
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
-    /// fn test(selection: Selection, expected: usize, semantics: CursorSemantics) -> bool{
-    ///     let result = selection.cursor(semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, result);
-    ///     result == expected
-    /// }
-    /// 
     /// let text = Rope::from("idk\nsome\nshit\n");
     /// 
     /// // key:
-    /// // anchor             = [
-    /// // head               = ]
+    /// // anchor             = |
+    /// // head               = > if forward, < if backward
     /// // block_virtual_head = :
     /// 
-    /// assert!(test(Selection::new(0, 0), 0, CursorSemantics::Bar));    //[]idk\nsome\nshit\n      //|>idk\nsome\nshit\n
-    /// assert!(test(Selection::new(1, 2), 1, CursorSemantics::Block));    //i[:d]k\nsome\nshit\n   //i|:d>k\nsome\nshit\n
-    /// assert!(test(Selection::new(2, 1), 1, CursorSemantics::Block));    //i:]d[k\nsome\nshit\n   //i:<d|k\nsome\nshit\n
-    /// assert!(test(Selection::new(2, 2), 1, CursorSemantics::Block));    //i:d][k\nsome\nshit\n   //i:d<|k\nsome\nshit\n  //though this state should be impossible with block cursor semantics
+    /// assert_eq!(Selection::new(0, 0).cursor(CursorSemantics::Bar), 0);   //|>idk\nsome\nshit\n
+    /// assert_eq!(Selection::new(1, 2).cursor(CursorSemantics::Block), 1); //i|:d>k\nsome\nshit\n
+    /// assert_eq!(Selection::new(2, 1).cursor(CursorSemantics::Block), 1); //i:<d|k\nsome\nshit\n
+    /// assert_eq!(Selection::new(2, 2).cursor(CursorSemantics::Block), 1); //i:d|>k\nsome\nshit\n  //though this state should be impossible with block cursor semantics
     /// ```
     pub fn cursor(&self, semantics: CursorSemantics) -> usize{
         match semantics{
@@ -411,8 +377,12 @@ impl Selection{
     /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(0, 14, 0), 14, Movement::Extend, CursorSemantics::Bar));
     /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(14, 15, 0), 14, Movement::Move, CursorSemantics::Block));
     /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(0, 15, 0), 14, Movement::Extend, CursorSemantics::Block));
+    /// 
+    /// // what about when to is > text len
+    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(14, 14, 0), 20, Movement::Move, CursorSemantics::Bar));
     /// ```
     pub fn put_cursor(&mut self, to: usize, text: &Rope, movement: Movement, semantics: CursorSemantics, update_stored_line_position: bool){    //could also just update stored_line_position in calling fn after this call...
+        let to = to.min(text.len_chars());  //ensure destination is not beyond text bounds
         match (semantics, movement){
             (CursorSemantics::Bar, Movement::Move) => {
                 self.anchor = to;
@@ -424,7 +394,7 @@ impl Selection{
                 self.head = to.saturating_add(1).min(text.len_chars().saturating_add(1));   //allowing one more char past text.len_chars() for block cursor
             }
             (CursorSemantics::Block, Movement::Extend) => {
-                let new_anchor = if self.head >= self.anchor && to < self.anchor{
+                let new_anchor = if self.head >= self.anchor && to < self.anchor{   //if direction forward and to < self.anchor
                     if let Some(char_at_cursor) = text.get_char(self.cursor(semantics)){
                         if char_at_cursor == '\n'{
                             self.anchor
@@ -434,7 +404,7 @@ impl Selection{
                     }else{
                         self.anchor.saturating_add(1).min(text.len_chars())
                     }
-                }else if self.head < self.anchor && to >= self.anchor{
+                }else if self.head < self.anchor && to >= self.anchor{  //if direction backward and to >= self.anchor
                     self.anchor.saturating_sub(1)
                 }else{
                     self.anchor
@@ -1291,15 +1261,10 @@ impl Selection{
     /// 
     /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(0, 14, 0), CursorSemantics::Bar));
     /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(0, 15, 0), CursorSemantics::Block));
-    /// //assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(0, 14, 4), CursorSemantics::Block));
     /// ```
     pub fn select_all(&mut self, text: &Rope, semantics: CursorSemantics){
         self.put_cursor(0, &text, Movement::Move, semantics, true);
         self.put_cursor(text.len_chars(), &text, Movement::Extend, semantics, true);
-        //match semantics{    //needed to handle overextension of block cursor at end of text
-        //    CursorSemantics::Bar => self.put_cursor(text.len_chars(), &text, Movement::Extend, semantics, true),
-        //    CursorSemantics::Block => self.put_cursor(text.len_chars().saturating_sub(1), &text, Movement::Extend, semantics, true),
-        //}
     }
 
     /// Translates a [Selection] to a [Selection2d]
@@ -1308,37 +1273,31 @@ impl Selection{
     /// # use edit_core::selection::{Selection, Selection2d, CursorSemantics};
     /// # use edit_core::Position;
     /// 
-    /// fn test(selection: Selection, expected: Selection2d, text: &Rope, semantics: CursorSemantics) -> bool{
-    ///     let result = selection.selection_to_selection2d(text, semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, result);
-    ///     result == expected
-    /// }
-    /// 
     /// let text = Rope::from("idk\nsomething");
     /// 
     /// // when selection head/anchor same, and on same line
     /// //id[]k
     /// //something
-    /// assert!(test(Selection::new(2, 2), Selection2d::new(Position::new(2, 0), Position::new(2, 0)), &text, CursorSemantics::Bar)); //id[]k\nsomething
-    /// assert!(test(Selection::new(2, 3), Selection2d::new(Position::new(2, 0), Position::new(2, 0)), &text, CursorSemantics::Block));
+    /// assert_eq!(Selection::new(2, 2).selection_to_selection2d(&text, CursorSemantics::Bar), Selection2d::new(Position::new(2, 0), Position::new(2, 0))); //id[]k\nsomething
+    /// assert_eq!(Selection::new(2, 3).selection_to_selection2d(&text, CursorSemantics::Block), Selection2d::new(Position::new(2, 0), Position::new(2, 0)));
     /// 
     /// // when selection head/anchor different, but on same line
     /// //i[d]k
     /// //something
-    /// assert!(test(Selection::new(1, 2), Selection2d::new(Position::new(2, 0), Position::new(1, 0)), &text, CursorSemantics::Bar)); //i[d]k\nsomething
-    /// assert!(test(Selection::new(1, 3), Selection2d::new(Position::new(2, 0), Position::new(1, 0)), &text, CursorSemantics::Block));
+    /// assert_eq!(Selection::new(1, 2).selection_to_selection2d(&text, CursorSemantics::Bar), Selection2d::new(Position::new(2, 0), Position::new(1, 0))); //i[d]k\nsomething
+    /// assert_eq!(Selection::new(1, 3).selection_to_selection2d(&text, CursorSemantics::Block), Selection2d::new(Position::new(2, 0), Position::new(1, 0)));
     /// 
     /// // when selection head/anchor same, but on new line
     /// //idk
     /// //[]something
-    /// assert!(test(Selection::new(4, 4), Selection2d::new(Position::new(0, 1), Position::new(0, 1)), &text, CursorSemantics::Bar)); //idk\n[]something
-    /// assert!(test(Selection::new(4, 5), Selection2d::new(Position::new(0, 1), Position::new(0, 1)), &text, CursorSemantics::Block));
+    /// assert_eq!(Selection::new(4, 4).selection_to_selection2d(&text, CursorSemantics::Bar), Selection2d::new(Position::new(0, 1), Position::new(0, 1))); //idk\n[]something
+    /// assert_eq!(Selection::new(4, 5).selection_to_selection2d(&text, CursorSemantics::Block), Selection2d::new(Position::new(0, 1), Position::new(0, 1)));
     /// 
     /// // when selection head/anchor different, and on different lines
     /// //id[k
     /// //s]omething
-    /// assert!(test(Selection::new(2, 5), Selection2d::new(Position::new(1, 1), Position::new(2, 0)), &text, CursorSemantics::Bar)); //id[k\ns]omething
-    /// assert!(test(Selection::new(2, 6), Selection2d::new(Position::new(1, 1), Position::new(2, 0)), &text, CursorSemantics::Block));
+    /// assert_eq!(Selection::new(2, 5).selection_to_selection2d(&text, CursorSemantics::Bar), Selection2d::new(Position::new(1, 1), Position::new(2, 0))); //id[k\ns]omething
+    /// assert_eq!(Selection::new(2, 6).selection_to_selection2d(&text, CursorSemantics::Block), Selection2d::new(Position::new(1, 1), Position::new(2, 0)));
     /// ```
     pub fn selection_to_selection2d(&self, text: &Rope, semantics: CursorSemantics) -> Selection2d{
         let line_number_head = text.char_to_line(self.cursor(semantics));
