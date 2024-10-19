@@ -57,8 +57,8 @@ impl View{
     }
 
     pub fn scroll_following_cursor(&mut self, selections: &Selections, text: &Rope, semantics: CursorSemantics) -> bool{
-        // following last cursor pushed to cursors vec
-        let cursor = selections.last().clone().selection_to_selection2d(text, semantics);
+        // follow primary cursor
+        let cursor = selections.primary().clone().selection_to_selection2d(text, semantics);
 
         let mut should_update_client_view = false;
 
@@ -113,6 +113,14 @@ impl View{
 
         client_view_line_numbers
     }
+
+    /*
+    pub fn selections(&self) -> 2dSelections?{
+        for all selections in view,
+        return selection with start position, end position, and cursor position
+    }
+    */
+
     /// Returns cursor positions if they are within view.
     /// ```
     /// # use ropey::Rope;

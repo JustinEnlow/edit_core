@@ -219,8 +219,8 @@ impl Document{
     ///     let text = Rope::from("idk\nsome\nshit\n");
     ///     let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![selection], 0, &text));
     ///     doc.cut(semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\nexpected_position: {:#?}\ngot: {:#?}\n", expected, doc.text().clone(), expected_selection, doc.selections().first().clone());
-    ///     doc.text().clone() == expected && doc.selections().first().clone() == expected_selection
+    ///     println!("expected: {:#?}\ngot: {:#?}\nexpected_position: {:#?}\ngot: {:#?}\n", expected, doc.text().clone(), expected_selection, doc.selections().primary().clone());
+    ///     doc.text().clone() == expected && doc.selections().primary().clone() == expected_selection
     /// 
     ///     //TODO: ensure clipboard text is correct as well
     /// }
@@ -231,7 +231,7 @@ impl Document{
     pub fn cut(&mut self, semantics: CursorSemantics){  //-> Result<(), Error>  if multiple selections
         // if multiple selections, trigger warning  //prob to be done in client code
         //assert!(single selection)
-        let selection = self.selections.first_mut();
+        let selection = self.selections.primary_mut();
         self.clipboard = self.text.slice(selection.start()..selection.end()).to_string();
         // remove from text
         (self.text, *selection) = Document::delete_at_cursor(selection.clone(), &self.text.clone(), semantics);
@@ -258,7 +258,7 @@ impl Document{
     pub fn copy(&mut self){ //-> Result<(), Error>  if multiple selections
         // if multiple selections, trigger warning  //prob to be done in client code
         //assert!(single selection)
-        let selection = self.selections.first().clone();
+        let selection = self.selections.primary().clone();
         self.clipboard = self.text.slice(selection.start()..selection.end()).to_string();
     }
     /// Insert clipboard contents at cursor position(s).
@@ -271,8 +271,8 @@ impl Document{
     ///     let text = Rope::from("idk\nsome\nshit\n");
     ///     let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![selection], 0, &text)).with_clipboard(string.to_string());
     ///     doc.paste(semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\nexpected_position: {:#?}\ngot: {:#?}\n", expected, doc.text().clone(), expected_selection, doc.selections().first().clone());
-    ///     doc.text().clone() == expected && doc.selections().first().clone() == expected_selection
+    ///     println!("expected: {:#?}\ngot: {:#?}\nexpected_position: {:#?}\ngot: {:#?}\n", expected, doc.text().clone(), expected_selection, doc.selections().primary().clone());
+    ///     doc.text().clone() == expected && doc.selections().primary().clone() == expected_selection
     /// }
     /// 
     /// assert!(test(Selection::new(9, 9), "other\n", Rope::from("idk\nsome\nother\nshit\n"), Selection::with_stored_line_position(15, 15, 0), CursorSemantics::Bar));
@@ -400,9 +400,9 @@ impl Document{
     ///     let text = Rope::from("idk\nsome\nshit\n");
     ///     let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![selection], 0, &text));
     ///     doc.delete(semantics);
-    ///     println!("{:#?}\n{:#?}\nexpected_text {:#?}\ngot: {:#?}\nexpected_selection: {:#?}\ngot: {:#?}\n", name, semantics, expected_text, doc.text().clone(), expected_selection, doc.selections().first().clone());
+    ///     println!("{:#?}\n{:#?}\nexpected_text {:#?}\ngot: {:#?}\nexpected_selection: {:#?}\ngot: {:#?}\n", name, semantics, expected_text, doc.text().clone(), expected_selection, doc.selections().primary().clone());
     ///     doc.text().clone() == expected_text &&
-    ///     doc.selections().first().clone() == expected_selection
+    ///     doc.selections().primary().clone() == expected_selection
     /// }
     /// 
     /// // will not delete past end of doc
@@ -608,7 +608,7 @@ impl Document{
     /// let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![selection], 0, &text));
     /// doc.backspace(semantics);
     /// assert!(doc.text().clone() == Rope::from("idk\nsome\nshit\n"));
-    /// assert!(doc.selections().first().clone() == Selection::with_stored_line_position(0, match semantics{CursorSemantics::Bar => 0, CursorSemantics::Block => 1}, 0));
+    /// assert!(doc.selections().primary().clone() == Selection::with_stored_line_position(0, match semantics{CursorSemantics::Bar => 0, CursorSemantics::Block => 1}, 0));
     /// ```
     pub fn backspace(&mut self, semantics: CursorSemantics){
         for selection in self.selections.iter_mut().rev(){

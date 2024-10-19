@@ -345,6 +345,7 @@ impl Selection{
 
     /// Moves cursor to specified char offset in rope.
     /// Will shift anchor/head positions to accommodate Bar/Block cursor semantics.
+    /// Caller should ensure to <= text.len_chars()
     ///```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, Movement, CursorSemantics};
@@ -382,6 +383,7 @@ impl Selection{
     /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(14, 14, 0), 20, Movement::Move, CursorSemantics::Bar));
     /// ```
     pub fn put_cursor(&mut self, to: usize, text: &Rope, movement: Movement, semantics: CursorSemantics, update_stored_line_position: bool){    //could also just update stored_line_position in calling fn after this call...
+        //assert!(to <= text.len_chars());
         let to = to.min(text.len_chars());  //ensure destination is not beyond text bounds
         match (semantics, movement){
             (CursorSemantics::Bar, Movement::Move) => {
@@ -525,6 +527,7 @@ impl Selection{
     }
 
     /// Moves cursor to specified line number.
+    /// Caller should ensure line number > 0 and line number < (text line count - 1).
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, Movement, CursorSemantics};
@@ -562,6 +565,8 @@ impl Selection{
     /// assert!(test(Selection::new(19, 20), Selection::with_stored_line_position(14, 15, 0), 2, Movement::Move, CursorSemantics::Block));
     /// ```
     pub fn set_from_line_number(&mut self, line_number: usize, text: &Rope, movement: Movement, semantics: CursorSemantics){
+        //assert!(line_number < text.len_lines().saturating_sub(1));
+        //assert!(line_number > 0);
         let line_number = line_number.min(text.len_lines().saturating_sub(1));  //restrict line_number to doc length(-1 because len_lines is 1 based)
         let current_line = text.char_to_line(self.cursor(semantics));
         
@@ -1404,6 +1409,9 @@ impl Selections{
 
         selections
     }
+    pub fn count(&self) -> usize{
+        self.selections.len()
+    }
     pub fn primary_selection_index(&self) -> usize{
         self.primary_selection_index
     }
@@ -1423,9 +1431,6 @@ impl Selections{
     }
 
     /// Prepends a [Selection] to the front of [Self], and assigns 0 to self.primary_selection_index
-    /// 
-    /// # Examples
-    /// 
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, Selections};
@@ -1442,9 +1447,6 @@ impl Selections{
     }
     
     /// Appends a [Selection] to the back of [Self], and assigns its index to self.primary_selection_index
-    /// 
-    /// # Examples
-    /// 
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, Selections};
@@ -1465,16 +1467,90 @@ impl Selections{
     pub fn primary(&self) -> &Selection{
         &self.selections[self.primary_selection_index]
     }
-    pub fn first(&self) -> &Selection{
-        // unwrapping because we ensure at least one selection is always present
-        self.selections.first().unwrap()
+    pub fn primary_mut(&mut self) -> &mut Selection{
+        &mut self.selections[self.primary_selection_index]
     }
-    pub fn first_mut(&mut self) -> &mut Selection{
-        self.selections.first_mut().unwrap()
+    //pub fn first(&self) -> &Selection{
+    //    // unwrapping because we ensure at least one selection is always present
+    //    self.selections.first().unwrap()
+    //}
+    //pub fn first_mut(&mut self) -> &mut Selection{
+    //    self.selections.first_mut().unwrap()
+    //}
+    //pub fn last(&self) -> &Selection{
+    //    // unwrapping because we ensure at least one selection is always present
+    //    self.selections.last().unwrap()
+    //}
+
+    /// Increments the primary selection index.
+    /// Caller should ensure [Selections] contains more than 1 [Selection].
+    /// ```
+    /// # use ropey::Rope;
+    /// # use edit_core::selection::{Selection, Selections};
+    /// 
+    /// let text = Rope::from("idk\nsome\nshit\n");
+    /// 
+    /// // increments
+    /// let mut selections = Selections::new(vec![Selection::new(0, 0), Selection::new(1, 1)], 0, &text);
+    /// selections.increment_primary_selection();
+    /// assert_eq!(selections.primary_selection_index(), 1);
+    /// 
+    /// // wraps on last selection
+    /// let mut selections = Selections::new(vec![Selection::new(0, 0), Selection::new(1, 1)], 1, &text);
+    /// selections.increment_primary_selection();
+    /// assert_eq!(selections.primary_selection_index(), 0);
+    /// ```
+    /// 
+    /// ```should_panic
+    /// # use ropey::Rope;
+    /// # use edit_core::selection::{Selection, Selections};
+    /// 
+    /// // should panic
+    /// # let text = Rope::from("idk\nsome\nshit\n");
+    /// Selections::new(vec![Selection::new(0, 0)], 0, &text).increment_primary_selection();
+    /// ```
+    pub fn increment_primary_selection(&mut self){  //-> Selections
+        assert!(self.selections.len() > 1);
+        if self.primary_selection_index.saturating_add(1) < self.selections.len(){
+            self.primary_selection_index += 1;
+        }else{
+            self.primary_selection_index = 0;
+        }
     }
-    pub fn last(&self) -> &Selection{
-        // unwrapping because we ensure at least one selection is always present
-        self.selections.last().unwrap()
+    /// Decrements the primary selection index.
+    /// Caller should ensure [Selections] contains more than 1 [Selection].
+    /// ```
+    /// # use ropey::Rope;
+    /// # use edit_core::selection::{Selection, Selections};
+    /// 
+    /// let text = Rope::from("idk\nsome\nshit\n");
+    /// 
+    /// // decrements
+    /// let mut selections = Selections::new(vec![Selection::new(0, 0), Selection::new(1, 1)], 1, &text);
+    /// selections.decrement_primary_selection();
+    /// assert_eq!(selections.primary_selection_index(), 0);
+    /// 
+    /// // wraps on first selection
+    /// let mut selections = Selections::new(vec![Selection::new(0, 0), Selection::new(1, 1)], 0, &text);
+    /// selections.decrement_primary_selection();
+    /// assert_eq!(selections.primary_selection_index(), 1);
+    /// ```
+    /// 
+    /// ```should_panic
+    /// # use ropey::Rope;
+    /// # use edit_core::selection::{Selection, Selections};
+    /// 
+    /// // should panic
+    /// # let text = Rope::from("idk\nsome\nshit\n");
+    /// Selections::new(vec![Selection::new(0, 0)], 0, &text).decrement_primary_selection();
+    /// ```
+    pub fn decrement_primary_selection(&mut self){  //-> Selections
+        assert!(self.selections.len() > 1);
+        if self.primary_selection_index() > 0{
+            self.primary_selection_index -= 1;
+        }else{
+            self.primary_selection_index = self.selections.len().saturating_sub(1);
+        }
     }
 
     /// Sorts each [Selection] in [Selections] by position.
@@ -1565,19 +1641,29 @@ impl Selections{
     }
 
     /// Removes all selections except Selection at primary_selection_index
-    /// #### Invariants:
-    /// - selections holds single selection
-    /// # Example
+    /// Caller should ensure [Selections] has more than 1 [Selection].
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, Selections};
     /// 
     /// let text = Rope::from("idk\nsome\nshit\n");
+    /// 
+    /// // normal use
     /// let mut selections = Selections::new(vec![Selection::new(0, 0), Selection::new(4, 4)], 1, &text);
     /// selections.clear_non_primary_selections();
     /// assert!(selections == Selections::new(vec![Selection::new(4, 4)], 0, &text));
     /// ```
+    /// 
+    /// ```should_panic
+    /// # use ropey::Rope;
+    /// # use edit_core::selection::{Selection, Selections};
+    /// 
+    /// // should panic
+    /// # let text = Rope::from("idk\nsome\nshit\n");
+    /// Selections::new(vec![Selection::new(0, 0)], 0, &text).clear_non_primary_selections();
+    /// ```
     pub fn clear_non_primary_selections(&mut self){
+        assert!(self.selections.len() > 1);
         self.selections = vec![self.selections[self.primary_selection_index].clone()];
         self.primary_selection_index = 0;
     }
@@ -1585,7 +1671,7 @@ impl Selections{
     //TODO: return head and anchor positions
     //TODO: return Vec<Position> document cursor positions
     pub fn cursor_positions(&self, text: &Rope, semantics: CursorSemantics) -> Position{
-        let cursor = self.last();
+        let cursor = self.primary();
         let document_cursor = cursor.selection_to_selection2d(text, semantics);
         
         Position::new(
