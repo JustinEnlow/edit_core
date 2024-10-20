@@ -295,7 +295,7 @@ impl Document{
         }
         new_text.insert(selection.cursor(semantics), string);
         for _ in 0..string.len(){
-            selection.move_right(&new_text, semantics);
+            selection = selection.move_right(&new_text, semantics);
         }
 
         (selection, new_text)
@@ -447,7 +447,7 @@ impl Document{
                 //i<dk|\nsome\nshit\n   //i|>\nsome\nshit\n
                 //i<dk|\nsome\nshit\n   //i|:\n>some\nshit\n
                 new_text.remove(selection.head()..selection.anchor());
-                selection.put_cursor(selection.cursor(semantics), text, Movement::Move, semantics, true);
+                selection = selection.put_cursor(selection.cursor(semantics), text, Movement::Move, semantics, true);
             }
             Ordering::Greater => {  //cursor > anchor
                 match semantics{
@@ -455,7 +455,7 @@ impl Document{
                         //|id>k\nsome\nshit\n   //|>k\nsome\nshit\n
                         //|idk\nsome\nshit\n>   //|>
                         new_text.remove(selection.anchor()..selection.head());
-                        selection.put_cursor(selection.anchor(), text, Movement::Move, semantics, true);
+                        selection = selection.put_cursor(selection.anchor(), text, Movement::Move, semantics, true);
                     }
                     CursorSemantics::Block => {
                         //|idk\nsome\nshit\n: > //|: >
@@ -466,7 +466,7 @@ impl Document{
                         else{
                             new_text.remove(selection.anchor()..selection.head());
                         }
-                        selection.put_cursor(selection.anchor(), text, Movement::Move, semantics, true);
+                        selection = selection.put_cursor(selection.anchor(), text, Movement::Move, semantics, true);
                     }
                 }
             }
@@ -485,7 +485,7 @@ impl Document{
                             new_text.remove(selection.anchor()..selection.head());
                         }
                     }
-                    selection.put_cursor(selection.anchor(), text, Movement::Move, semantics, true);
+                    selection = selection.put_cursor(selection.anchor(), text, Movement::Move, semantics, true);
                 }
             }
         }
@@ -631,7 +631,7 @@ impl Document{
             }else{
                 if is_deletable_soft_tab{
                     for _ in 0..TAB_WIDTH{
-                        selection.move_left(&self.text, semantics);
+                        *selection = selection.move_left(&self.text, semantics);
                         (self.text, *selection) = Document::delete_at_cursor(
                             selection.clone(), 
                             &self.text,
@@ -640,7 +640,7 @@ impl Document{
                     }
                 }
                 else if selection.cursor(semantics) > 0{
-                    selection.move_left(&self.text, semantics);
+                    *selection = selection.move_left(&self.text, semantics);
                     (self.text, *selection) = Document::delete_at_cursor(
                         selection.clone(), 
                         &self.text,

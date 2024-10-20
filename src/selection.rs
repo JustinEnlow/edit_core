@@ -48,41 +48,31 @@ impl Selection{
     pub fn with_stored_line_position(anchor: usize, head: usize, stored_line_position: usize) -> Self{
         Self{anchor, head, stored_line_position: Some(stored_line_position)}
     }
+    /// Returns the char index of [Selection] anchor.
     pub fn anchor(&self) -> usize{
         self.anchor
     }
+    /// Returns the char index of [Selection] head.
     pub fn head(&self) -> usize{
         self.head
     }
 
-    /// Start of the [Selection] from left to right.
+    /// Returns the char index of the start of the [Selection] from left to right.
     /// ```
     /// # use edit_core::selection::Selection;
     /// 
-    /// fn test(selection: Selection, expected: usize) -> bool{
-    ///     let result = selection.start();
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, result);
-    ///     result == expected
-    /// }
-    /// 
-    /// assert!(test(Selection::new(0, 4), 0));
-    /// assert!(test(Selection::new(4, 0), 0));
+    /// assert_eq!(0, Selection::new(0, 4).start());
+    /// assert_eq!(0, Selection::new(4, 0).start());
     /// ```
     pub fn start(&self) -> usize{
         std::cmp::min(self.anchor, self.head)
     }
-    /// End of the [Selection] from left to right.
+    /// Returns the char index of the end of the [Selection] from left to right.
     /// ```
     /// # use edit_core::selection::Selection;
     /// 
-    /// fn test(selection: Selection, expected: usize) -> bool{
-    ///     let result = selection.end();
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, result);
-    ///     result == expected
-    /// }
-    /// 
-    /// assert!(test(Selection::new(0, 4), 4));
-    /// assert!(test(Selection::new(4, 0), 4));
+    /// assert_eq!(4, Selection::new(0, 4).end());
+    /// assert_eq!(4, Selection::new(4, 0).end());
     /// ```
     pub fn end(&self) -> usize{
         std::cmp::max(self.anchor, self.head)
@@ -135,39 +125,33 @@ impl Selection{
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, Direction, CursorSemantics};
     /// 
-    /// fn test(mut selection: Selection, expected: Selection, direction: Direction, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("idk\nsome\nshit\n");
-    ///     selection.set_direction(direction, &text, semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, selection);
-    ///     selection == expected
-    /// }
+    /// let text = Rope::from("idk\nsome\nshit\n");
     /// 
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(0, 0, 0), Direction::Forward, CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(0, 0, 0), Direction::Backward, CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 5), Selection::with_stored_line_position(5, 0, 0), Direction::Backward, CursorSemantics::Bar));
-    /// assert!(test(Selection::new(5, 0), Selection::with_stored_line_position(0, 5, 1), Direction::Forward, CursorSemantics::Bar));
+    /// assert_eq!(Selection::new(0, 0).set_direction(Direction::Forward, &text, CursorSemantics::Bar), Selection::with_stored_line_position(0, 0, 0));
+    /// assert_eq!(Selection::new(0, 0).set_direction(Direction::Backward, &text, CursorSemantics::Bar), Selection::with_stored_line_position(0, 0, 0));
+    /// assert_eq!(Selection::new(0, 5).set_direction(Direction::Backward, &text, CursorSemantics::Bar), Selection::with_stored_line_position(5, 0, 0));
+    /// assert_eq!(Selection::new(5, 0).set_direction(Direction::Forward, &text, CursorSemantics::Bar), Selection::with_stored_line_position(0, 5, 1));
     /// 
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(1, 0, 0), Direction::Backward, CursorSemantics::Block));
-    /// assert!(test(Selection::new(1, 0), Selection::with_stored_line_position(0, 1, 0), Direction::Forward, CursorSemantics::Block));
-    /// assert!(test(Selection::new(0, 5), Selection::with_stored_line_position(5, 0, 0), Direction::Backward, CursorSemantics::Block));
-    /// assert!(test(Selection::new(5, 0), Selection::with_stored_line_position(0, 5, 0), Direction::Forward, CursorSemantics::Block));
+    /// assert_eq!(Selection::new(0, 1).set_direction(Direction::Backward, &text, CursorSemantics::Block), Selection::with_stored_line_position(1, 0, 0));
+    /// assert_eq!(Selection::new(1, 0).set_direction(Direction::Forward, &text, CursorSemantics::Block), Selection::with_stored_line_position(0, 1, 0));
+    /// assert_eq!(Selection::new(0, 5).set_direction(Direction::Backward, &text, CursorSemantics::Block), Selection::with_stored_line_position(5, 0, 0));
+    /// assert_eq!(Selection::new(5, 0).set_direction(Direction::Forward, &text, CursorSemantics::Block), Selection::with_stored_line_position(0, 5, 0));
     /// ```
-    pub fn set_direction(&mut self, direction: Direction, text: &Rope, semantics: CursorSemantics){
+    pub fn set_direction(&self, direction: Direction, text: &Rope, semantics: CursorSemantics) -> Self{
+        let mut selection = Selection::new(0, 0);   //or self.clone(); test which is faster...
         match direction{
             Direction::Forward => {
-                let new_anchor = self.start();
-                let new_head = self.end();
-                self.anchor = new_anchor;
-                self.head = new_head;
+                selection.anchor = self.start();
+                selection.head = self.end();
             }
             Direction::Backward => {
-                let new_anchor = self.end();
-                let new_head = self.start();
-                self.anchor = new_anchor;
-                self.head = new_head;
+                selection.anchor = self.end();
+                selection.head = self.start();
             }
         }
-        self.stored_line_position = Some(text_util::offset_from_line_start(self.cursor(semantics), text));
+        selection.stored_line_position = Some(text_util::offset_from_line_start(selection.cursor(semantics), text));
+
+        selection
     }
 
     /// Checks self and other for overlap.
@@ -312,7 +296,7 @@ impl Selection{
 
     /////////////////////////////////// Block Cursor Methods ///////////////////////////////////
     
-    /// Returns the char offset of the cursor.
+    /// Returns the char index of [Selection] cursor.
     /// left side of cursor if block cursor semantics
     /// ```
     /// # use ropey::Rope;
@@ -343,57 +327,58 @@ impl Selection{
         }
     }
 
-    /// Moves cursor to specified char offset in rope.
+    /// Moves cursor to specified char index in rope.
     /// Will shift anchor/head positions to accommodate Bar/Block cursor semantics.
     /// Caller should ensure to <= text.len_chars()
     ///```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, Movement, CursorSemantics};
     /// 
-    /// fn test(mut selection: Selection, expected: Selection, to: usize, movement: Movement, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("idk\nsome\nshit\n");
-    ///     selection.put_cursor(to, &text, movement, semantics, true);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, selection);
-    ///     selection == expected
-    /// }
+    /// let text = Rope::from("idk\nsome\nshit\n");
     /// 
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(5, 5, 1), 5, Movement::Move, CursorSemantics::Bar));
-    /// assert!(test(Selection::new(5, 5), Selection::with_stored_line_position(0, 0, 0), 0, Movement::Move, CursorSemantics::Bar));
+    /// assert_eq!(Selection::new(0, 0).put_cursor(5, &text, Movement::Move, CursorSemantics::Bar, true), Selection::with_stored_line_position(5, 5, 1));
+    /// assert_eq!(Selection::new(5, 5).put_cursor(0, &text, Movement::Move, CursorSemantics::Bar, true), Selection::with_stored_line_position(0, 0, 0));
     /// 
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(0, 5, 1), 5, Movement::Extend, CursorSemantics::Bar));
-    /// assert!(test(Selection::new(5, 5), Selection::with_stored_line_position(5, 0, 0), 0, Movement::Extend, CursorSemantics::Bar));
+    /// assert_eq!(Selection::new(0, 0).put_cursor(5, &text, Movement::Extend, CursorSemantics::Bar, true), Selection::with_stored_line_position(0, 5, 1));
+    /// assert_eq!(Selection::new(5, 5).put_cursor(0, &text, Movement::Extend, CursorSemantics::Bar, true), Selection::with_stored_line_position(5, 0, 0));
     /// 
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(5, 6, 1), 5, Movement::Move, CursorSemantics::Block));
-    /// assert!(test(Selection::new(1, 0), Selection::with_stored_line_position(5, 6, 1), 5, Movement::Move, CursorSemantics::Block));
-    /// assert!(test(Selection::new(5, 6), Selection::with_stored_line_position(0, 1, 0), 0, Movement::Move, CursorSemantics::Block));
-    /// assert!(test(Selection::new(6, 5), Selection::with_stored_line_position(0, 1, 0), 0, Movement::Move, CursorSemantics::Block));
+    /// assert_eq!(Selection::new(0, 1).put_cursor(5, &text, Movement::Move, CursorSemantics::Block, true), Selection::with_stored_line_position(5, 6, 1));
+    /// assert_eq!(Selection::new(1, 0).put_cursor(5, &text, Movement::Move, CursorSemantics::Block, true), Selection::with_stored_line_position(5, 6, 1));
+    /// assert_eq!(Selection::new(5, 6).put_cursor(0, &text, Movement::Move, CursorSemantics::Block, true), Selection::with_stored_line_position(0, 1, 0));
+    /// assert_eq!(Selection::new(6, 5).put_cursor(0, &text, Movement::Move, CursorSemantics::Block, true), Selection::with_stored_line_position(0, 1, 0));
     /// 
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(0, 6, 1), 5, Movement::Extend, CursorSemantics::Block));
-    /// assert!(test(Selection::new(1, 0), Selection::with_stored_line_position(0, 6, 1), 5, Movement::Extend, CursorSemantics::Block));
-    /// assert!(test(Selection::new(5, 6), Selection::with_stored_line_position(6, 0, 0), 0, Movement::Extend, CursorSemantics::Block));
-    /// assert!(test(Selection::new(6, 5), Selection::with_stored_line_position(6, 0, 0), 0, Movement::Extend, CursorSemantics::Block));
+    /// assert_eq!(Selection::new(0, 1).put_cursor(5, &text, Movement::Extend, CursorSemantics::Block, true), Selection::with_stored_line_position(0, 6, 1));
+    /// assert_eq!(Selection::new(1, 0).put_cursor(5, &text, Movement::Extend, CursorSemantics::Block, true), Selection::with_stored_line_position(0, 6, 1));
+    /// assert_eq!(Selection::new(5, 6).put_cursor(0, &text, Movement::Extend, CursorSemantics::Block, true), Selection::with_stored_line_position(6, 0, 0));
+    /// assert_eq!(Selection::new(6, 5).put_cursor(0, &text, Movement::Extend, CursorSemantics::Block, true), Selection::with_stored_line_position(6, 0, 0));
     /// 
     /// // test putting cursor at end of text
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(14, 14, 0), 14, Movement::Move, CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(0, 14, 0), 14, Movement::Extend, CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(14, 15, 0), 14, Movement::Move, CursorSemantics::Block));
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(0, 15, 0), 14, Movement::Extend, CursorSemantics::Block));
-    /// 
-    /// // what about when to is > text len
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(14, 14, 0), 20, Movement::Move, CursorSemantics::Bar));
+    /// assert_eq!(Selection::new(0, 0).put_cursor(14, &text, Movement::Move, CursorSemantics::Bar, true), Selection::with_stored_line_position(14, 14, 0));
+    /// assert_eq!(Selection::new(0, 0).put_cursor(14, &text, Movement::Extend, CursorSemantics::Bar, true), Selection::with_stored_line_position(0, 14, 0));
+    /// assert_eq!(Selection::new(0, 1).put_cursor(14, &text, Movement::Move, CursorSemantics::Block, true), Selection::with_stored_line_position(14, 15, 0));
+    /// assert_eq!(Selection::new(0, 1).put_cursor(14, &text, Movement::Extend, CursorSemantics::Block, true), Selection::with_stored_line_position(0, 15, 0));
     /// ```
-    pub fn put_cursor(&mut self, to: usize, text: &Rope, movement: Movement, semantics: CursorSemantics, update_stored_line_position: bool){    //could also just update stored_line_position in calling fn after this call...
-        //assert!(to <= text.len_chars());
-        let to = to.min(text.len_chars());  //ensure destination is not beyond text bounds
+    /// 
+    /// ```should_panic
+    /// # use ropey::Rope;
+    /// # use edit_core::selection::{Selection, Movement, CursorSemantics};
+    /// 
+    /// // should panic if greater than text len
+    /// # let text = Rope::from("idk\nsome\nshit\n");
+    /// Selection::new(0, 0).put_cursor(15, &text, Movement::Move, CursorSemantics::Block, true);
+    /// ```
+    pub fn put_cursor(&self, to: usize, text: &Rope, movement: Movement, semantics: CursorSemantics, update_stored_line_position: bool) -> Self{
+        assert!(to <= text.len_chars());
+        let mut selection = self.clone();
         match (semantics, movement){
             (CursorSemantics::Bar, Movement::Move) => {
-                self.anchor = to;
-                self.head = to;
+                selection.anchor = to;
+                selection.head = to;
             }
-            (CursorSemantics::Bar, Movement::Extend) => self.head = to,
+            (CursorSemantics::Bar, Movement::Extend) => selection.head = to,
             (CursorSemantics::Block, Movement::Move) => {
-                self.anchor = to;
-                self.head = to.saturating_add(1).min(text.len_chars().saturating_add(1));   //allowing one more char past text.len_chars() for block cursor
+                selection.anchor = to;
+                selection.head = to.saturating_add(1).min(text.len_chars().saturating_add(1));   //allowing one more char past text.len_chars() for block cursor
             }
             (CursorSemantics::Block, Movement::Extend) => {
                 let new_anchor = if self.head >= self.anchor && to < self.anchor{   //if direction forward and to < self.anchor
@@ -413,17 +398,19 @@ impl Selection{
                 };
 
                 if new_anchor <= to{
-                    self.anchor = new_anchor;
-                    self.head = to.saturating_add(1).min(text.len_chars().saturating_add(1))    //allowing one more char past text.len_chars() for block cursor
+                    selection.anchor = new_anchor;
+                    selection.head = to.saturating_add(1).min(text.len_chars().saturating_add(1))    //allowing one more char past text.len_chars() for block cursor
                 }else{
-                    self.anchor = new_anchor;
-                    self.head = to;
+                    selection.anchor = new_anchor;
+                    selection.head = to;
                 }
             }
         }
         if update_stored_line_position{
-            self.stored_line_position = Some(text_util::offset_from_line_start(self.cursor(semantics), text));
+            selection.stored_line_position = Some(text_util::offset_from_line_start(selection.cursor(semantics), text));
         }
+
+        selection
     }
 
     /////////////////////////////////// Movement Methods ///////////////////////////////////
@@ -433,35 +420,31 @@ impl Selection{
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, Movement, Direction, CursorSemantics};
     /// 
-    /// fn test(mut selection: Selection, expected: Selection, amount: usize, movement: Movement, direction: Direction, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("idk\nsomething\nelse\n");
-    ///     selection.move_vertically(amount, &text, movement, direction, semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, selection);
-    ///     selection == expected
-    /// }
+    /// let text = Rope::from("idk\nsomething\nelse\n");
     /// 
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(4, 4, 0), 1, Movement::Move, Direction::Forward, CursorSemantics::Bar));
-    /// assert!(test(Selection::new(4, 4), Selection::with_stored_line_position(0, 0, 0), 1, Movement::Move, Direction::Backward, CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(0, 4, 0), 1, Movement::Extend, Direction::Forward, CursorSemantics::Bar));
-    /// assert!(test(Selection::new(4, 4), Selection::with_stored_line_position(4, 0, 0), 1, Movement::Extend, Direction::Backward, CursorSemantics::Bar));
+    /// assert_eq!(Selection::new(0, 0).move_vertically(1, &text, Movement::Move, Direction::Forward, CursorSemantics::Bar), Selection::with_stored_line_position(4, 4, 0));
+    /// assert_eq!(Selection::new(4, 4).move_vertically(1, &text, Movement::Move, Direction::Backward, CursorSemantics::Bar), Selection::with_stored_line_position(0, 0, 0));
+    /// assert_eq!(Selection::new(0, 0).move_vertically(1, &text, Movement::Extend, Direction::Forward, CursorSemantics::Bar), Selection::with_stored_line_position(0, 4, 0));
+    /// assert_eq!(Selection::new(4, 4).move_vertically(1, &text, Movement::Extend, Direction::Backward, CursorSemantics::Bar), Selection::with_stored_line_position(4, 0, 0));
     /// 
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(4, 5, 0), 1, Movement::Move, Direction::Forward, CursorSemantics::Block));
-    /// assert!(test(Selection::new(4, 5), Selection::with_stored_line_position(0, 1, 0), 1, Movement::Move, Direction::Backward, CursorSemantics::Block));
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(0, 5, 0), 1, Movement::Extend, Direction::Forward, CursorSemantics::Block));
-    /// assert!(test(Selection::new(4, 5), Selection::with_stored_line_position(5, 0, 0), 1, Movement::Extend, Direction::Backward, CursorSemantics::Block));
+    /// assert_eq!(Selection::new(0, 1).move_vertically(1, &text, Movement::Move, Direction::Forward, CursorSemantics::Block), Selection::with_stored_line_position(4, 5, 0));
+    /// assert_eq!(Selection::new(4, 5).move_vertically(1, &text, Movement::Move, Direction::Backward, CursorSemantics::Block), Selection::with_stored_line_position(0, 1, 0));
+    /// assert_eq!(Selection::new(0, 1).move_vertically(1, &text, Movement::Extend, Direction::Forward, CursorSemantics::Block), Selection::with_stored_line_position(0, 5, 0));
+    /// assert_eq!(Selection::new(4, 5).move_vertically(1, &text, Movement::Extend, Direction::Backward, CursorSemantics::Block), Selection::with_stored_line_position(5, 0, 0));
     /// 
     /// // handles moving/extending to text bounds correctly
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(19, 19, 0), 19, Movement::Move, Direction::Forward, CursorSemantics::Bar));  //idk\nsomething\nelse\n[]
-    /// assert!(test(Selection::new(19, 19), Selection::with_stored_line_position(0, 0, 0), 19, Movement::Move, Direction::Backward, CursorSemantics::Bar));    //[]idk\nsomething\nelse\n
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(0, 19, 0), 19, Movement::Extend, Direction::Forward, CursorSemantics::Bar));  //idk\nsomething\nelse\n[]
-    /// assert!(test(Selection::new(19, 19), Selection::with_stored_line_position(19, 0, 0), 19, Movement::Extend, Direction::Backward, CursorSemantics::Bar));    //[]idk\nsomething\nelse\n
+    /// assert_eq!(Selection::new(0, 0).move_vertically(19, &text, Movement::Move, Direction::Forward, CursorSemantics::Bar), Selection::with_stored_line_position(19, 19, 0)); //idk\nsomething\nelse\n[]
+    /// assert_eq!(Selection::new(19, 19).move_vertically(19, &text, Movement::Move, Direction::Backward, CursorSemantics::Bar), Selection::with_stored_line_position(0, 0, 0));    //[]idk\nsomething\nelse\n
+    /// assert_eq!(Selection::new(0, 0).move_vertically(19, &text, Movement::Extend, Direction::Forward, CursorSemantics::Bar), Selection::with_stored_line_position(0, 19, 0));    //idk\nsomething\nelse\n[]
+    /// assert_eq!(Selection::new(19, 19).move_vertically(19, &text, Movement::Extend, Direction::Backward, CursorSemantics::Bar), Selection::with_stored_line_position(19, 0, 0)); //[]idk\nsomething\nelse\n
     /// 
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(19, 20, 0), 19, Movement::Move, Direction::Forward, CursorSemantics::Block));   //idk\nsomething\nelse\n|: >    //is this the desired functionality?...
-    /// assert!(test(Selection::new(19, 20), Selection::with_stored_line_position(0, 1, 0), 19, Movement::Move, Direction::Backward, CursorSemantics::Block));
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(0, 20, 0), 19, Movement::Extend, Direction::Forward, CursorSemantics::Block));
-    /// assert!(test(Selection::new(19, 20), Selection::with_stored_line_position(19, 0, 0), 19, Movement::Extend, Direction::Backward, CursorSemantics::Block));
+    /// assert_eq!(Selection::new(0, 1).move_vertically(19, &text, Movement::Move, Direction::Forward, CursorSemantics::Block), Selection::with_stored_line_position(19, 20, 0));   //idk\nsomething\nelse\n|: >    //is this the desired functionality?...
+    /// assert_eq!(Selection::new(19, 20).move_vertically(19, &text, Movement::Move, Direction::Backward, CursorSemantics::Block), Selection::with_stored_line_position(0, 1, 0));
+    /// assert_eq!(Selection::new(0, 1).move_vertically(19, &text, Movement::Extend, Direction::Forward, CursorSemantics::Block), Selection::with_stored_line_position(0, 20, 0));
+    /// assert_eq!(Selection::new(19, 20).move_vertically(19, &text, Movement::Extend, Direction::Backward, CursorSemantics::Block), Selection::with_stored_line_position(19, 0, 0));
     /// ```
-    pub fn move_vertically(&mut self, amount: usize, text: &Rope, movement: Movement, direction: Direction, semantics: CursorSemantics){
+    pub fn move_vertically(&self, amount: usize, text: &Rope, movement: Movement, direction: Direction, semantics: CursorSemantics) -> Self{
+        let mut selection = self.clone();
         let goal_line_number = match direction{
             Direction::Forward => text.char_to_line(self.cursor(semantics)).saturating_add(amount).min(text.len_lines().saturating_sub(1)),
             Direction::Backward => text.char_to_line(self.cursor(semantics)).saturating_sub(amount)
@@ -481,8 +464,8 @@ impl Selection{
             start_of_line + line_width
         };
 
-        self.stored_line_position = Some(stored_line_position);
-        self.put_cursor(new_position, text, movement, semantics, false);
+        selection.stored_line_position = Some(stored_line_position);
+        selection.put_cursor(new_position, text, movement, semantics, false)
     }
 
     /// Moves the cursor horizontally.
@@ -490,84 +473,75 @@ impl Selection{
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, Movement, Direction, CursorSemantics};
     /// 
-    /// fn test(mut selection: Selection, expected: Selection, amount: usize, movement: Movement, direction: Direction, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("idk\nsomething\nelse\n");    //len 19
-    ///     selection.move_horizontally(amount, &text, movement, direction, semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, selection);
-    ///     selection == expected
-    /// }
+    /// let text = Rope::from("idk\nsomething\nelse\n");    //len 19
     /// 
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(1, 1, 1), 1, Movement::Move, Direction::Forward, CursorSemantics::Bar));
-    /// assert!(test(Selection::new(1, 1), Selection::with_stored_line_position(0, 0, 0), 1, Movement::Move, Direction::Backward, CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(0, 1, 1), 1, Movement::Extend, Direction::Forward, CursorSemantics::Bar));
-    /// assert!(test(Selection::new(1, 1), Selection::with_stored_line_position(1, 0, 0), 1, Movement::Extend, Direction::Backward, CursorSemantics::Bar));
+    /// assert_eq!(Selection::new(0, 0).move_horizontally(1, &text, Movement::Move, Direction::Forward, CursorSemantics::Bar), Selection::with_stored_line_position(1, 1, 1));
+    /// assert_eq!(Selection::new(1, 1).move_horizontally(1, &text, Movement::Move, Direction::Backward, CursorSemantics::Bar), Selection::with_stored_line_position(0, 0, 0));
+    /// assert_eq!(Selection::new(0, 0).move_horizontally(1, &text, Movement::Extend, Direction::Forward, CursorSemantics::Bar), Selection::with_stored_line_position(0, 1, 1));
+    /// assert_eq!(Selection::new(1, 1).move_horizontally(1, &text, Movement::Extend, Direction::Backward, CursorSemantics::Bar), Selection::with_stored_line_position(1, 0, 0));
     /// 
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(1, 2, 1), 1, Movement::Move, Direction::Forward, CursorSemantics::Block));
-    /// assert!(test(Selection::new(1, 2), Selection::with_stored_line_position(0, 1, 0), 1, Movement::Move, Direction::Backward, CursorSemantics::Block));
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(0, 2, 1), 1, Movement::Extend, Direction::Forward, CursorSemantics::Block));
-    /// assert!(test(Selection::new(1, 2), Selection::with_stored_line_position(2, 0, 0), 1, Movement::Extend, Direction::Backward, CursorSemantics::Block));
+    /// assert_eq!(Selection::new(0, 1).move_horizontally(1, &text, Movement::Move, Direction::Forward, CursorSemantics::Block), Selection::with_stored_line_position(1, 2, 1));
+    /// assert_eq!(Selection::new(1, 2).move_horizontally(1, &text, Movement::Move, Direction::Backward, CursorSemantics::Block), Selection::with_stored_line_position(0, 1, 0));
+    /// assert_eq!(Selection::new(0, 1).move_horizontally(1, &text, Movement::Extend, Direction::Forward, CursorSemantics::Block), Selection::with_stored_line_position(0, 2, 1));
+    /// assert_eq!(Selection::new(1, 2).move_horizontally(1, &text, Movement::Extend, Direction::Backward, CursorSemantics::Block), Selection::with_stored_line_position(2, 0, 0));
     /// 
     /// // handles moving/extending to text bounds correctly
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(19, 19, 0), 19, Movement::Move, Direction::Forward, CursorSemantics::Bar));
-    /// assert!(test(Selection::new(19, 19), Selection::with_stored_line_position(0, 0, 0), 19, Movement::Move, Direction::Backward, CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(0, 19, 0), 19, Movement::Extend, Direction::Forward, CursorSemantics::Bar));
-    /// assert!(test(Selection::new(19, 19), Selection::with_stored_line_position(19, 0, 0), 19, Movement::Extend, Direction::Backward, CursorSemantics::Bar));
+    /// assert_eq!(Selection::new(0, 0).move_horizontally(19, &text, Movement::Move, Direction::Forward, CursorSemantics::Bar), Selection::with_stored_line_position(19, 19, 0));
+    /// assert_eq!(Selection::new(19, 19).move_horizontally(19, &text, Movement::Move, Direction::Backward, CursorSemantics::Bar), Selection::with_stored_line_position(0, 0, 0));
+    /// assert_eq!(Selection::new(0, 0).move_horizontally(19, &text, Movement::Extend, Direction::Forward, CursorSemantics::Bar), Selection::with_stored_line_position(0, 19, 0));
+    /// assert_eq!(Selection::new(19, 19).move_horizontally(19, &text, Movement::Extend, Direction::Backward, CursorSemantics::Bar), Selection::with_stored_line_position(19, 0, 0));
     /// 
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(19, 20, 0), 19, Movement::Move, Direction::Forward, CursorSemantics::Block));
-    /// assert!(test(Selection::new(19, 20), Selection::with_stored_line_position(0, 1, 0), 19, Movement::Move, Direction::Backward, CursorSemantics::Block));
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(0, 20, 0), 19, Movement::Extend, Direction::Forward, CursorSemantics::Block));
-    /// assert!(test(Selection::new(19, 20), Selection::with_stored_line_position(19, 0, 0), 19, Movement::Extend, Direction::Backward, CursorSemantics::Block));   //:<idk\nsomething\nelse\n|
+    /// assert_eq!(Selection::new(0, 1).move_horizontally(19, &text, Movement::Move, Direction::Forward, CursorSemantics::Block), Selection::with_stored_line_position(19, 20, 0));
+    /// assert_eq!(Selection::new(19, 20).move_horizontally(19, &text, Movement::Move, Direction::Backward, CursorSemantics::Block), Selection::with_stored_line_position(0, 1, 0));
+    /// assert_eq!(Selection::new(0, 1).move_horizontally(19, &text, Movement::Extend, Direction::Forward, CursorSemantics::Block), Selection::with_stored_line_position(0, 20, 0));
+    /// assert_eq!(Selection::new(19, 20).move_horizontally(19, &text, Movement::Extend, Direction::Backward, CursorSemantics::Block), Selection::with_stored_line_position(19, 0, 0)); //:<idk\nsomething\nelse\n|
     /// ```
-    pub fn move_horizontally(&mut self, amount: usize, text: &Rope, movement: Movement, direction: Direction, semantics: CursorSemantics){
+    pub fn move_horizontally(&self, amount: usize, text: &Rope, movement: Movement, direction: Direction, semantics: CursorSemantics) -> Self{
         let new_position = match direction{
             Direction::Forward => self.cursor(semantics).saturating_add(amount).min(text.len_chars()),    //ensures this does not move past text end
             Direction::Backward => self.cursor(semantics).saturating_sub(amount)
         };
-        self.put_cursor(new_position, text, movement, semantics, true);
+        self.put_cursor(new_position, text, movement, semantics, true)
     }
 
-    /// Moves cursor to specified line number.
-    /// Caller should ensure line number > 0 and line number < (text line count - 1).
+    /// Moves cursor to specified line number. Zero based.
+    /// Caller should ensure line number < (text line count - 1).
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, Movement, CursorSemantics};
     /// 
-    /// fn test(mut selection: Selection, expected: Selection, line_number: usize, movement: Movement, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("idk\nsomething\nelse\n");
-    ///     selection.set_from_line_number(line_number, &text, movement, semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, selection);
-    ///     selection == expected
-    /// }
+    /// let text = Rope::from("idk\nsomething\nelse\n");
     /// 
     /// // normal use
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(14, 14, 0), 2, Movement::Move, CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(14, 15, 0), 2, Movement::Move, CursorSemantics::Block));
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(0, 14, 0), 2, Movement::Extend, CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(0, 15, 0), 2, Movement::Extend, CursorSemantics::Block));
-    /// 
-    /// // when line num > doc length, selection set to last line
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(19, 19, 0), 5, Movement::Move, CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(19, 20, 0), 5, Movement::Move, CursorSemantics::Block));
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(0, 19, 0), 5, Movement::Extend, CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(0, 20, 0), 5, Movement::Extend, CursorSemantics::Block));
+    /// assert_eq!(Selection::new(0, 0).set_from_line_number(2, &text, Movement::Move, CursorSemantics::Bar), Selection::with_stored_line_position(14, 14, 0));
+    /// assert_eq!(Selection::new(0, 1).set_from_line_number(2, &text, Movement::Move, CursorSemantics::Block), Selection::with_stored_line_position(14, 15, 0));
+    /// assert_eq!(Selection::new(0, 0).set_from_line_number(2, &text, Movement::Extend, CursorSemantics::Bar), Selection::with_stored_line_position(0, 14, 0));
+    /// assert_eq!(Selection::new(0, 1).set_from_line_number(2, &text, Movement::Extend, CursorSemantics::Block), Selection::with_stored_line_position(0, 15, 0));
     /// 
     /// // restricts cursor to line end when stored_line_position > line width
-    /// assert!(test(Selection::new(13, 13), Selection::with_stored_line_position(3, 3, 9), 0, Movement::Move, CursorSemantics::Bar));
-    /// assert!(test(Selection::new(13, 14), Selection::with_stored_line_position(3, 4, 9), 0, Movement::Move, CursorSemantics::Block));
-    /// assert!(test(Selection::new(13, 13), Selection::with_stored_line_position(13, 3, 9), 0, Movement::Extend, CursorSemantics::Bar));
-    /// //assert!(test(Selection::new(13, 14), Selection::with_stored_line_position(14, 3, 9), 0, Movement::Extend, CursorSemantics::Block));
-    /// assert!(test(Selection::new(13, 14), Selection::with_stored_line_position(13, 3, 9), 0, Movement::Extend, CursorSemantics::Block)); //if at end of line, sets anchor before newline char
+    /// assert_eq!(Selection::new(13, 13).set_from_line_number(0, &text, Movement::Move, CursorSemantics::Bar), Selection::with_stored_line_position(3, 3, 9));
+    /// assert_eq!(Selection::new(13, 14).set_from_line_number(0, &text, Movement::Move, CursorSemantics::Block), Selection::with_stored_line_position(3, 4, 9));
+    /// assert_eq!(Selection::new(13, 13).set_from_line_number(0, &text, Movement::Extend, CursorSemantics::Bar), Selection::with_stored_line_position(13, 3, 9));
+    /// assert_eq!(Selection::new(13, 14).set_from_line_number(0, &text, Movement::Extend, CursorSemantics::Block), Selection::with_stored_line_position(13, 3, 9));    //if at end of line, sets anchor before newline char
     /// 
     /// //from end of text
-    /// assert!(test(Selection::new(19, 19), Selection::with_stored_line_position(4, 4, 0), 1, Movement::Move, CursorSemantics::Bar));
-    /// assert!(test(Selection::new(19, 20), Selection::with_stored_line_position(4, 5, 0), 1, Movement::Move, CursorSemantics::Block));
-    /// assert!(test(Selection::new(19, 19), Selection::with_stored_line_position(14, 14, 0), 2, Movement::Move, CursorSemantics::Bar));
-    /// assert!(test(Selection::new(19, 20), Selection::with_stored_line_position(14, 15, 0), 2, Movement::Move, CursorSemantics::Block));
+    /// assert_eq!(Selection::new(19, 19).set_from_line_number(1, &text, Movement::Move, CursorSemantics::Bar), Selection::with_stored_line_position(4, 4, 0));
+    /// assert_eq!(Selection::new(19, 20).set_from_line_number(1, &text, Movement::Move, CursorSemantics::Block), Selection::with_stored_line_position(4, 5, 0));
+    /// assert_eq!(Selection::new(19, 19).set_from_line_number(2, &text, Movement::Move, CursorSemantics::Bar), Selection::with_stored_line_position(14, 14, 0));
+    /// assert_eq!(Selection::new(19, 20).set_from_line_number(2, &text, Movement::Move, CursorSemantics::Block), Selection::with_stored_line_position(14, 15, 0));
     /// ```
-    pub fn set_from_line_number(&mut self, line_number: usize, text: &Rope, movement: Movement, semantics: CursorSemantics){
-        //assert!(line_number < text.len_lines().saturating_sub(1));
-        //assert!(line_number > 0);
-        let line_number = line_number.min(text.len_lines().saturating_sub(1));  //restrict line_number to doc length(-1 because len_lines is 1 based)
+    /// 
+    /// ```should_panic
+    /// # use ropey::Rope;
+    /// # use edit_core::selection::{Selection, Movement, CursorSemantics};
+    /// 
+    /// // should panic
+    /// # let text = Rope::from("idk\nsomething\nelse\n");
+    /// Selection::new(0, 0).set_from_line_number(5, &text, Movement::Move, CursorSemantics::Bar);
+    /// ```
+    pub fn set_from_line_number(&self, line_number: usize, text: &Rope, movement: Movement, semantics: CursorSemantics) -> Self{
+        assert!(line_number < text.len_lines().saturating_sub(1));
+        //let line_number = line_number.min(text.len_lines().saturating_sub(1));  //restrict line_number to doc length(-1 because len_lines is 1 based)
         let current_line = text.char_to_line(self.cursor(semantics));
         
         let (amount, direction) = if line_number < current_line{
@@ -576,35 +550,30 @@ impl Selection{
             (line_number.saturating_sub(current_line), Direction::Forward)
         };
     
-        self.move_vertically(amount, &text, movement, direction, semantics);
+        self.move_vertically(amount, &text, movement, direction, semantics)
     }
 
-    /// Aligns [Selection] anchor with head.
+    /// Aligns [Selection] anchor with cursor.
     /// ``` 
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
-    /// fn test(mut selection: Selection, expected: Selection, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("idk\nsome\nshit\n");
-    ///     selection.collapse(&text, semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, selection);
-    ///     selection == expected
-    /// }
+    /// let text = Rope::from("idk\nsome\nshit\n");
     /// 
     /// // head < anchor
-    /// assert!(test(Selection::new(4, 0), Selection::with_stored_line_position(0, 0, 0), CursorSemantics::Bar));   //<idk\n|some\nshit\n   //<|idk\nsome\nshit\n
-    /// assert!(test(Selection::new(4, 0), Selection::with_stored_line_position(0, 1, 0), CursorSemantics::Block)); //:<idk\n|some\nshit\n  //|:i>dk\nsome\nshit\n
+    /// assert_eq!(Selection::new(4, 0).collapse(&text, CursorSemantics::Bar), Selection::with_stored_line_position(0, 0, 0));  //<idk\n|some\nshit\n   //<|idk\nsome\nshit\n
+    /// assert_eq!(Selection::new(4, 0).collapse(&text, CursorSemantics::Block), Selection::with_stored_line_position(0, 1, 0));    //:<idk\n|some\nshit\n  //|:i>dk\nsome\nshit\n
     /// 
     /// // anchor < head
-    /// assert!(test(Selection::new(0, 4), Selection::with_stored_line_position(4, 4, 0), CursorSemantics::Bar));   //|idk\n>some\nshit\n   //idk\n|>some\nshit\n
-    /// assert!(test(Selection::new(0, 4), Selection::with_stored_line_position(3, 4, 3), CursorSemantics::Block)); //|idk\n>some\nshit\n   //idk|:\n>some\nshit\n
+    /// assert_eq!(Selection::new(0, 4).collapse(&text, CursorSemantics::Bar), Selection::with_stored_line_position(4, 4, 0));  //|idk\n>some\nshit\n   //idk\n|>some\nshit\n
+    /// assert_eq!(Selection::new(0, 4).collapse(&text, CursorSemantics::Block), Selection::with_stored_line_position(3, 4, 3));    //|idk\n>some\nshit\n   //idk|:\n>some\nshit\n
     /// 
     /// // test setting cursor to end of text
-    /// assert!(test(Selection::new(0, 14), Selection::with_stored_line_position(14, 14, 0), CursorSemantics::Bar));    //|idk\nsome\nshit\n>   //idk\nsome\nshit\n|>
-    /// assert!(test(Selection::new(0, 14), Selection::with_stored_line_position(13, 14, 4), CursorSemantics::Block));  //|idk\nsome\nshit:\n>  //idk\nsome\nshit|:\n>
+    /// assert_eq!(Selection::new(0, 14).collapse(&text, CursorSemantics::Bar), Selection::with_stored_line_position(14, 14, 0));   //|idk\nsome\nshit\n>   //idk\nsome\nshit\n|>
+    /// assert_eq!(Selection::new(0, 14).collapse(&text, CursorSemantics::Block), Selection::with_stored_line_position(13, 14, 4)); //|idk\nsome\nshit:\n>  //idk\nsome\nshit|:\n>
     /// ```
-    pub fn collapse(&mut self, text: &Rope, semantics: CursorSemantics){
-        self.put_cursor(self.cursor(semantics), text, Movement::Move, semantics, true);
+    pub fn collapse(&self, text: &Rope, semantics: CursorSemantics) -> Self{
+        self.put_cursor(self.cursor(semantics), text, Movement::Move, semantics, true)
     }
 
     /// Moves cursor right.
@@ -612,33 +581,28 @@ impl Selection{
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
-    /// fn test(mut selection: Selection, expected: Selection, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("idk\nsome\nshit\n");
-    ///     selection.move_right(&text, semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, selection);
-    ///     selection == expected
-    /// }
+    /// let text = Rope::from("idk\nsome\nshit\n");
     /// 
     /// // stays within doc bounds
-    /// assert!(test(Selection::new(14, 14), Selection::with_stored_line_position(14, 14, 0), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(14, 15), Selection::with_stored_line_position(14, 15, 0), CursorSemantics::Block));
+    /// assert_eq!(Selection::new(14, 14).move_right(&text, CursorSemantics::Bar), Selection::with_stored_line_position(14, 14, 0));
+    /// assert_eq!(Selection::new(14, 15).move_right(&text, CursorSemantics::Block), Selection::with_stored_line_position(14, 15, 0));
     /// 
     /// // normal use
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(1, 1, 1), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(1, 2, 1), CursorSemantics::Block));
+    /// assert_eq!(Selection::new(0, 0).move_right(&text, CursorSemantics::Bar), Selection::with_stored_line_position(1, 1, 1));
+    /// assert_eq!(Selection::new(0, 1).move_right(&text, CursorSemantics::Block), Selection::with_stored_line_position(1, 2, 1));
     /// 
     /// // new line resets stored line position
-    /// assert!(test(Selection::new(3, 3), Selection::with_stored_line_position(4, 4, 0), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(3, 4), Selection::with_stored_line_position(4, 5, 0), CursorSemantics::Block));
+    /// assert_eq!(Selection::new(3, 3).move_right(&text, CursorSemantics::Bar), Selection::with_stored_line_position(4, 4, 0));
+    /// assert_eq!(Selection::new(3, 4).move_right(&text, CursorSemantics::Block), Selection::with_stored_line_position(4, 5, 0));
     /// 
     /// // with selection extended, collapses selection, then performs move
-    /// assert!(test(Selection::new(0, 3), Selection::with_stored_line_position(4, 4, 0), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(3, 0), Selection::with_stored_line_position(1, 1, 1), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 3), Selection::with_stored_line_position(3, 4, 3), CursorSemantics::Block));
-    /// assert!(test(Selection::new(3, 0), Selection::with_stored_line_position(1, 2, 1), CursorSemantics::Block));
+    /// assert_eq!(Selection::new(0, 3).move_right(&text, CursorSemantics::Bar), Selection::with_stored_line_position(4, 4, 0));
+    /// assert_eq!(Selection::new(3, 0).move_right(&text, CursorSemantics::Bar), Selection::with_stored_line_position(1, 1, 1));
+    /// assert_eq!(Selection::new(0, 3).move_right(&text, CursorSemantics::Block), Selection::with_stored_line_position(3, 4, 3));
+    /// assert_eq!(Selection::new(3, 0).move_right(&text, CursorSemantics::Block), Selection::with_stored_line_position(1, 2, 1));
     /// ```
-    pub fn move_right(&mut self, text: &Rope, semantics: CursorSemantics){
-        self.move_horizontally(1, text, Movement::Move, Direction::Forward, semantics);
+    pub fn move_right(&self, text: &Rope, semantics: CursorSemantics) -> Self{
+        self.move_horizontally(1, text, Movement::Move, Direction::Forward, semantics)
     }
 
     /// Moves cursor left.
@@ -646,35 +610,30 @@ impl Selection{
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
-    /// fn test(mut selection: Selection, expected: Selection, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("idk\nsomething\nelse");
-    ///     selection.move_left(&text, semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, selection);
-    ///     selection == expected
-    /// }
+    /// let text = Rope::from("idk\nsomething\nelse\n");
     /// 
     /// // stays within doc bounds
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(0, 0, 0), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(0, 1, 0), CursorSemantics::Block));
+    /// assert_eq!(Selection::new(0, 0).move_left(&text, CursorSemantics::Bar), Selection::with_stored_line_position(0, 0, 0));
+    /// assert_eq!(Selection::new(0, 1).move_left(&text, CursorSemantics::Block), Selection::with_stored_line_position(0, 1, 0));
     /// 
     /// // normal use
-    /// assert!(test(Selection::new(1, 1), Selection::with_stored_line_position(0, 0, 0), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(1, 2), Selection::with_stored_line_position(0, 1, 0), CursorSemantics::Block));
+    /// assert_eq!(Selection::new(1, 1).move_left(&text, CursorSemantics::Bar), Selection::with_stored_line_position(0, 0, 0));
+    /// assert_eq!(Selection::new(1, 2).move_left(&text, CursorSemantics::Block), Selection::with_stored_line_position(0, 1, 0));
     /// 
     /// // move to previous line resets stored line position
-    /// assert!(test(Selection::new(4, 4), Selection::with_stored_line_position(3, 3, 3), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(4, 5), Selection::with_stored_line_position(3, 4, 3), CursorSemantics::Block));
+    /// assert_eq!(Selection::new(4, 4).move_left(&text, CursorSemantics::Bar), Selection::with_stored_line_position(3, 3, 3));
+    /// assert_eq!(Selection::new(4, 5).move_left(&text, CursorSemantics::Block), Selection::with_stored_line_position(3, 4, 3));
     /// 
     /// // with selection extended, collapses selection, then performs move
-    /// assert!(test(Selection::new(1, 4), Selection::with_stored_line_position(3, 3, 3), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(4, 1), Selection::with_stored_line_position(0, 0, 0), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(1, 4), Selection::with_stored_line_position(2, 3, 2), CursorSemantics::Block));  // i[d k:\n]s o m e t h i n g \n e l s e
-    ///                                                                                                              // i d[k]\n s o m e t h i n g \n e l s e
-    /// assert!(test(Selection::new(4, 1), Selection::with_stored_line_position(0, 1, 0), CursorSemantics::Block));  // i]d k \n[s o m e t h i n g \n e l s e
-    ///                                                                                                              //[i]d k \n s o m e t h i n g \n e l s e
+    /// assert_eq!(Selection::new(1, 4).move_left(&text, CursorSemantics::Bar), Selection::with_stored_line_position(3, 3, 3));
+    /// assert_eq!(Selection::new(4, 1).move_left(&text, CursorSemantics::Bar), Selection::with_stored_line_position(0, 0, 0));
+    /// assert_eq!(Selection::new(1, 4).move_left(&text, CursorSemantics::Block), Selection::with_stored_line_position(2, 3, 2));   // i[d k:\n]s o m e t h i n g \n e l s e
+    ///                                                                                                                             // i d[k]\n s o m e t h i n g \n e l s e
+    /// assert_eq!(Selection::new(4, 1).move_left(&text, CursorSemantics::Block), Selection::with_stored_line_position(0, 1, 0));   // i]d k \n[s o m e t h i n g \n e l s e
+    ///                                                                                                                             //[i]d k \n s o m e t h i n g \n e l s e
     /// ```
-    pub fn move_left(&mut self, text: &Rope, semantics: CursorSemantics){
-        self.move_horizontally(1, text, Movement::Move, Direction::Backward, semantics);
+    pub fn move_left(&self, text: &Rope, semantics: CursorSemantics) -> Self{
+        self.move_horizontally(1, text, Movement::Move, Direction::Backward, semantics)
     }
 
     /// Moves cursor up.
@@ -682,33 +641,28 @@ impl Selection{
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
-    /// fn test(mut selection: Selection, expected: Selection, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("idk\nsomething\nelse");
-    ///     selection.move_up(&text, semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, selection);
-    ///     selection == expected
-    /// }
+    /// let text = Rope::from("idk\nsomething\nelse");
     /// 
     /// // stays within doc bounds
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(0, 0, 0), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(0, 1, 0), CursorSemantics::Block));
+    /// assert_eq!(Selection::new(0, 0).move_up(&text, CursorSemantics::Bar), Selection::with_stored_line_position(0, 0, 0));
+    /// assert_eq!(Selection::new(0, 1).move_up(&text, CursorSemantics::Block), Selection::with_stored_line_position(0, 1, 0));
     /// 
     /// // to shorter line
-    /// assert!(test(Selection::new(13, 13), Selection::with_stored_line_position(3, 3, 9), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(13, 14), Selection::with_stored_line_position(3, 4, 9), CursorSemantics::Block));
+    /// assert_eq!(Selection::new(13, 13).move_up(&text, CursorSemantics::Bar), Selection::with_stored_line_position(3, 3, 9));
+    /// assert_eq!(Selection::new(13, 14).move_up(&text, CursorSemantics::Block), Selection::with_stored_line_position(3, 4, 9));
     /// 
     /// // to longer line
-    /// assert!(test(Selection::new(18, 18), Selection::with_stored_line_position(8, 8, 4), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(18, 19), Selection::with_stored_line_position(8, 9, 4), CursorSemantics::Block));
+    /// assert_eq!(Selection::new(18, 18).move_up(&text, CursorSemantics::Bar), Selection::with_stored_line_position(8, 8, 4));
+    /// assert_eq!(Selection::new(18, 19).move_up(&text, CursorSemantics::Block), Selection::with_stored_line_position(8, 9, 4));
     /// 
     /// // with selection extended, collapses selection, then performs move
-    /// assert!(test(Selection::new(4, 14), Selection::with_stored_line_position(4, 4, 0), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(14, 4), Selection::with_stored_line_position(0, 0, 0), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(4, 14), Selection::with_stored_line_position(3, 4, 9), CursorSemantics::Block));
-    /// assert!(test(Selection::new(14, 4), Selection::with_stored_line_position(0, 1, 0), CursorSemantics::Block));
+    /// assert_eq!(Selection::new(14, 14).move_up(&text, CursorSemantics::Bar), Selection::with_stored_line_position(4, 4, 0));
+    /// assert_eq!(Selection::new(14, 4).move_up(&text, CursorSemantics::Bar), Selection::with_stored_line_position(0, 0, 0));
+    /// assert_eq!(Selection::new(4, 14).move_up(&text, CursorSemantics::Block), Selection::with_stored_line_position(3, 4, 9));
+    /// assert_eq!(Selection::new(14, 4).move_up(&text, CursorSemantics::Block), Selection::with_stored_line_position(0, 1, 0));
     /// ```
-    pub fn move_up(&mut self, text: &Rope, semantics: CursorSemantics){
-        self.move_vertically(1, text, Movement::Move, Direction::Backward, semantics);
+    pub fn move_up(&self, text: &Rope, semantics: CursorSemantics) -> Self{
+        self.move_vertically(1, text, Movement::Move, Direction::Backward, semantics)
     }
 
     /// Moves cursor down.
@@ -716,36 +670,31 @@ impl Selection{
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
-    /// fn test(mut selection: Selection, expected: Selection, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("idk\nsomething\nelse");
-    ///     selection.move_down(&text, semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, selection);
-    ///     selection == expected
-    /// }
+    /// let text = Rope::from("idk\nsomething\nelse");
     /// 
     /// // stays within doc bounds
-    /// assert!(test(Selection::new(18, 18), Selection::with_stored_line_position(18, 18, 4), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(18, 19), Selection::with_stored_line_position(18, 19, 4), CursorSemantics::Block));
+    /// assert_eq!(Selection::new(18, 18).move_down(&text, CursorSemantics::Bar), Selection::with_stored_line_position(18, 18, 4));
+    /// assert_eq!(Selection::new(18, 19).move_down(&text, CursorSemantics::Block), Selection::with_stored_line_position(18, 19, 4));
     /// 
     /// // to longer line
-    /// assert!(test(Selection::new(3, 3), Selection::with_stored_line_position(7, 7, 3), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(3, 4), Selection::with_stored_line_position(7, 8, 3), CursorSemantics::Block));
+    /// assert_eq!(Selection::new(3, 3).move_down(&text, CursorSemantics::Bar), Selection::with_stored_line_position(7, 7, 3));
+    /// assert_eq!(Selection::new(3, 4).move_down(&text, CursorSemantics::Block), Selection::with_stored_line_position(7, 8, 3));
     /// 
     /// // to shorter line
-    /// assert!(test(Selection::new(13, 13), Selection::with_stored_line_position(18, 18, 9), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(13, 14), Selection::with_stored_line_position(18, 19, 9), CursorSemantics::Block));
+    /// assert_eq!(Selection::new(13, 13).move_down(&text, CursorSemantics::Bar), Selection::with_stored_line_position(18, 18, 9));
+    /// assert_eq!(Selection::new(13, 14).move_down(&text, CursorSemantics::Block), Selection::with_stored_line_position(18, 19, 9));
     /// 
     /// // with selection extended, collapses selection, then performs move
-    /// assert!(test(Selection::new(0, 4), Selection::with_stored_line_position(14, 14, 0), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(4, 0), Selection::with_stored_line_position(4, 4, 0), CursorSemantics::Bar));
+    /// assert_eq!(Selection::new(0, 4).move_down(&text, CursorSemantics::Bar), Selection::with_stored_line_position(14, 14, 0));
+    /// assert_eq!(Selection::new(4, 0).move_down(&text, CursorSemantics::Bar), Selection::with_stored_line_position(4, 4, 0));
     /// //[i d k \n]s o m e \n s h i t \n
     /// // i d k \n s o m[e]\n s h i t \n
-    /// assert!(test(Selection::new(0, 4), Selection::with_stored_line_position(7, 8, 3), CursorSemantics::Block));
-    /// assert!(test(Selection::new(4, 0), Selection::with_stored_line_position(4, 5, 0), CursorSemantics::Block));
+    /// assert_eq!(Selection::new(0, 4).move_down(&text, CursorSemantics::Block), Selection::with_stored_line_position(7, 8, 3));
+    /// assert_eq!(Selection::new(4, 0).move_down(&text, CursorSemantics::Block), Selection::with_stored_line_position(4, 5, 0));
     /// ```
     // //TODO: figure out single string for tests
-    pub fn move_down(&mut self, text: &Rope, semantics: CursorSemantics){
-        self.move_vertically(1, text, Movement::Move, Direction::Forward, semantics);
+    pub fn move_down(&self, text: &Rope, semantics: CursorSemantics) -> Self{
+        self.move_vertically(1, text, Movement::Move, Direction::Forward, semantics)
     }
 
     /// Moves cursor to line end.
@@ -753,31 +702,26 @@ impl Selection{
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
-    /// fn test(mut selection: Selection, expected: Selection, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("idk\nsomething\nelse\n");
-    ///     selection.move_line_text_end(&text, semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, selection);
-    ///     selection == expected
-    /// }
+    /// let text = Rope::from("idk\nsomething\nelse\n");
     /// 
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(3, 3, 3), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(3, 4, 3), CursorSemantics::Block));
-    /// assert!(test(Selection::new(3, 4), Selection::with_stored_line_position(3, 4, 3), CursorSemantics::Block)); //verify repeated calls result in appropriate behavior
+    /// assert_eq!(Selection::new(0, 0).move_line_text_end(&text, CursorSemantics::Bar), Selection::with_stored_line_position(3, 3, 3));
+    /// assert_eq!(Selection::new(0, 1).move_line_text_end(&text, CursorSemantics::Block), Selection::with_stored_line_position(3, 4, 3));
+    /// assert_eq!(Selection::new(3, 4).move_line_text_end(&text, CursorSemantics::Block), Selection::with_stored_line_position(3, 4, 3));  //verify repeated calls result in appropriate behavior
     /// 
     /// // with selection extended, collapse and move
-    /// assert!(test(Selection::new(0, 2), Selection::with_stored_line_position(3, 3, 3), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(2, 0), Selection::with_stored_line_position(3, 3, 3), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 2), Selection::with_stored_line_position(3, 4, 3), CursorSemantics::Block));
-    /// assert!(test(Selection::new(2, 0), Selection::with_stored_line_position(3, 4, 3), CursorSemantics::Block));
+    /// assert_eq!(Selection::new(0, 2).move_line_text_end(&text, CursorSemantics::Bar), Selection::with_stored_line_position(3, 3, 3));
+    /// assert_eq!(Selection::new(2, 0).move_line_text_end(&text, CursorSemantics::Bar), Selection::with_stored_line_position(3, 3, 3));
+    /// assert_eq!(Selection::new(0, 2).move_line_text_end(&text, CursorSemantics::Block), Selection::with_stored_line_position(3, 4, 3));
+    /// assert_eq!(Selection::new(2, 0).move_line_text_end(&text, CursorSemantics::Block), Selection::with_stored_line_position(3, 4, 3));
     /// ```
-    pub fn move_line_text_end(&mut self, text: &Rope, semantics: CursorSemantics){
+    pub fn move_line_text_end(&self, text: &Rope, semantics: CursorSemantics) -> Self{
         let line_number = text.char_to_line(self.cursor(semantics));
         let line = text.line(line_number);
         let line_width = text_util::line_width_excluding_newline(line);
         let line_start = text.line_to_char(line_number);
         let line_end = line_start.saturating_add(line_width);
 
-        self.put_cursor(line_end, text, Movement::Move, semantics, true);
+        self.put_cursor(line_end, text, Movement::Move, semantics, true)
     }
 
     /// Moves cursor to absolute start of line, or start of line text, depending on cursor position.
@@ -785,45 +729,40 @@ impl Selection{
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
-    /// fn test(mut selection: Selection, expected: Selection, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("    idk\n");
-    ///     selection.move_home(&text, semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, selection);
-    ///     selection == expected
-    /// }
+    /// let text = Rope::from("    idk\n");
     /// 
     /// // moves to text start when cursor past text start
-    /// assert!(test(Selection::new(6, 6), Selection::with_stored_line_position(4, 4, 4), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(6, 7), Selection::with_stored_line_position(4, 5, 4), CursorSemantics::Block));
+    /// assert_eq!(Selection::new(6, 6).move_home(&text, CursorSemantics::Bar), Selection::with_stored_line_position(4, 4, 4));
+    /// assert_eq!(Selection::new(6, 7).move_home(&text, CursorSemantics::Block), Selection::with_stored_line_position(4, 5, 4));
     /// 
     /// // moves to line start when cursor at text start
-    /// assert!(test(Selection::new(4, 4), Selection::with_stored_line_position(0, 0, 0), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(4, 5), Selection::with_stored_line_position(0, 1, 0), CursorSemantics::Block));
+    /// assert_eq!(Selection::new(4, 4).move_home(&text, CursorSemantics::Bar), Selection::with_stored_line_position(0, 0, 0));
+    /// assert_eq!(Selection::new(4, 5).move_home(&text, CursorSemantics::Block), Selection::with_stored_line_position(0, 1, 0));
     /// 
     /// // moves to text start when cursor before text start
-    /// assert!(test(Selection::new(1, 1), Selection::with_stored_line_position(4, 4, 4), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(1, 2), Selection::with_stored_line_position(4, 5, 4), CursorSemantics::Block));
+    /// assert_eq!(Selection::new(1, 1).move_home(&text, CursorSemantics::Bar), Selection::with_stored_line_position(4, 4, 4));
+    /// assert_eq!(Selection::new(1, 2).move_home(&text, CursorSemantics::Block), Selection::with_stored_line_position(4, 5, 4));
     /// 
     /// // with selection extended, collapse and move
-    /// assert!(test(Selection::new(0, 5), Selection::with_stored_line_position(4, 4, 4), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 3), Selection::with_stored_line_position(4, 4, 4), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 4), Selection::with_stored_line_position(0, 0, 0), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(5, 0), Selection::with_stored_line_position(4, 4, 4), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 6), Selection::with_stored_line_position(4, 5, 4), CursorSemantics::Block));
-    /// assert!(test(Selection::new(0, 4), Selection::with_stored_line_position(4, 5, 4), CursorSemantics::Block));
-    /// assert!(test(Selection::new(0, 5), Selection::with_stored_line_position(0, 1, 0), CursorSemantics::Block));
-    /// assert!(test(Selection::new(5, 0), Selection::with_stored_line_position(4, 5, 4), CursorSemantics::Block));
+    /// assert_eq!(Selection::new(0, 5).move_home(&text, CursorSemantics::Bar), Selection::with_stored_line_position(4, 4, 4));
+    /// assert_eq!(Selection::new(0, 3).move_home(&text, CursorSemantics::Bar), Selection::with_stored_line_position(4, 4, 4));
+    /// assert_eq!(Selection::new(0, 4).move_home(&text, CursorSemantics::Bar), Selection::with_stored_line_position(0, 0, 0));
+    /// assert_eq!(Selection::new(5, 0).move_home(&text, CursorSemantics::Bar), Selection::with_stored_line_position(4, 4, 4));
+    /// assert_eq!(Selection::new(0, 6).move_home(&text, CursorSemantics::Block), Selection::with_stored_line_position(4, 5, 4));
+    /// assert_eq!(Selection::new(0, 4).move_home(&text, CursorSemantics::Block), Selection::with_stored_line_position(4, 5, 4));
+    /// assert_eq!(Selection::new(0, 5).move_home(&text, CursorSemantics::Block), Selection::with_stored_line_position(0, 1, 0));
+    /// assert_eq!(Selection::new(5, 0).move_home(&text, CursorSemantics::Block), Selection::with_stored_line_position(4, 5, 4));
     /// ```
-    pub fn move_home(&mut self, text: &Rope, semantics: CursorSemantics){
+    pub fn move_home(&self, text: &Rope, semantics: CursorSemantics) -> Self{
         let line_number = text.char_to_line(self.cursor(semantics));
         let line_start = text.line_to_char(line_number);
         let text_start_offset = text_util::first_non_whitespace_character_offset(text.line(line_number));
         let text_start = line_start.saturating_add(text_start_offset);
 
         if self.cursor(semantics) == text_start{
-            self.move_line_start(text, semantics);
+            self.move_line_start(text, semantics)
         }else{
-            self.move_line_text_start(text, semantics);
+            self.move_line_text_start(text, semantics)
         }
     }
     
@@ -832,21 +771,16 @@ impl Selection{
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
-    /// fn test(mut selection: Selection, expected: Selection, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("idk\nsome\nshit\n");
-    ///     selection.move_line_start(&text, semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, selection);
-    ///     selection == expected
-    /// }
+    /// let text = Rope::from("idk\nsome\nshit\n");
     /// 
-    /// assert!(test(Selection::new(3, 3), Selection::with_stored_line_position(0, 0, 0), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(3, 4), Selection::with_stored_line_position(0, 1, 0), CursorSemantics::Block));
+    /// assert_eq!(Selection::new(3, 3).move_line_start(&text, CursorSemantics::Bar), Selection::with_stored_line_position(0, 0, 0));
+    /// assert_eq!(Selection::new(3, 4).move_line_start(&text, CursorSemantics::Block), Selection::with_stored_line_position(0, 1, 0));
     /// ```
-    pub fn move_line_start(&mut self, text: &Rope, semantics: CursorSemantics){
+    pub fn move_line_start(&self, text: &Rope, semantics: CursorSemantics) -> Self{
         let line_number = text.char_to_line(self.cursor(semantics));
         let line_start = text.line_to_char(line_number);
 
-        self.put_cursor(line_start, text, Movement::Move, semantics, true);
+        self.put_cursor(line_start, text, Movement::Move, semantics, true)
     }
     
     /// Moves to start of text on line.
@@ -855,19 +789,17 @@ impl Selection{
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
     /// let text = Rope::from("  idk\n");
-    /// let mut selection = Selection::new(0, 0);
-    /// let expected_selection = Selection::with_stored_line_position(2, 2, 2);
-    /// selection.move_line_text_start(&text, CursorSemantics::Bar);
-    /// println!("expected: {:#?}\ngot: {:#?}", expected_selection, selection);
-    /// assert!(selection == expected_selection);
+    /// 
+    /// assert_eq!(Selection::new(0, 0).move_line_text_start(&text, CursorSemantics::Bar), Selection::with_stored_line_position(2, 2, 2));
+    /// assert_eq!(Selection::new(0, 1).move_line_text_start(&text, CursorSemantics::Block), Selection::with_stored_line_position(2, 3, 2));
     /// ```
-    pub fn move_line_text_start(&mut self, text: &Rope, semantics: CursorSemantics){
+    pub fn move_line_text_start(&self, text: &Rope, semantics: CursorSemantics) -> Self{
         let line_number = text.char_to_line(self.cursor(semantics));
         let line_start = text.line_to_char(line_number);
         let text_start_offset = text_util::first_non_whitespace_character_offset(text.line(line_number));
         let text_start = line_start.saturating_add(text_start_offset);
 
-        self.put_cursor(text_start, text, Movement::Move, semantics, true);
+        self.put_cursor(text_start, text, Movement::Move, semantics, true)
     }
 
     /// Moves cursor up by the height of client view.
@@ -878,13 +810,11 @@ impl Selection{
     /// 
     /// let text = Rope::from("idk\nsomething\nelse");
     /// let client_view = View::new(0, 0, 2, 2);
-    /// let mut selection = Selection::new(6, 6);                        //idk\nso[]mething\nelse
-    /// let expected_selection = Selection::with_stored_line_position(2, 2, 2); //id[]k\nsomething\nelse
-    /// selection.move_page_up(&text, &client_view, CursorSemantics::Bar);
-    /// assert!(selection == expected_selection);
+    /// assert_eq!(Selection::new(6, 6).move_page_up(&text, &client_view, CursorSemantics::Bar), Selection::with_stored_line_position(2, 2, 2));
+    /// assert_eq!(Selection::new(6, 7).move_page_up(&text, &client_view, CursorSemantics::Block), Selection::with_stored_line_position(2, 3, 2));
     /// ```
-    pub fn move_page_up(&mut self, text: &Rope, client_view: &View, semantics: CursorSemantics){
-        self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Move, Direction::Backward, semantics);
+    pub fn move_page_up(&self, text: &Rope, client_view: &View, semantics: CursorSemantics) -> Self{
+        self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Move, Direction::Backward, semantics)
     }
 
     /// Moves cursor down by the height of client view.
@@ -895,13 +825,11 @@ impl Selection{
     /// 
     /// let text = Rope::from("idk\nsomething\nelse");
     /// let client_view = View::new(0, 0, 2, 2);
-    /// let mut selection = Selection::new(0, 0);                               //[]idk\nsomething\nelse
-    /// let expected_selection = Selection::with_stored_line_position(4, 4, 0); //idk\n[]something\nelse
-    /// selection.move_page_down(&text, &client_view, CursorSemantics::Bar);
-    /// assert!(selection == expected_selection);
+    /// assert_eq!(Selection::new(0, 0).move_page_down(&text, &client_view, CursorSemantics::Bar), Selection::with_stored_line_position(4, 4, 0));
+    /// assert_eq!(Selection::new(0, 1).move_page_down(&text, &client_view, CursorSemantics::Block), Selection::with_stored_line_position(4, 5, 0));
     /// ```
-    pub fn move_page_down(&mut self, text: &Rope, client_view: &View, semantics: CursorSemantics){
-        self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Move, Direction::Forward, semantics);
+    pub fn move_page_down(&self, text: &Rope, client_view: &View, semantics: CursorSemantics) -> Self{
+        self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Move, Direction::Forward, semantics)
     }
 
     /// Moves cursor to the start of the document.
@@ -910,14 +838,11 @@ impl Selection{
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
     /// let text = Rope::from("idk\n");
-    /// let mut selection = Selection::new(12, 12);
-    /// let expected_selection = Selection::with_stored_line_position(0, 0, 0);
-    /// selection.move_doc_start(&text, CursorSemantics::Bar);
-    /// println!("expected: {:#?}\ngot: {:#?}\n", expected_selection, selection);
-    /// assert!(selection == expected_selection);
+    /// assert_eq!(Selection::new(12, 12).move_doc_start(&text, CursorSemantics::Bar), Selection::with_stored_line_position(0, 0, 0));
+    /// assert_eq!(Selection::new(12, 13).move_doc_start(&text, CursorSemantics::Block), Selection::with_stored_line_position(0, 1, 0));
     /// ```
-    pub fn move_doc_start(&mut self, text: &Rope, semantics: CursorSemantics){
-        self.put_cursor(0, text, Movement::Move, semantics, true);
+    pub fn move_doc_start(&self, text: &Rope, semantics: CursorSemantics) -> Self{
+        self.put_cursor(0, text, Movement::Move, semantics, true)
     }
 
     /// Moves cursor to the end of the document.
@@ -926,13 +851,11 @@ impl Selection{
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
     /// let text = Rope::from("idk\nsome\nshit");
-    /// let mut selection = Selection::new(0, 0);                                   //[]idk\nsome\nshit
-    /// let expected_selection = Selection::with_stored_line_position(13, 13, 4);   //idk\nsome\nshit[]
-    /// selection.move_doc_end(&text, CursorSemantics::Bar);
-    /// assert!(selection == expected_selection);
+    /// assert_eq!(Selection::new(0, 0).move_doc_end(&text, CursorSemantics::Bar), Selection::with_stored_line_position(13, 13, 4));
+    /// assert_eq!(Selection::new(0, 1).move_doc_end(&text, CursorSemantics::Block), Selection::with_stored_line_position(13, 14, 4));
     /// ```
-    pub fn move_doc_end(&mut self, text: &Rope, semantics: CursorSemantics){
-        self.put_cursor(text.len_chars(), text, Movement::Move, semantics, true);
+    pub fn move_doc_end(&self, text: &Rope, semantics: CursorSemantics) -> Self{
+        self.put_cursor(text.len_chars(), text, Movement::Move, semantics, true)
     }
 
     /// Extends selection to the right.
@@ -940,33 +863,28 @@ impl Selection{
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
-    /// fn test(mut selection: Selection, expected: Selection, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("idk\nsome\nshit\n");
-    ///     selection.extend_right(&text, semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, selection);
-    ///     selection == expected
-    /// }
+    /// let text = Rope::from("idk\nsome\nshit\n");
     /// 
     /// // stays within bounds
-    /// assert!(test(Selection::new(14, 14), Selection::with_stored_line_position(14, 14, 0), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(14, 15), Selection::with_stored_line_position(14, 15, 0), CursorSemantics::Block));
+    /// assert_eq!(Selection::new(14, 14).extend_right(&text, CursorSemantics::Bar), Selection::with_stored_line_position(14, 14, 0));
+    /// assert_eq!(Selection::new(14, 15).extend_right(&text, CursorSemantics::Block), Selection::with_stored_line_position(14, 15, 0));
     /// 
     /// // normal use
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(0, 1, 1), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(0, 2, 1), CursorSemantics::Block));
+    /// assert_eq!(Selection::new(0, 0).extend_right(&text, CursorSemantics::Bar), Selection::with_stored_line_position(0, 1, 1));
+    /// assert_eq!(Selection::new(0, 1).extend_right(&text, CursorSemantics::Block), Selection::with_stored_line_position(0, 2, 1));
     /// 
     /// // resets stored line position after new line
-    /// assert!(test(Selection::new(3, 3), Selection::with_stored_line_position(3, 4, 0), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(3, 4), Selection::with_stored_line_position(3, 5, 0), CursorSemantics::Block));
+    /// assert_eq!(Selection::new(3, 3).extend_right(&text, CursorSemantics::Bar), Selection::with_stored_line_position(3, 4, 0));
+    /// assert_eq!(Selection::new(3, 4).extend_right(&text, CursorSemantics::Block), Selection::with_stored_line_position(3, 5, 0));
     /// 
     /// // previously extended
-    /// assert!(test(Selection::new(0, 3), Selection::with_stored_line_position(0, 4, 0), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(3, 0), Selection::with_stored_line_position(3, 1, 1), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 3), Selection::with_stored_line_position(0, 4, 3), CursorSemantics::Block));
-    /// assert!(test(Selection::new(3, 0), Selection::with_stored_line_position(3, 1, 1), CursorSemantics::Block));
+    /// assert_eq!(Selection::new(0, 3).extend_right(&text, CursorSemantics::Bar), Selection::with_stored_line_position(0, 4, 0));
+    /// assert_eq!(Selection::new(3, 0).extend_right(&text, CursorSemantics::Bar), Selection::with_stored_line_position(3, 1, 1));
+    /// assert_eq!(Selection::new(0, 3).extend_right(&text, CursorSemantics::Block), Selection::with_stored_line_position(0, 4, 3));
+    /// assert_eq!(Selection::new(3, 0).extend_right(&text, CursorSemantics::Block), Selection::with_stored_line_position(3, 1, 1));
     /// ```
-    pub fn extend_right(&mut self, text: &Rope, semantics: CursorSemantics){
-        self.move_horizontally(1, text, Movement::Extend, Direction::Forward, semantics);
+    pub fn extend_right(&self, text: &Rope, semantics: CursorSemantics) -> Self{
+        self.move_horizontally(1, text, Movement::Extend, Direction::Forward, semantics)
     }
 
     /// Extends selection to the left.
@@ -974,33 +892,28 @@ impl Selection{
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
-    /// fn test(mut selection: Selection, expected: Selection, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("idk\nsomething\nelse");
-    ///     selection.extend_left(&text, semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, selection);
-    ///     selection == expected
-    /// }
+    /// let text = Rope::from("idk\nsomething\nelse");
     /// 
     /// // stays within doc bounds
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(0, 0, 0), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(0, 1, 0), CursorSemantics::Block));
+    /// assert_eq!(Selection::new(0, 0).extend_left(&text, CursorSemantics::Bar), Selection::with_stored_line_position(0, 0, 0));
+    /// assert_eq!(Selection::new(0, 1).extend_left(&text, CursorSemantics::Block), Selection::with_stored_line_position(0, 1, 0));
     /// 
     /// // normal use
-    /// assert!(test(Selection::new(2, 2), Selection::with_stored_line_position(2, 1, 1), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(2, 3), Selection::with_stored_line_position(3, 1, 1), CursorSemantics::Block)); //id[:k]\nsomething\nelse   //i:]dk[\nsomething\nelse
+    /// assert_eq!(Selection::new(2, 2).extend_left(&text, CursorSemantics::Bar), Selection::with_stored_line_position(2, 1, 1));
+    /// assert_eq!(Selection::new(2, 3).extend_left(&text, CursorSemantics::Block), Selection::with_stored_line_position(3, 1, 1)); //id[:k]\nsomething\nelse   //i:]dk[\nsomething\nelse
     /// 
     /// //updates stored line position on line change
-    /// assert!(test(Selection::new(4, 4), Selection::with_stored_line_position(4, 3, 3), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(4, 5), Selection::with_stored_line_position(5, 3, 3), CursorSemantics::Block)); //idk\n[s]omething\nelse    //idk:]\ns[omething\nelse
+    /// assert_eq!(Selection::new(4, 4).extend_left(&text, CursorSemantics::Bar), Selection::with_stored_line_position(4, 3, 3));
+    /// assert_eq!(Selection::new(4, 5).extend_left(&text, CursorSemantics::Block), Selection::with_stored_line_position(5, 3, 3)); //idk\n[s]omething\nelse    //idk:]\ns[omething\nelse
     /// 
     /// //previously extended
-    /// assert!(test(Selection::new(0, 3), Selection::with_stored_line_position(0, 2, 2), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(3, 1), Selection::with_stored_line_position(3, 0, 0), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 3), Selection::with_stored_line_position(0, 2, 1), CursorSemantics::Block)); //[id:k]\nsomething\nelse   //[i:d]k\nsomething\nelse
-    /// assert!(test(Selection::new(3, 1), Selection::with_stored_line_position(3, 0, 0), CursorSemantics::Block)); //i:]dk[\nsomething\nelse   //:]idk[\nsomething\nelse
+    /// assert_eq!(Selection::new(0, 3).extend_left(&text, CursorSemantics::Bar), Selection::with_stored_line_position(0, 2, 2));
+    /// assert_eq!(Selection::new(3, 1).extend_left(&text, CursorSemantics::Bar), Selection::with_stored_line_position(3, 0, 0));
+    /// assert_eq!(Selection::new(0, 3).extend_left(&text, CursorSemantics::Block), Selection::with_stored_line_position(0, 2, 1)); //[id:k]\nsomething\nelse   //[i:d]k\nsomething\nelse
+    /// assert_eq!(Selection::new(3, 1).extend_left(&text, CursorSemantics::Block), Selection::with_stored_line_position(3, 0, 0)); //i:]dk[\nsomething\nelse   //:]idk[\nsomething\nelse
     /// ```
-    pub fn extend_left(&mut self, text: &Rope, semantics: CursorSemantics){
-        self.move_horizontally(1, text, Movement::Extend, Direction::Backward, semantics);
+    pub fn extend_left(&self, text: &Rope, semantics: CursorSemantics) -> Self{
+        self.move_horizontally(1, text, Movement::Extend, Direction::Backward, semantics)
     }
 
     /// Extends selection up.
@@ -1008,28 +921,22 @@ impl Selection{
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
-    /// fn test(mut selection: Selection, expected: Selection, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("idk\nsomething\nelse");
-    ///     selection.extend_up(&text, semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, selection);
-    ///     selection == expected
-    /// }
+    /// let text = Rope::from("idk\nsomething\nelse");
     /// 
     /// // stays within doc bounds
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(0, 0, 0), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(0, 1, 0), CursorSemantics::Block));
+    /// assert_eq!(Selection::with_stored_line_position(0, 0, 0), Selection::new(0, 0).extend_up(&text, CursorSemantics::Bar));
+    /// assert_eq!(Selection::with_stored_line_position(0, 1, 0), Selection::new(0, 1).extend_up(&text, CursorSemantics::Block));
     /// 
     /// // to shorter line
-    /// assert!(test(Selection::new(13, 13), Selection::with_stored_line_position(13, 3, 9), CursorSemantics::Bar));
-    /// //assert!(test(Selection::new(13, 14), Selection::with_stored_line_position(14, 3, 9), CursorSemantics::Block));  //idk\nsomething[:\n]else    //idk:]\nsomething\n[else
-    /// assert!(test(Selection::new(13, 14), Selection::with_stored_line_position(13, 3, 9), CursorSemantics::Block));  //if at end of line, sets anchor before newline char
+    /// assert_eq!(Selection::with_stored_line_position(13, 3, 9), Selection::new(13, 13).extend_up(&text, CursorSemantics::Bar));
+    /// assert_eq!(Selection::with_stored_line_position(13, 3, 9), Selection::new(13, 14).extend_up(&text, CursorSemantics::Block)); //if at end of line, sets anchor before newline char
     /// 
     /// // to longer line
-    /// assert!(test(Selection::new(18, 18), Selection::with_stored_line_position(18, 8, 4), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(18, 19), Selection::with_stored_line_position(18, 8, 4), CursorSemantics::Block));  //idk\nsomething\nelse[: ]   //idk\nsome:]thing\nelse[
+    /// assert_eq!(Selection::with_stored_line_position(18, 8, 4), Selection::new(18, 18).extend_up(&text, CursorSemantics::Bar));
+    /// assert_eq!(Selection::with_stored_line_position(18, 8, 4), Selection::new(18, 19).extend_up(&text, CursorSemantics::Block)); //idk\nsomething\nelse[: ]   //idk\nsome:]thing\nelse[
     /// ```
-    pub fn extend_up(&mut self, text: &Rope, semantics: CursorSemantics){
-        self.move_vertically(1, text, Movement::Extend, Direction::Backward, semantics);
+    pub fn extend_up(&self, text: &Rope, semantics: CursorSemantics) -> Self{
+        self.move_vertically(1, text, Movement::Extend, Direction::Backward, semantics)
     }
 
     /// Extends selection down.
@@ -1037,27 +944,22 @@ impl Selection{
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
-    /// fn test(mut selection: Selection, expected: Selection, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("idk\nsomething\nelse");
-    ///     selection.extend_down(&text, semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, selection);
-    ///     selection == expected
-    /// }
+    /// let text = Rope::from("idk\nsomething\nelse");
     /// 
     /// // stays within doc bounds
-    /// assert!(test(Selection::new(18, 18), Selection::with_stored_line_position(18, 18, 4), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(18, 19), Selection::with_stored_line_position(18, 19, 4), CursorSemantics::Block));
+    /// assert_eq!(Selection::with_stored_line_position(18, 18, 4), Selection::new(18, 18).extend_down(&text, CursorSemantics::Bar));
+    /// assert_eq!(Selection::with_stored_line_position(18, 19, 4), Selection::new(18, 19).extend_down(&text, CursorSemantics::Block));
     /// 
     /// // to shorter line
-    /// assert!(test(Selection::new(13, 13), Selection::with_stored_line_position(13, 18, 9), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(13, 14), Selection::with_stored_line_position(13, 19, 9), CursorSemantics::Block)); //idk\nsomething[:\n]else    //idk\nsomething[\nelse: ]   //does anything need to be done about the overextension here?
+    /// assert_eq!(Selection::with_stored_line_position(13, 18, 9), Selection::new(13, 13).extend_down(&text, CursorSemantics::Bar));
+    /// assert_eq!(Selection::with_stored_line_position(13, 19, 9), Selection::new(13, 14).extend_down(&text, CursorSemantics::Block)); //idk\nsomething[:\n]else    //idk\nsomething[\nelse: ]
     /// 
     /// // to longer line
-    /// assert!(test(Selection::new(3, 3), Selection::with_stored_line_position(3, 7, 3), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(3, 4), Selection::with_stored_line_position(3, 8, 3), CursorSemantics::Block)); //idk[:\n]something\nelse    //idk[\nsom:e]thing\nelse
+    /// assert_eq!(Selection::with_stored_line_position(3, 7, 3), Selection::new(3, 3).extend_down(&text, CursorSemantics::Bar));
+    /// assert_eq!(Selection::with_stored_line_position(3, 8, 3), Selection::new(3, 4).extend_down(&text, CursorSemantics::Block)); //idk[:\n]something\nelse    //idk[\nsom:e]thing\nelse
     /// ```
-    pub fn extend_down(&mut self, text: &Rope, semantics: CursorSemantics){
-        self.move_vertically(1, text, Movement::Extend, Direction::Forward, semantics);
+    pub fn extend_down(&self, text: &Rope, semantics: CursorSemantics) -> Self{
+        self.move_vertically(1, text, Movement::Extend, Direction::Forward, semantics)
     }
 
     /// Extend selection to end of line text.
@@ -1065,27 +967,22 @@ impl Selection{
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
-    /// fn test(mut selection: Selection, expected: Selection, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("idk\n");
-    ///     selection.extend_line_text_end(&text, semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, selection);
-    ///     selection == expected
-    /// }
+    /// let text = Rope::from("idk\n");
     /// 
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(0, 3, 3), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(0, 3, 2), CursorSemantics::Block));
+    /// assert_eq!(Selection::with_stored_line_position(0, 3, 3), Selection::new(0, 0).extend_line_text_end(&text, CursorSemantics::Bar));
+    /// assert_eq!(Selection::with_stored_line_position(0, 3, 2), Selection::new(0, 1).extend_line_text_end(&text, CursorSemantics::Block));
     /// ```
-    pub fn extend_line_text_end(&mut self, text: &Rope, semantics: CursorSemantics){
+    pub fn extend_line_text_end(&self, text: &Rope, semantics: CursorSemantics) -> Self{
         let line_number = text.char_to_line(self.head);
         let line = text.line(line_number);
         let line_width = text_util::line_width_excluding_newline(line);
         let line_start = text.line_to_char(line_number);
-        let line_end = /*line_start.saturating_add(line_width);*/ match semantics{
+        let line_end = match semantics{
             CursorSemantics::Bar => line_start.saturating_add(line_width),
             CursorSemantics::Block => line_start.saturating_add(line_width).saturating_sub(1)
         };
 
-        self.put_cursor(line_end, text, Movement::Extend, semantics, true);  //line_end.saturating_sub(1) for block cursor
+        self.put_cursor(line_end, text, Movement::Extend, semantics, true)
     }
 
     /// Extends [Selection] to absolute start of line, or line text start, depending on [Selection] head position.
@@ -1093,35 +990,30 @@ impl Selection{
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
-    /// fn test(mut selection: Selection, expected: Selection, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("    idk\n");
-    ///     selection.extend_home(&text, semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, selection);
-    ///     selection == expected
-    /// }
+    /// let text = Rope::from("    idk\n");
     /// 
     /// // extends selection to text start when head past text start
-    /// assert!(test(Selection::new(6, 6), Selection::with_stored_line_position(6, 4, 4), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(6, 7), Selection::with_stored_line_position(7, 4, 4), CursorSemantics::Block));
+    /// assert_eq!(Selection::with_stored_line_position(6, 4, 4), Selection::new(6, 6).extend_home(&text, CursorSemantics::Bar));
+    /// assert_eq!(Selection::with_stored_line_position(7, 4, 4), Selection::new(6, 7).extend_home(&text, CursorSemantics::Block));
     /// 
     /// // extends selection to line start when head at text start
-    /// assert!(test(Selection::new(4, 4), Selection::with_stored_line_position(4, 0, 0), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(4, 5), Selection::with_stored_line_position(5, 0, 0), CursorSemantics::Block)); //    [:i]dk\n  //:]    i[dk\n
+    /// assert_eq!(Selection::with_stored_line_position(4, 0, 0), Selection::new(4, 4).extend_home(&text, CursorSemantics::Bar));
+    /// assert_eq!(Selection::with_stored_line_position(5, 0, 0), Selection::new(4, 5).extend_home(&text, CursorSemantics::Block));   //    [:i]dk\n  //:]    i[dk\n
     /// 
     /// // extends selection to text start when head before text start
-    /// assert!(test(Selection::new(1, 1), Selection::with_stored_line_position(1, 4, 4), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(1, 2), Selection::with_stored_line_position(1, 5, 4), CursorSemantics::Block)); // [: ]  idk\n  // [   :i]dk\n
+    /// assert_eq!(Selection::with_stored_line_position(1, 4, 4), Selection::new(1, 1).extend_home(&text, CursorSemantics::Bar));
+    /// assert_eq!(Selection::with_stored_line_position(1, 5, 4), Selection::new(1, 2).extend_home(&text, CursorSemantics::Block)); // [: ]  idk\n  // [   :i]dk\n
     /// ```
-    pub fn extend_home(&mut self, text: &Rope, semantics: CursorSemantics){
+    pub fn extend_home(&self, text: &Rope, semantics: CursorSemantics) -> Self{
         let line_number = text.char_to_line(self.cursor(semantics));
         let line_start = text.line_to_char(line_number);
         let text_start_offset = text_util::first_non_whitespace_character_offset(text.line(line_number));
         let text_start = line_start.saturating_add(text_start_offset);
 
         if self.cursor(semantics) == text_start{
-            self.extend_line_start(text, semantics);
+            self.extend_line_start(text, semantics)
         }else{
-            self.extend_line_text_start(text, semantics);
+            self.extend_line_text_start(text, semantics)
         }
     }
     
@@ -1130,22 +1022,16 @@ impl Selection{
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
-    /// fn test(mut selection: Selection, expected: Selection, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("idk\nsome\nshit\n");
-    ///     selection.extend_line_start(&text, semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, selection);
-    ///     selection == expected
-    /// }
+    /// let text = Rope::from("idk\nsome\nshit\n");
     /// 
-    /// assert!(test(Selection::new(3, 3), Selection::with_stored_line_position(3, 0, 0), CursorSemantics::Bar));
-    /// //assert!(test(Selection::new(3, 4), Selection::with_stored_line_position(4, 0, 0), CursorSemantics::Block)); //idk[\n]some\nshit\n   //:]idk\n[some\nshit\n
-    /// assert!(test(Selection::new(3, 4), Selection::with_stored_line_position(3, 0, 0), CursorSemantics::Block)); //special case  //if at end of line, sets anchor before newline char
+    /// assert_eq!(Selection::with_stored_line_position(3, 0, 0), Selection::new(3, 3).extend_line_start(&text, CursorSemantics::Bar));
+    /// assert_eq!(Selection::with_stored_line_position(3, 0, 0), Selection::new(3, 4).extend_line_start(&text, CursorSemantics::Block));   //special case  //if at end of line, sets anchor before newline char
     /// ```
-    pub fn extend_line_start(&mut self, text: &Rope, semantics: CursorSemantics){
+    pub fn extend_line_start(&self, text: &Rope, semantics: CursorSemantics) -> Self{
         let line_number = text.char_to_line(self.cursor(semantics));
         let line_start = text.line_to_char(line_number);
 
-        self.put_cursor(line_start, text, Movement::Extend, semantics, true);
+        self.put_cursor(line_start, text, Movement::Extend, semantics, true)
     }
     
     /// Extends [Selection] to start of text in line.
@@ -1153,23 +1039,18 @@ impl Selection{
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
-    /// fn test(mut selection: Selection, expected: Selection, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("  idk\n");
-    ///     selection.extend_line_text_start(&text, semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, selection);
-    ///     selection == expected
-    /// }
+    /// let text = Rope::from("  idk\n");
     /// 
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(0, 2, 2), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(0, 3, 2), CursorSemantics::Block));
+    /// assert_eq!(Selection::with_stored_line_position(0, 2, 2), Selection::new(0, 0).extend_line_text_start(&text, CursorSemantics::Bar));
+    /// assert_eq!(Selection::with_stored_line_position(0, 3, 2), Selection::new(0, 1).extend_line_text_start(&text, CursorSemantics::Block));
     /// ```
-    pub fn extend_line_text_start(&mut self, text: &Rope, semantics: CursorSemantics){
+    pub fn extend_line_text_start(&self, text: &Rope, semantics: CursorSemantics) -> Self{
         let line_number = text.char_to_line(self.cursor(semantics));
         let line_start = text.line_to_char(line_number);
         let text_start_offset = text_util::first_non_whitespace_character_offset(text.line(line_number));
         let text_start = line_start.saturating_add(text_start_offset);
 
-        self.put_cursor(text_start, text, Movement::Extend, semantics, true);
+        self.put_cursor(text_start, text, Movement::Extend, semantics, true)
     }
     
     /// Extends [Selection] up by the height of client view.
@@ -1178,19 +1059,14 @@ impl Selection{
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// # use edit_core::view::View;
     /// 
-    /// fn test(mut selection: Selection, expected: Selection, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("idk\nsomething\nelse");
-    ///     let client_view = View::new(0, 0, 2, 2);
-    ///     selection.extend_page_up(&text, &client_view, semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, selection);
-    ///     selection == expected
-    /// }
+    /// let text = Rope::from("idk\nsomething\nelse");
+    /// let client_view = View::new(0, 0, 2, 2);
     /// 
-    /// assert!(test(Selection::new(6, 6), Selection::with_stored_line_position(6, 2, 2), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(6, 7), Selection::with_stored_line_position(7, 2, 2), CursorSemantics::Block)); //idk\nso[m]ething\nelse    //id:]k\nsom[ething\nelse
+    /// assert_eq!(Selection::with_stored_line_position(6, 2, 2), Selection::new(6, 6).extend_page_up(&text, &client_view, CursorSemantics::Bar));
+    /// assert_eq!(Selection::with_stored_line_position(7, 2, 2), Selection::new(6, 7).extend_page_up(&text, &client_view, CursorSemantics::Block));    //idk\nso[m]ething\nelse    //id:]k\nsom[ething\nelse
     /// ```
-    pub fn extend_page_up(&mut self, text: &Rope, client_view: &View, semantics: CursorSemantics){
-        self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Extend, Direction::Backward, semantics);
+    pub fn extend_page_up(&self, text: &Rope, client_view: &View, semantics: CursorSemantics) -> Self{
+        self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Extend, Direction::Backward, semantics)
     }
     
     /// Extends [Selection] down by the height of client view.
@@ -1199,19 +1075,14 @@ impl Selection{
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// # use edit_core::view::View;
     /// 
-    /// fn test(mut selection: Selection, expected: Selection, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("idk\nsomething\nelse");
-    ///     let client_view = View::new(0, 0, 2, 2);
-    ///     selection.extend_page_down(&text, &client_view, semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, selection);
-    ///     selection == expected
-    /// }
+    /// let text = Rope::from("idk\nsomething\nelse");
+    /// let client_view = View::new(0, 0, 2, 2);
     /// 
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(0, 4, 0), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(0, 5, 0), CursorSemantics::Block)); //[i]dk\nsomething\nelse    //[idk\n:s]omething\nelse
+    /// assert_eq!(Selection::with_stored_line_position(0, 4, 0), Selection::new(0, 0).extend_page_down(&text, &client_view, CursorSemantics::Bar));
+    /// assert_eq!(Selection::with_stored_line_position(0, 5, 0), Selection::new(0, 1).extend_page_down(&text, &client_view, CursorSemantics::Block));  //[i]dk\nsomething\nelse    //[idk\n:s]omething\nelse
     /// ```
-    pub fn extend_page_down(&mut self, text: &Rope, client_view: &View, semantics: CursorSemantics){
-        self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Extend, Direction::Forward, semantics);
+    pub fn extend_page_down(&self, text: &Rope, client_view: &View, semantics: CursorSemantics) -> Self{
+        self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Extend, Direction::Forward, semantics)
     }
     
     /// Extends [Selection] to doc start.
@@ -1219,18 +1090,13 @@ impl Selection{
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
-    /// fn test(mut selection: Selection, expected: Selection, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("idk\nsome\nshit\n");
-    ///     selection.extend_doc_start(&text, semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, selection);
-    ///     selection == expected
-    /// }
+    /// let text = Rope::from("idk\nsome\nshit\n");
     /// 
-    /// assert!(test(Selection::new(9, 9), Selection::with_stored_line_position(9, 0, 0), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(9, 10), Selection::with_stored_line_position(10, 0, 0), CursorSemantics::Block));   //idk\nsome\n[s]hit\n   //:]idk\nsome\ns[hit\n
+    /// assert_eq!(Selection::with_stored_line_position(9, 0, 0), Selection::new(9, 9).extend_doc_start(&text, CursorSemantics::Bar));
+    /// assert_eq!(Selection::with_stored_line_position(10, 0, 0), Selection::new(9, 10).extend_doc_start(&text, CursorSemantics::Block));  //idk\nsome\n[s]hit\n   //:]idk\nsome\ns[hit\n
     /// ```
-    pub fn extend_doc_start(&mut self, text: &Rope, semantics: CursorSemantics){
-        self.put_cursor(0, text, Movement::Extend, semantics, true);
+    pub fn extend_doc_start(&self, text: &Rope, semantics: CursorSemantics) -> Self{
+        self.put_cursor(0, text, Movement::Extend, semantics, true)
     }
     
     /// Extends [Selection] to doc end.
@@ -1238,18 +1104,13 @@ impl Selection{
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
-    /// fn test(mut selection: Selection, expected: Selection, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("idk\nsome\nshit\n");
-    ///     selection.extend_doc_end(&text, semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, selection);
-    ///     selection == expected
-    /// }
+    /// let text = Rope::from("idk\nsome\nshit\n");
     /// 
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(0, 14, 0), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(0, 15, 0), CursorSemantics::Block));
+    /// assert_eq!(Selection::with_stored_line_position(0, 14, 0), Selection::new(0, 0).extend_doc_end(&text, CursorSemantics::Bar));
+    /// assert_eq!(Selection::with_stored_line_position(0, 15, 0), Selection::new(0, 1).extend_doc_end(&text, CursorSemantics::Block));
     /// ```
-    pub fn extend_doc_end(&mut self, text: &Rope, semantics: CursorSemantics){
-        self.put_cursor(text.len_chars(), text, Movement::Extend, semantics, true);
+    pub fn extend_doc_end(&self, text: &Rope, semantics: CursorSemantics) -> Self{
+        self.put_cursor(text.len_chars(), text, Movement::Extend, semantics, true)
     }
 
     /// Selects all text.
@@ -1257,19 +1118,14 @@ impl Selection{
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
-    /// fn test(mut selection: Selection, expected: Selection, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("idk\nsome\nshit\n");
-    ///     selection.select_all(&text, semantics);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, selection);
-    ///     selection == expected
-    /// }
+    /// let text = Rope::from("idk\nsome\nshit\n");
     /// 
-    /// assert!(test(Selection::new(0, 0), Selection::with_stored_line_position(0, 14, 0), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 1), Selection::with_stored_line_position(0, 15, 0), CursorSemantics::Block));
+    /// assert_eq!(Selection::with_stored_line_position(0, 14, 0), Selection::new(0, 0).select_all(&text, CursorSemantics::Bar));
+    /// assert_eq!(Selection::with_stored_line_position(0, 15, 0), Selection::new(0, 1).select_all(&text, CursorSemantics::Block));
     /// ```
-    pub fn select_all(&mut self, text: &Rope, semantics: CursorSemantics){
-        self.put_cursor(0, &text, Movement::Move, semantics, true);
-        self.put_cursor(text.len_chars(), &text, Movement::Extend, semantics, true);
+    pub fn select_all(&self, text: &Rope, semantics: CursorSemantics) -> Self{
+        let selection = self.put_cursor(0, &text, Movement::Move, semantics, true);
+        selection.put_cursor(text.len_chars(), &text, Movement::Extend, semantics, true)
     }
 
     /// Translates a [Selection] to a [Selection2d]
@@ -1407,6 +1263,7 @@ impl Selections{
         selections.sort();
         selections.merge_overlapping(text);
 
+        assert!(selections.count() > 0);
         selections
     }
     pub fn count(&self) -> usize{
@@ -1422,11 +1279,13 @@ impl Selections{
         self.selections.iter_mut()
     }
     pub fn pop(&mut self) -> Option<Selection>{
+        assert!(self.count() > 0);
         //TODO: figure out how to determine what to set primary_selection_index to
-        if self.selections.len() == 1{
+        if self.count() == 1{
             None
         }else{
             self.selections.pop()
+            // set new primary_selection_index
         }
     }
 
@@ -1444,6 +1303,7 @@ impl Selections{
     pub fn push_front(&mut self, selection: Selection){
         self.selections.insert(0, selection);
         self.primary_selection_index = 0;
+        assert!(self.count() > 0);
     }
     
     /// Appends a [Selection] to the back of [Self], and assigns its index to self.primary_selection_index
@@ -1460,7 +1320,8 @@ impl Selections{
     /// ```
     pub fn push(&mut self, selection: Selection){
         self.selections.push(selection);
-        self.primary_selection_index = self.selections.len().saturating_sub(1);
+        self.primary_selection_index = self.count().saturating_sub(1);//self.selections.len().saturating_sub(1);
+        assert!(self.count() > 0);
     }
     
     /// Returns the [Selection] at primary_selection_index as a reference
@@ -1510,8 +1371,8 @@ impl Selections{
     /// Selections::new(vec![Selection::new(0, 0)], 0, &text).increment_primary_selection();
     /// ```
     pub fn increment_primary_selection(&mut self){  //-> Selections
-        assert!(self.selections.len() > 1);
-        if self.primary_selection_index.saturating_add(1) < self.selections.len(){
+        assert!(self.count() > 1);
+        if self.primary_selection_index.saturating_add(1) < self.count(){
             self.primary_selection_index += 1;
         }else{
             self.primary_selection_index = 0;
@@ -1545,11 +1406,11 @@ impl Selections{
     /// Selections::new(vec![Selection::new(0, 0)], 0, &text).decrement_primary_selection();
     /// ```
     pub fn decrement_primary_selection(&mut self){  //-> Selections
-        assert!(self.selections.len() > 1);
+        assert!(self.count() > 1);
         if self.primary_selection_index() > 0{
             self.primary_selection_index -= 1;
         }else{
-            self.primary_selection_index = self.selections.len().saturating_sub(1);
+            self.primary_selection_index = self.count().saturating_sub(1);//self.selections.len().saturating_sub(1);
         }
     }
 
@@ -1578,7 +1439,7 @@ impl Selections{
     /// assert!(selections == expected_selections);
     /// ```
     pub fn sort(&mut self){
-        if self.selections.len() < 2{
+        if self.count() < 2{
             return;
         }
 
@@ -1589,6 +1450,8 @@ impl Selections{
             .iter()
             .position(|selection| selection.clone() == primary)
             .unwrap();
+
+        assert!(self.count() > 0);
     }
 
     /// Merges overlapping [Selection]s.
@@ -1615,7 +1478,7 @@ impl Selections{
     /// assert!(selections == expected_selections);
     /// ```
     pub fn merge_overlapping(&mut self, text: &Rope){
-        if self.selections.len() < 2{
+        if self.count() < 2{
             return;
         }
 
@@ -1638,6 +1501,8 @@ impl Selections{
             .iter()
             .position(|selection| selection.clone() == primary)
             .unwrap();
+
+        assert!(self.count() > 0);
     }
 
     /// Removes all selections except Selection at primary_selection_index
@@ -1662,10 +1527,12 @@ impl Selections{
     /// # let text = Rope::from("idk\nsome\nshit\n");
     /// Selections::new(vec![Selection::new(0, 0)], 0, &text).clear_non_primary_selections();
     /// ```
+    // pub fn clear_non_primary_selections(&self) -> Selections{}
     pub fn clear_non_primary_selections(&mut self){
-        assert!(self.selections.len() > 1);
+        assert!(self.count() > 1);
         self.selections = vec![self.selections[self.primary_selection_index].clone()];
         self.primary_selection_index = 0;
+        assert!(self.count() > 0);
     }
 
     //TODO: return head and anchor positions
