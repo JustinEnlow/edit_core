@@ -344,7 +344,7 @@ impl Document{
             (new_text, selection) = Document::delete_at_cursor(selection.clone(), text, semantics);
         }
         new_text.insert_char(selection.cursor(semantics), char);
-        selection.move_right(&new_text, semantics);
+        selection = selection.move_right(&new_text, semantics);
 
         (selection, new_text)
     }
