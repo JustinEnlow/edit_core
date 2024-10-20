@@ -20,7 +20,8 @@ pub fn line_width_excluding_newline(line: RopeSlice) -> usize{
         //if char != '\n'{
     for grapheme in line.graphemes(true){
         if grapheme != "\n"{
-            line_width = line_width + 1;
+            //line_width = line_width + 1;
+            line_width += 1;
         }
     }
     line_width

@@ -35,7 +35,7 @@ pub struct Document{
 }
 impl Document{
     pub fn open(path: &PathBuf, cursor_semantics: CursorSemantics) -> Result<Self, Box<dyn Error>>{
-        let text = Rope::from_reader(BufReader::new(File::open(&path)?))?;
+        let text = Rope::from_reader(BufReader::new(File::open(path)?))?;
     
         Ok(Self{
             text: text.clone(),
@@ -134,6 +134,7 @@ impl Document{
     /// let doc = Document::new(CursorSemantics::Bar).with_text(text.clone());
     /// assert_eq!(doc.len(), 4);
     /// ```
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize{
         self.text.len_lines()
     }
@@ -193,7 +194,8 @@ impl Document{
             (*selection, self.text) = Document::enter_at_cursor(selection.clone(), &self.text, semantics);
         }
 
-        self.modified = !(self.text == self.last_saved_text);
+        //self.modified = !(self.text == self.last_saved_text);
+        self.modified = self.text != self.last_saved_text;
     }
     fn enter_at_cursor(mut selection: Selection, text: &Rope, semantics: CursorSemantics) -> (Selection, Rope){
         //determine indentation level
@@ -336,7 +338,8 @@ impl Document{
             );
         }
 
-        self.modified = !(self.text == self.last_saved_text);
+        //self.modified = !(self.text == self.last_saved_text);
+        self.modified = self.text != self.last_saved_text;
     }
     fn insert_char_at_cursor(mut selection: Selection, text: &Rope, char: char, semantics: CursorSemantics) -> (Selection, Rope){
         let mut new_text = text.clone();
@@ -387,7 +390,8 @@ impl Document{
             }
         }
 
-        self.modified = !(self.text == self.last_saved_text);
+        //self.modified = !(self.text == self.last_saved_text);
+        self.modified = self.text != self.last_saved_text;
     }
 
     /// Deletes selection, or if no selection, the next character.
@@ -436,7 +440,8 @@ impl Document{
             (self.text, *selection) = Document::delete_at_cursor(selection.clone(), &self.text, semantics);
         }
 
-        self.modified = !(self.text == self.last_saved_text);
+        //self.modified = !(self.text == self.last_saved_text);
+        self.modified = self.text != self.last_saved_text;
     }
     fn delete_at_cursor(mut selection: Selection, text: &Rope, semantics: CursorSemantics) -> (Rope, Selection){
         let mut new_text = text.clone();
@@ -610,6 +615,7 @@ impl Document{
     /// assert!(doc.text().clone() == Rope::from("idk\nsome\nshit\n"));
     /// assert!(doc.selections().primary().clone() == Selection::with_stored_line_position(0, match semantics{CursorSemantics::Bar => 0, CursorSemantics::Block => 1}, 0));
     /// ```
+    #[allow(clippy::collapsible_else_if)]
     pub fn backspace(&mut self, semantics: CursorSemantics){
         for selection in self.selections.iter_mut().rev(){
             let cursor_line_position = selection.cursor(semantics).saturating_sub(self.text.line_to_char(self.text.char_to_line(selection.cursor(semantics))));
@@ -650,6 +656,7 @@ impl Document{
             }
         }
 
-        self.modified = !(self.text == self.last_saved_text);
+        //self.modified = !(self.text == self.last_saved_text);
+        self.modified = self.text != self.last_saved_text;
     }
 }

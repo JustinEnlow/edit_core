@@ -35,7 +35,8 @@ impl ClientIDManager{
             id
         }else{
             let id = self.next_id;
-            self.next_id = self.next_id + 1;
+            //self.next_id = self.next_id + 1;
+            self.next_id += 1;
             id
         }
     }

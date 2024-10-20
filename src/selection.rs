@@ -1,3 +1,5 @@
+// follow documentation style from https://std-dev-guide.rust-lang.org/development/how-to-write-documentation.html
+
 use ropey::Rope;
 use crate::{
     Position,
@@ -39,28 +41,28 @@ pub struct Selection{
     stored_line_position: Option<usize>,
 }
 impl Selection{
-    /// Creates a new instance of [Selection].
+    /// Returns a new instance of [`Selection`].
     #[must_use]
     pub fn new(anchor: usize, head: usize) -> Self{ // could init with cursor semantics: (anchor: usize, cursor: usize, semantics: CursorSemantics)
         Self{anchor, head, stored_line_position: None}
     }
-    /// Creates an instance of [Selection] with a specified stored_line_position.
+    /// Returns a new instance of [`Selection`] with a specified `stored_line_position`.
     /// Mainly used for testing.
     pub fn with_stored_line_position(anchor: usize, head: usize, stored_line_position: usize) -> Self{
         Self{anchor, head, stored_line_position: Some(stored_line_position)}
     }
-    /// Returns the char index of [Selection] anchor.
+    /// Returns the char index of [`Selection`] anchor.
     #[must_use]
     pub fn anchor(&self) -> usize{
         self.anchor
     }
-    /// Returns the char index of [Selection] head.
+    /// Returns the char index of [`Selection`] head.
     #[must_use]
     pub fn head(&self) -> usize{
         self.head
     }
 
-    /// Returns the char index of the start of the [Selection] from left to right.
+    /// Returns the char index of the start of the [`Selection`] from left to right.
     /// ```
     /// # use edit_core::selection::Selection;
     /// 
@@ -71,7 +73,7 @@ impl Selection{
     pub fn start(&self) -> usize{
         std::cmp::min(self.anchor, self.head)
     }
-    /// Returns the char index of the end of the [Selection] from left to right.
+    /// Returns the char index of the end of the [`Selection`] from left to right.
     /// ```
     /// # use edit_core::selection::Selection;
     /// 
@@ -83,8 +85,8 @@ impl Selection{
         std::cmp::max(self.anchor, self.head)
     }
 
-    /// Returns true if selection len > 0 with bar cursor semantics, or 
-    /// selection len > 1 with block cursor semantics, or else returns false.
+    /// Returns `true` if [`Selection`] len > 0 with bar cursor semantics, or 
+    /// [`Selection`] len > 1 with block cursor semantics, or else returns `false`.
     /// ```
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
@@ -106,7 +108,7 @@ impl Selection{
         }
     }
 
-    /// returns the direction of [Selection]
+    /// Returns the direction of [`Selection`].
     /// ```
     /// # use edit_core::selection::{Selection, Direction, CursorSemantics};
     /// 
@@ -127,7 +129,7 @@ impl Selection{
         }
     }
 
-    /// Sets [Selection] direction to specified direction.
+    /// Sets [`Selection`] direction to specified direction.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, Direction, CursorSemantics};
@@ -162,7 +164,7 @@ impl Selection{
         selection
     }
 
-    /// Checks self and other for overlap.
+    /// Checks `self` and `other` for overlap.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::Selection;
@@ -225,7 +227,7 @@ impl Selection{
         (self.end() > other.start() && other.end() > self.start())
     }
 
-    /// Create a new [Selection] by merging self with other.
+    /// Create a new [`Selection`] by merging self with other.
     ///// Indiscriminate merge. merges whether overlapping, consecutive, 
     ///// contained, or disconnected entirely.
     /// resultant selection should be guaranteed to be within text bounds 
@@ -306,7 +308,7 @@ impl Selection{
 
     /////////////////////////////////// Block Cursor Methods ///////////////////////////////////
     
-    /// Returns the char index of [Selection] cursor.
+    /// Returns the char index of [`Selection`] cursor.
     /// left side of cursor if block cursor semantics
     /// ```
     /// # use ropey::Rope;
@@ -338,9 +340,20 @@ impl Selection{
         }
     }
 
-    /// Moves cursor to specified char index in rope.
-    /// Will shift anchor/head positions to accommodate Bar/Block cursor semantics.
-    /// Caller should ensure to <= text.len_chars()
+    /// Returns a new instance of [`Selection`] with cursor at specified char index in rope.
+    /// Will shift `anchor`/`head` positions to accommodate Bar/Block cursor semantics.
+    /// 
+    /// # Panics
+    /// `put_cursor` panics if `to`  > `text.len_chars()`.
+    /// ```should_panic
+    /// # use ropey::Rope;
+    /// # use edit_core::selection::{Selection, Movement, CursorSemantics};
+    /// 
+    /// let text = Rope::from("idk\nsome\nshit\n"); //len 14
+    /// Selection::new(0, 0).put_cursor(15, &text, Movement::Move, CursorSemantics::Block, true);
+    /// ```
+    /// 
+    /// # Examples
     ///```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, Movement, CursorSemantics};
@@ -368,15 +381,6 @@ impl Selection{
     /// assert_eq!(Selection::new(0, 0).put_cursor(14, &text, Movement::Extend, CursorSemantics::Bar, true), Selection::with_stored_line_position(0, 14, 0));
     /// assert_eq!(Selection::new(0, 1).put_cursor(14, &text, Movement::Move, CursorSemantics::Block, true), Selection::with_stored_line_position(14, 15, 0));
     /// assert_eq!(Selection::new(0, 1).put_cursor(14, &text, Movement::Extend, CursorSemantics::Block, true), Selection::with_stored_line_position(0, 15, 0));
-    /// ```
-    /// 
-    /// ```should_panic
-    /// # use ropey::Rope;
-    /// # use edit_core::selection::{Selection, Movement, CursorSemantics};
-    /// 
-    /// // should panic if greater than text len
-    /// # let text = Rope::from("idk\nsome\nshit\n");
-    /// Selection::new(0, 0).put_cursor(15, &text, Movement::Move, CursorSemantics::Block, true);
     /// ```
     #[must_use]
     pub fn put_cursor(&self, to: usize, text: &Rope, movement: Movement, semantics: CursorSemantics, update_stored_line_position: bool) -> Self{
@@ -427,7 +431,7 @@ impl Selection{
 
     /////////////////////////////////// Movement Methods ///////////////////////////////////
 
-    /// Moves the cursor vertically.
+    /// Returns a new instance of [`Selection`] with the cursor moved vertically by specified amount.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, Movement, Direction, CursorSemantics};
@@ -481,7 +485,7 @@ impl Selection{
         selection.put_cursor(new_position, text, movement, semantics, false)
     }
 
-    /// Moves the cursor horizontally.
+    /// Returns a new instance of [`Selection`] with the cursor moved horizontally by specified amount.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, Movement, Direction, CursorSemantics};
@@ -518,8 +522,18 @@ impl Selection{
         self.put_cursor(new_position, text, movement, semantics, true)
     }
 
-    /// Moves cursor to specified line number. Zero based.
-    /// Caller should ensure line number < (text line count - 1).
+    /// Returns a new instance of [`Selection`] with the cursor set to specified 0-based line number.
+    /// 
+    /// # Panics
+    /// `set_from_line_number` panics if `line_number` < `text.len_lines()`.
+    /// ```should_panic
+    /// # use ropey::Rope;
+    /// # use edit_core::selection::{Selection, Movement, CursorSemantics};
+    /// 
+    /// let text = Rope::from("idk\nsomething\nelse\n");    //num lines 4
+    /// Selection::new(0, 0).set_from_line_number(5, &text, Movement::Move, CursorSemantics::Bar);
+    /// ```
+    /// # Examples
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, Movement, CursorSemantics};
@@ -544,18 +558,9 @@ impl Selection{
     /// assert_eq!(Selection::new(19, 19).set_from_line_number(2, &text, Movement::Move, CursorSemantics::Bar), Selection::with_stored_line_position(14, 14, 0));
     /// assert_eq!(Selection::new(19, 20).set_from_line_number(2, &text, Movement::Move, CursorSemantics::Block), Selection::with_stored_line_position(14, 15, 0));
     /// ```
-    /// 
-    /// ```should_panic
-    /// # use ropey::Rope;
-    /// # use edit_core::selection::{Selection, Movement, CursorSemantics};
-    /// 
-    /// // should panic
-    /// # let text = Rope::from("idk\nsomething\nelse\n");
-    /// Selection::new(0, 0).set_from_line_number(5, &text, Movement::Move, CursorSemantics::Bar);
-    /// ```
     #[must_use]
     pub fn set_from_line_number(&self, line_number: usize, text: &Rope, movement: Movement, semantics: CursorSemantics) -> Self{
-        assert!(line_number < text.len_lines().saturating_sub(1));
+        assert!(line_number < text.len_lines());
         //let line_number = line_number.min(text.len_lines().saturating_sub(1));  //restrict line_number to doc length(-1 because len_lines is 1 based)
         let current_line = text.char_to_line(self.cursor(semantics));
         
@@ -565,10 +570,10 @@ impl Selection{
             (line_number.saturating_sub(current_line), Direction::Forward)
         };
     
-        self.move_vertically(amount, &text, movement, direction, semantics)
+        self.move_vertically(amount, text, movement, direction, semantics)
     }
 
-    /// Aligns [Selection] anchor with cursor.
+    /// Returns a new instance of [`Selection`] with `anchor` aligned with cursor.
     /// ``` 
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
@@ -592,7 +597,7 @@ impl Selection{
         self.put_cursor(self.cursor(semantics), text, Movement::Move, semantics, true)
     }
 
-    /// Moves cursor right.
+    /// Returns a new instance of [`Selection`] with cursor moved right.
     /// ``` 
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
@@ -622,7 +627,7 @@ impl Selection{
         self.move_horizontally(1, text, Movement::Move, Direction::Forward, semantics)
     }
 
-    /// Moves cursor left.
+    /// Returns a new instance of [`Selection`] with cursor moved left.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
@@ -654,7 +659,7 @@ impl Selection{
         self.move_horizontally(1, text, Movement::Move, Direction::Backward, semantics)
     }
 
-    /// Moves cursor up.
+    /// Returns a new instance of [`Selection`] with cursor moved up.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
@@ -684,7 +689,7 @@ impl Selection{
         self.move_vertically(1, text, Movement::Move, Direction::Backward, semantics)
     }
 
-    /// Moves cursor down.
+    /// Returns a new instance of [`Selection`] with cursor moved down.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
@@ -711,13 +716,12 @@ impl Selection{
     /// assert_eq!(Selection::new(0, 4).move_down(&text, CursorSemantics::Block), Selection::with_stored_line_position(7, 8, 3));
     /// assert_eq!(Selection::new(4, 0).move_down(&text, CursorSemantics::Block), Selection::with_stored_line_position(4, 5, 0));
     /// ```
-    // //TODO: figure out single string for tests
     #[must_use]
     pub fn move_down(&self, text: &Rope, semantics: CursorSemantics) -> Self{
         self.move_vertically(1, text, Movement::Move, Direction::Forward, semantics)
     }
 
-    /// Moves cursor to line end.
+    /// Returns a new instance of [`Selection`] with cursor moved to line end.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
@@ -745,7 +749,7 @@ impl Selection{
         self.put_cursor(line_end, text, Movement::Move, semantics, true)
     }
 
-    /// Moves cursor to absolute start of line, or start of line text, depending on cursor position.
+    /// Returns a new instance of [`Selection`] with cursor moved to absolute start of line, or start of line text, depending on current cursor position.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
@@ -788,7 +792,7 @@ impl Selection{
         }
     }
     
-    /// Moves to line start.
+    /// Returns a new instance of [`Selection`] with the cursor moved to the start of the current line.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
@@ -806,7 +810,7 @@ impl Selection{
         self.put_cursor(line_start, text, Movement::Move, semantics, true)
     }
     
-    /// Moves to start of text on line.
+    /// Returns a new instance of [`Selection`] with the cursor moved to the start of the text on the current line.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
@@ -826,7 +830,7 @@ impl Selection{
         self.put_cursor(text_start, text, Movement::Move, semantics, true)
     }
 
-    /// Moves cursor up by the height of client view.
+    /// Returns a new instance of [`Selection`] with the cursor moved up by the height of `client_view`.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
@@ -842,7 +846,7 @@ impl Selection{
         self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Move, Direction::Backward, semantics)
     }
 
-    /// Moves cursor down by the height of client view.
+    /// Returns a new instance of [`Selection`] with the cursor moved down by the height of `client_view`.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
@@ -858,7 +862,7 @@ impl Selection{
         self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Move, Direction::Forward, semantics)
     }
 
-    /// Moves cursor to the start of the document.
+    /// Returns a new instance of [`Selection`] with the cursor moved to the start of the document.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
@@ -872,7 +876,7 @@ impl Selection{
         self.put_cursor(0, text, Movement::Move, semantics, true)
     }
 
-    /// Moves cursor to the end of the document.
+    /// Returns a new instance of [`Selection`] with the cursor moved to the end of the document.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
@@ -886,7 +890,7 @@ impl Selection{
         self.put_cursor(text.len_chars(), text, Movement::Move, semantics, true)
     }
 
-    /// Extends selection to the right.
+    /// Returns a new instance of [`Selection`] with the [`Selection`] extended to the right.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
@@ -916,7 +920,7 @@ impl Selection{
         self.move_horizontally(1, text, Movement::Extend, Direction::Forward, semantics)
     }
 
-    /// Extends selection to the left.
+    /// Returns a new instance of [`Selection`] with the [`Selection`] extended to the left.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
@@ -946,7 +950,7 @@ impl Selection{
         self.move_horizontally(1, text, Movement::Extend, Direction::Backward, semantics)
     }
 
-    /// Extends selection up.
+    /// Returns a new instance of [`Selection`] with the [`Selection`] extended up.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
@@ -970,7 +974,7 @@ impl Selection{
         self.move_vertically(1, text, Movement::Extend, Direction::Backward, semantics)
     }
 
-    /// Extends selection down.
+    /// Returns a new instance of [`Selection`] with the [`Selection`] extended down.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
@@ -994,7 +998,7 @@ impl Selection{
         self.move_vertically(1, text, Movement::Extend, Direction::Forward, semantics)
     }
 
-    /// Extend selection to end of line text.
+    /// Returns a new instance of [`Selection`] with the [`Selection`] extended to the end of the current line.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
@@ -1018,7 +1022,7 @@ impl Selection{
         self.put_cursor(line_end, text, Movement::Extend, semantics, true)
     }
 
-    /// Extends [Selection] to absolute start of line, or line text start, depending on [Selection] head position.
+    /// Returns a new instance of [`Selection`] with the [`Selection`] extended to absolute start of line, or line text start, depending on [`Selection`] `head` position.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
@@ -1051,7 +1055,7 @@ impl Selection{
         }
     }
     
-    /// Extends [Selection] to start of line.
+    /// Returns a new instance of [`Selection`] with the [`Selection`] extended to the start of the current line.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
@@ -1069,7 +1073,7 @@ impl Selection{
         self.put_cursor(line_start, text, Movement::Extend, semantics, true)
     }
     
-    /// Extends [Selection] to start of text in line.
+    /// Returns a new instance of [`Selection`] with the [`Selection`] extended to the start of the text on the current line.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
@@ -1089,7 +1093,7 @@ impl Selection{
         self.put_cursor(text_start, text, Movement::Extend, semantics, true)
     }
     
-    /// Extends [Selection] up by the height of client view.
+    /// Returns a new instance of [`Selection`] with the [`Selection`] extended up by the height of `client_view`.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
@@ -1106,7 +1110,7 @@ impl Selection{
         self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Extend, Direction::Backward, semantics)
     }
     
-    /// Extends [Selection] down by the height of client view.
+    /// Returns a new instance of [`Selection`] with the [`Selection`] extended down by the height of `client_view`.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
@@ -1123,7 +1127,7 @@ impl Selection{
         self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Extend, Direction::Forward, semantics)
     }
     
-    /// Extends [Selection] to doc start.
+    /// Returns a new instance of [`Selection`] with the [`Selection`] extended to doc start.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
@@ -1138,7 +1142,7 @@ impl Selection{
         self.put_cursor(0, text, Movement::Extend, semantics, true)
     }
     
-    /// Extends [Selection] to doc end.
+    /// Returns a new instance of [`Selection`] with the [`Selection`] extended to doc end.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
@@ -1153,7 +1157,7 @@ impl Selection{
         self.put_cursor(text.len_chars(), text, Movement::Extend, semantics, true)
     }
 
-    /// Selects all text.
+    /// Returns a new instance of [`Selection`] with [`Selection`] extended to encompass all text.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics};
@@ -1165,11 +1169,11 @@ impl Selection{
     /// ```
     #[must_use]
     pub fn select_all(&self, text: &Rope, semantics: CursorSemantics) -> Self{
-        let selection = self.put_cursor(0, &text, Movement::Move, semantics, true);
-        selection.put_cursor(text.len_chars(), &text, Movement::Extend, semantics, true)
+        let selection = self.put_cursor(0, text, Movement::Move, semantics, true);
+        selection.put_cursor(text.len_chars(), text, Movement::Extend, semantics, true)
     }
 
-    /// Translates a [Selection] to a [Selection2d]
+    /// Translates a [`Selection`] to a [Selection2d].
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, Selection2d, CursorSemantics};
@@ -1247,8 +1251,8 @@ impl Selection2d{
 
 
 
-/// A collection of [Selection]s. 
-/// used in place of [Vec]<[Selection]> to ensure certain guarantees are enforced
+/// A collection of [`Selection`]s. 
+/// used in place of [Vec]<[`Selection`]> to ensure certain guarantees are enforced
 /// ## Goal Guarantees:
 /// - will always contain at least 1 {Selection}
 /// - all {Selection}s are grapheme aligned
@@ -1264,13 +1268,23 @@ pub struct Selections{
     primary_selection_index: usize,
 }
 impl Selections{
-    /// Returns new [Selections] from provided input.
+    /// Returns new instance of [`Selections`] from provided input.
     /// #### Invariants:
-    /// - will alway contain at least one [Selection]
-    /// - [Selection]s are grapheme aligned
-    /// - [Selection]s are sorted by ascending position in doc
-    /// - overlapping [Selection]s are merged
-    /// - all [Selection]s are within doc boundaries
+    /// - will alway contain at least one [`Selection`]
+    /// - [`Selection`]s are grapheme aligned
+    /// - [`Selection`]s are sorted by ascending position in doc
+    /// - overlapping [`Selection`]s are merged
+    /// - all [`Selection`]s are within doc boundaries
+    /// 
+    /// # Panics
+    /// `new` panics if `selections` input param is empty.
+    /// ```should_panic
+    /// # use ropey::Rope;
+    /// # use edit_core::selection::Selections;
+    /// 
+    /// # let text = Rope::from("idk\nsome\nshit\n");
+    /// Selections::new(vec![], 0, &text);  //panics
+    /// ```
     /// 
     /// # Example
     /// ```
@@ -1287,14 +1301,14 @@ impl Selections{
     /// let expected_selections = Selections::new(vec![
     ///     Selection::with_stored_line_position(0, 6, 2)     //[i d k \n s o]m e \n s h i t \n
     /// ], 0, &text);
-    /// println!("expected: {:#?}\ngot: {:#?}", expected_selections, selections);
-    /// assert!(selections == expected_selections);
+    /// assert_eq!(expected_selections, selections);
     /// ```
-    pub fn new(mut selections: Vec<Selection>, mut primary_selection_index: usize, text: &Rope) -> Self{
-        if selections.is_empty(){
-            selections = vec![Selection::new(0, 0)];
-            primary_selection_index = 0;
-        }
+    pub fn new(selections: Vec<Selection>, primary_selection_index: usize, text: &Rope) -> Self{
+        assert!(!selections.is_empty());
+        //if selections.is_empty(){
+        //    selections = vec![Selection::new(0, 0)];
+        //    primary_selection_index = 0;
+        //}
 
         let mut selections = Self{
             selections,
@@ -1308,6 +1322,7 @@ impl Selections{
         assert!(selections.count() > 0);
         selections
     }
+    /// Returns the number of [`Selection`]s in [`Selections`].
     pub fn count(&self) -> usize{
         self.selections.len()
     }
@@ -1331,7 +1346,7 @@ impl Selections{
         }
     }
 
-    /// Prepends a [Selection] to the front of [Self], and assigns 0 to self.primary_selection_index
+    /// Prepends a [`Selection`] to the front of [Self], and assigns 0 to self.primary_selection_index
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, Selections};
@@ -1348,7 +1363,7 @@ impl Selections{
         assert!(self.count() > 0);
     }
     
-    /// Appends a [Selection] to the back of [Self], and assigns its index to self.primary_selection_index
+    /// Appends a [`Selection`] to the back of [Self], and assigns its index to self.primary_selection_index
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, Selections};
@@ -1366,10 +1381,11 @@ impl Selections{
         assert!(self.count() > 0);
     }
     
-    /// Returns the [Selection] at primary_selection_index as a reference
+    /// Returns a reference to the [`Selection`] at `primary_selection_index`.
     pub fn primary(&self) -> &Selection{
         &self.selections[self.primary_selection_index]
     }
+    /// Returns a mutable reference to the [`Selection`] at `primary_selection_index`.
     pub fn primary_mut(&mut self) -> &mut Selection{
         &mut self.selections[self.primary_selection_index]
     }
@@ -1385,8 +1401,18 @@ impl Selections{
     //    self.selections.last().unwrap()
     //}
 
-    /// Increments the primary selection index.
-    /// Caller should ensure [Selections] contains more than 1 [Selection].
+    /// Increments `primary_selection_index`.
+    /// 
+    /// # Panics
+    /// `increment_primary_selection` panics if [`Selections`] contains only 1 [`Selection`].
+    /// ```should_panic
+    /// # use ropey::Rope;
+    /// # use edit_core::selection::{Selection, Selections};
+    /// 
+    /// # let text = Rope::from("idk\nsome\nshit\n");
+    /// Selections::new(vec![Selection::new(0, 0)], 0, &text).increment_primary_selection();
+    /// ```
+    /// # Examples
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, Selections};
@@ -1403,15 +1429,6 @@ impl Selections{
     /// selections.increment_primary_selection();
     /// assert_eq!(selections.primary_selection_index(), 0);
     /// ```
-    /// 
-    /// ```should_panic
-    /// # use ropey::Rope;
-    /// # use edit_core::selection::{Selection, Selections};
-    /// 
-    /// // should panic
-    /// # let text = Rope::from("idk\nsome\nshit\n");
-    /// Selections::new(vec![Selection::new(0, 0)], 0, &text).increment_primary_selection();
-    /// ```
     pub fn increment_primary_selection(&mut self){  //-> Selections
         assert!(self.count() > 1);
         if self.primary_selection_index.saturating_add(1) < self.count(){
@@ -1421,7 +1438,17 @@ impl Selections{
         }
     }
     /// Decrements the primary selection index.
-    /// Caller should ensure [Selections] contains more than 1 [Selection].
+    /// 
+    /// # Panics
+    /// `decrement_primary_selection` panics if [`Selections`] contains only 1 [`Selection`].
+    /// ```should_panic
+    /// # use ropey::Rope;
+    /// # use edit_core::selection::{Selection, Selections};
+    /// 
+    /// # let text = Rope::from("idk\nsome\nshit\n");
+    /// Selections::new(vec![Selection::new(0, 0)], 0, &text).decrement_primary_selection();
+    /// ```
+    /// # Examples
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, Selections};
@@ -1438,15 +1465,6 @@ impl Selections{
     /// selections.decrement_primary_selection();
     /// assert_eq!(selections.primary_selection_index(), 1);
     /// ```
-    /// 
-    /// ```should_panic
-    /// # use ropey::Rope;
-    /// # use edit_core::selection::{Selection, Selections};
-    /// 
-    /// // should panic
-    /// # let text = Rope::from("idk\nsome\nshit\n");
-    /// Selections::new(vec![Selection::new(0, 0)], 0, &text).decrement_primary_selection();
-    /// ```
     pub fn decrement_primary_selection(&mut self){  //-> Selections
         assert!(self.count() > 1);
         if self.primary_selection_index() > 0{
@@ -1456,7 +1474,7 @@ impl Selections{
         }
     }
 
-    /// Sorts each [Selection] in [Selections] by position.
+    /// Sorts each [`Selection`] in [Selections] by position.
     /// #### Invariants:
     /// - preserves primary selection through the sorting process
     /// 
@@ -1496,7 +1514,7 @@ impl Selections{
         assert!(self.count() > 0);
     }
 
-    /// Merges overlapping [Selection]s.
+    /// Merges overlapping [`Selection`]s.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, Selections};
@@ -1547,8 +1565,19 @@ impl Selections{
         assert!(self.count() > 0);
     }
 
-    /// Removes all selections except Selection at primary_selection_index
-    /// Caller should ensure [Selections] has more than 1 [Selection].
+    /// Removes all [`Selection`]s except [`Selection`] at `primary_selection_index`.
+    /// 
+    /// # Panics
+    /// `clear_non_primary_selections` panics if [`Selections`] has only 1 [`Selection`].
+    /// ```should_panic
+    /// # use ropey::Rope;
+    /// # use edit_core::selection::{Selection, Selections};
+    /// 
+    /// // should panic
+    /// # let text = Rope::from("idk\nsome\nshit\n");
+    /// Selections::new(vec![Selection::new(0, 0)], 0, &text).clear_non_primary_selections();
+    /// ```
+    /// # Example
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, Selections};
@@ -1559,15 +1588,6 @@ impl Selections{
     /// let mut selections = Selections::new(vec![Selection::new(0, 0), Selection::new(4, 4)], 1, &text);
     /// selections.clear_non_primary_selections();
     /// assert!(selections == Selections::new(vec![Selection::new(4, 4)], 0, &text));
-    /// ```
-    /// 
-    /// ```should_panic
-    /// # use ropey::Rope;
-    /// # use edit_core::selection::{Selection, Selections};
-    /// 
-    /// // should panic
-    /// # let text = Rope::from("idk\nsome\nshit\n");
-    /// Selections::new(vec![Selection::new(0, 0)], 0, &text).clear_non_primary_selections();
     /// ```
     // pub fn clear_non_primary_selections(&self) -> Selections{}
     pub fn clear_non_primary_selections(&mut self){
