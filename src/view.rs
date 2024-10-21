@@ -50,6 +50,9 @@ impl View{
     /// ```
     #[must_use]
     pub fn scroll_down(&self, amount: usize, text: &Rope) -> Self{
+        assert!(amount > 0);
+        assert!(self.height > 0);
+        assert!(text.len_lines() > 0);
         if self.vertical_start + self.height + amount <= text.len_lines(){
             Self::new(self.horizontal_start, self.vertical_start.saturating_add(amount), self.width, self.height)
         }else{
@@ -75,6 +78,8 @@ impl View{
     /// ```
     #[must_use]
     pub fn scroll_left(&self, amount: usize) -> Self{
+        assert!(amount > 0);
+        assert!(self.width > 0);
         Self::new(self.horizontal_start.saturating_sub(amount), self.vertical_start, self.width, self.height)
     }
     /// Returns a new instance of [`View`] with `horizontal_start` increased by specified amount.
@@ -96,6 +101,8 @@ impl View{
     /// ```
     #[must_use]
     pub fn scroll_right(&self, amount: usize, text: &Rope) -> Self{
+        assert!(amount > 0);
+        assert!(self.width > 0);
         let mut longest = 0;
         for line in text.lines(){
             let line_width = crate::text_util::line_width_excluding_newline(line);
@@ -130,6 +137,8 @@ impl View{
     /// ```
     #[must_use]
     pub fn scroll_up(&self, amount: usize) -> View{
+        assert!(amount > 0);
+        assert!(self.height > 0);
         Self::new(self.horizontal_start, self.vertical_start.saturating_sub(amount), self.width, self.height)
     }
     /// Returns a `bool` indicating whether the [`View`] should be scrolled or not. If `head` of primary [`Selection2d`]
@@ -137,68 +146,75 @@ impl View{
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::view::View;
-    /// # use edit_core::selection::{Selection, Selections, CursorSemantics};
+    /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
     /// let text = Rope::from("idk\nsome\nshit\n");
     /// let view = View::new(0, 0, 2, 2);
     /// 
     /// // in view
-    /// let selections = Selections::new(vec![Selection::new(0, 0)], 0, &text);
-    /// assert_eq!(false, view.should_scroll(&selections, &text, CursorSemantics::Bar));
-    /// let selections = Selections::new(vec![Selection::new(0, 1)], 0, &text);
-    /// assert_eq!(false, view.should_scroll(&selections, &text, CursorSemantics::Block));
+    /// let selection = Selection::new(0, 0);
+    /// assert_eq!(false, view.should_scroll(&selection, &text, CursorSemantics::Bar));
+    /// let selection = Selection::new(0, 1);
+    /// assert_eq!(false, view.should_scroll(&selection, &text, CursorSemantics::Block));
     /// 
     /// // out of view horizontally
-    /// let selections = Selections::new(vec![Selection::new(3, 3)], 0, &text);
-    /// assert_eq!(true, view.should_scroll(&selections, &text, CursorSemantics::Bar));
-    /// let selections = Selections::new(vec![Selection::new(3, 4)], 0, &text);
-    /// assert_eq!(true, view.should_scroll(&selections, &text, CursorSemantics::Block));
+    /// let selection = Selection::new(3, 3);
+    /// assert_eq!(true, view.should_scroll(&selection, &text, CursorSemantics::Bar));
+    /// let selection = Selection::new(3, 4);
+    /// assert_eq!(true, view.should_scroll(&selection, &text, CursorSemantics::Block));
     /// 
     /// // out of view vertically
-    /// let selections = Selections::new(vec![Selection::new(10, 10)], 0, &text);
-    /// assert_eq!(true, view.should_scroll(&selections, &text, CursorSemantics::Bar));
-    /// let selections = Selections::new(vec![Selection::new(10, 11)], 0, &text);
-    /// assert_eq!(true, view.should_scroll(&selections, &text, CursorSemantics::Block));
+    /// let selection = Selection::new(10, 10);
+    /// assert_eq!(true, view.should_scroll(&selection, &text, CursorSemantics::Bar));
+    /// let selection = Selection::new(10, 11);
+    /// assert_eq!(true, view.should_scroll(&selection, &text, CursorSemantics::Block));
     /// ```
     #[must_use]
-    pub fn should_scroll(&self, selections: &Selections, text: &Rope, semantics: CursorSemantics) -> bool{  //should this take a single Selection instead?
-        let cursor = selections.primary().clone().selection_to_selection2d(text, semantics);
+    pub fn should_scroll(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> bool{  //should this take a single Selection instead?
+        assert!(self.height > 0);
+        assert!(self.width > 0);
+        assert!(selection.cursor(semantics) <= text.len_chars());
+        let cursor = selection.selection_to_selection2d(text, semantics);
 
         cursor.head().y() < self.vertical_start 
         || cursor.head().y() >= self.vertical_start.saturating_add(self.height)
         || cursor.head().x() < self.horizontal_start
         || cursor.head().x() >= self.horizontal_start.saturating_add(self.width)
     }
+
     /// Returns a new instance of [`View`] with `horizontal_start` and/or `vertical_start` shifted to keep `head` of
-    /// primary [`Selection2d`] in [`View`].
+    /// [`Selection`] in [`View`].
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::view::View;
-    /// # use edit_core::selection::{Selection, Selections, CursorSemantics};
+    /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
     /// let text = Rope::from("idk\nsome\nshit\n");
     /// let view = View::new(0, 0, 2, 2);
     /// 
     /// // return self when primary [`Selection`] `head` within [`View`] bounds
-    /// let selections = Selections::new(vec![Selection::new(0, 0)], 0, &text);
-    /// assert_eq!(view, view.scroll_following_cursor(&selections, &text, CursorSemantics::Bar));
-    /// assert_eq!(String::from("id\nso\n"), view.scroll_following_cursor(&selections, &text, CursorSemantics::Bar).text(&text));
-    /// let selections = Selections::new(vec![Selection::new(0, 1)], 0, &text);
-    /// assert_eq!(view, view.scroll_following_cursor(&selections, &text, CursorSemantics::Block));
-    /// assert_eq!(String::from("id\nso\n"), view.scroll_following_cursor(&selections, &text, CursorSemantics::Block).text(&text));
+    /// let selection = Selection::new(0, 0);
+    /// assert_eq!(view, view.scroll_following_cursor(&selection, &text, CursorSemantics::Bar));
+    /// assert_eq!(String::from("id\nso\n"), view.scroll_following_cursor(&selection, &text, CursorSemantics::Bar).text(&text));
+    /// let selection = Selection::new(0, 1);
+    /// assert_eq!(view, view.scroll_following_cursor(&selection, &text, CursorSemantics::Block));
+    /// assert_eq!(String::from("id\nso\n"), view.scroll_following_cursor(&selection, &text, CursorSemantics::Block).text(&text));
     /// 
     /// // returns proper [`View`] when [`Selection`] `head` outside [`View`] bounds
-    /// let selections = Selections::new(vec![Selection::new(13, 13)], 0, &text);
-    /// assert_eq!(View::new(3, 1, 2, 2), view.scroll_following_cursor(&selections, &text, CursorSemantics::Bar));
-    /// assert_eq!(String::from("e\nt\n"), view.scroll_following_cursor(&selections, &text, CursorSemantics::Bar).text(&text));
-    /// let selections = Selections::new(vec![Selection::new(13, 14)], 0, &text);
-    /// assert_eq!(View::new(3, 1, 2, 2), view.scroll_following_cursor(&selections, &text, CursorSemantics::Block));
-    /// assert_eq!(String::from("e\nt\n"), view.scroll_following_cursor(&selections, &text, CursorSemantics::Block).text(&text));
+    /// let selection = Selection::new(13, 13);
+    /// assert_eq!(View::new(3, 1, 2, 2), view.scroll_following_cursor(&selection, &text, CursorSemantics::Bar));
+    /// assert_eq!(String::from("e\nt\n"), view.scroll_following_cursor(&selection, &text, CursorSemantics::Bar).text(&text));
+    /// let selection = Selection::new(13, 14);
+    /// assert_eq!(View::new(3, 1, 2, 2), view.scroll_following_cursor(&selection, &text, CursorSemantics::Block));
+    /// assert_eq!(String::from("e\nt\n"), view.scroll_following_cursor(&selection, &text, CursorSemantics::Block).text(&text));
     /// ```
     #[must_use]
-    pub fn scroll_following_cursor(&self, selections: &Selections, text: &Rope, semantics: CursorSemantics) -> Self{    //should this take a single Selection instead?
-        // follow primary cursor
-        let cursor = selections.primary().clone().selection_to_selection2d(text, semantics);
+    pub fn scroll_following_cursor(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> Self{
+        assert!(self.height > 0);
+        assert!(self.width > 0);
+        assert!(selection.cursor(semantics) <= text.len_chars());
+
+        let cursor = selection.selection_to_selection2d(text, semantics);
 
         let mut new_view = self.clone();
 
@@ -216,6 +232,9 @@ impl View{
             new_view.horizontal_start = cursor.head().x().saturating_sub(self.width).saturating_add(1);
         }
 
+        assert!(new_view.height > 0);
+        assert!(new_view.width > 0);
+
         new_view
     }
 
@@ -230,15 +249,25 @@ impl View{
     /// 
     /// let selection = Selection::new(14, 14);
     /// assert_eq!(View::new(0, 3, 1, 1), view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Bar));
+    /// let selection = Selection::new(14, 15);
+    /// assert_eq!(View::new(0, 3, 1, 1), view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Block));
     /// 
     /// let selection = Selection::new(0, 0);
     /// assert_eq!(view, view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Bar));
+    /// let selection = Selection::new(0, 1);
+    /// assert_eq!(view, view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Block));
     /// 
     /// let selection = Selection::new(33, 33);
     /// assert_eq!(View::new(0, 6, 1, 1), view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Bar));
+    /// let selection = Selection::new(33, 34);
+    /// assert_eq!(View::new(0, 6, 1, 1), view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Block));
     /// ```
     #[must_use]
     pub fn center_vertically_around_cursor(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> Self{
+        assert!(selection.cursor(semantics) <= text.len_chars());    //ensure selection is valid
+        assert!(text.len_lines() > 0);  //ensure text is not empty
+        assert!(self.height > 0);  //ensure height is non-zero
+        assert!(self.width > 0);    //ensure width is non-zero
         let current_line = text.char_to_line(selection.cursor(semantics));
 
         let half_view_height = self.height / 2;

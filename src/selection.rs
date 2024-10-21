@@ -1231,7 +1231,7 @@ impl Selection{
 /// 2 dimensional representation of a single selection(between anchor and head) within document text
 #[derive(Default, PartialEq, Debug)]
 pub struct Selection2d{
-    head: Position,
+    head: Position, //TODO: should this be cursor? because we are using cursor in selection_to_selection2d...
     anchor: Position,
 }
 impl Selection2d{
