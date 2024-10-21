@@ -6,7 +6,7 @@ use crate::Position;
 
 /// The dimensions of the area a client has for displaying a document
 /// origin is top left
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct View{
     /// from left to right
     horizontal_start: usize,
@@ -16,6 +16,7 @@ pub struct View{
     height: usize,
 }
 impl View{
+    /// Returns a new instance of [`View`] from provided inputs.
     pub fn new(horizontal_start: usize, vertical_start: usize, width: usize, height: usize) -> Self{
         Self{horizontal_start, vertical_start, width, height}
     }
@@ -30,15 +31,71 @@ impl View{
         self.horizontal_start
     }
 
-    pub fn scroll_down(&mut self, amount: usize, text: &Rope){
+    /// Returns a new instance of [`View`] with `vertical_start` increased by specified amount.
+    /// ```
+    /// # use ropey::Rope;
+    /// # use edit_core::view::View;
+    /// 
+    /// let text = Rope::from("idk\nsome\nshit\n");
+    /// 
+    /// // scrolls when vertical space remaining in text
+    /// let view = View::new(0, 0, 2, 2);
+    /// assert_eq!(View::new(0, 1, 2, 2), view.scroll_down(1, &text));
+    /// assert_eq!(String::from("so\nsh\n"), view.scroll_down(1, &text).text(&text));
+    /// 
+    /// // scrolling saturates at limits of text
+    /// let view = View::new(0, 2, 2, 2);
+    /// assert_eq!(View::new(0, 2, 2, 2), view.scroll_down(1, &text));
+    /// assert_eq!(String::from("sh\n\n"), view.scroll_down(1, &text).text(&text));
+    /// ```
+    #[must_use]
+    pub fn scroll_down(&self, amount: usize, text: &Rope) -> Self{
         if self.vertical_start + self.height + amount <= text.len_lines(){
-            self.vertical_start = self.vertical_start.saturating_add(amount);
+            Self::new(self.horizontal_start, self.vertical_start.saturating_add(amount), self.width, self.height)
+        }else{
+            self.clone()
         }
     }
-    pub fn scroll_left(&mut self, amount: usize){
-        self.horizontal_start = self.horizontal_start.saturating_sub(amount);
+    /// Returns a new instance of [`View`] with `horizontal_start` decreased by specified amount.
+    /// ```
+    /// # use ropey::Rope;
+    /// # use edit_core::view::View;
+    /// 
+    /// let text = Rope::from("idk\nsome\nshit\n");
+    /// 
+    /// // scrolling saturates at limits of text
+    /// let view = View::new(0, 0, 2, 2);
+    /// assert_eq!(View::new(0, 0, 2, 2), view.scroll_left(1));
+    /// assert_eq!(String::from("id\nso\n"), view.scroll_left(1).text(&text));
+    /// 
+    /// // scrolls when horizontal space remaining in text
+    /// let view = View::new(2, 0, 2, 2);
+    /// assert_eq!(View::new(1, 0, 2, 2), view.scroll_left(1));
+    /// assert_eq!(String::from("dk\nom\n"), view.scroll_left(1).text(&text));
+    /// ```
+    #[must_use]
+    pub fn scroll_left(&self, amount: usize) -> Self{
+        Self::new(self.horizontal_start.saturating_sub(amount), self.vertical_start, self.width, self.height)
     }
-    pub fn scroll_right(&mut self, amount: usize, text: &Rope){
+    /// Returns a new instance of [`View`] with `horizontal_start` increased by specified amount.
+    /// ```
+    /// # use ropey::Rope;
+    /// # use edit_core::view::View;
+    /// 
+    /// let text = Rope::from("idk\nsome\nshit\n");
+    /// 
+    /// // scrolling saturates at limits of text
+    /// let view = View::new(2, 0, 2, 2);
+    /// assert_eq!(View::new(2, 0, 2, 2), view.scroll_right(1, &text));
+    /// assert_eq!(String::from("k\nme\n"), view.scroll_right(1, &text).text(&text));
+    /// 
+    /// // scrolls when horizontal space remaining in text
+    /// let view = View::new(0, 0, 2, 2);
+    /// assert_eq!(View::new(1, 0, 2, 2), view.scroll_right(1, &text));
+    /// assert_eq!(String::from("dk\nom\n"), view.scroll_right(1, &text).text(&text));
+    /// ```
+    #[must_use]
+    pub fn scroll_right(&self, amount: usize, text: &Rope) -> Self{
         let mut longest = 0;
         for line in text.lines(){
             let line_width = crate::text_util::line_width_excluding_newline(line);
@@ -49,40 +106,119 @@ impl View{
         }
 
         if self.horizontal_start + self.width + amount <= longest{
-            self.horizontal_start = self.horizontal_start.saturating_add(amount);
+            Self::new(self.horizontal_start.saturating_add(amount), self.vertical_start, self.width, self.height)
+        }else{
+            self.clone()
         }
     }
-    pub fn scroll_up(&mut self, amount: usize){
-        self.vertical_start = self.vertical_start.saturating_sub(amount);
+    /// Returns a new instance of [`View`] with `vertical_start` decreased by specified amount.
+    /// ```
+    /// # use ropey::Rope;
+    /// # use edit_core::view::View;
+    /// 
+    /// let text = Rope::from("idk\nsome\nshit\n");
+    /// 
+    /// // scrolls when vertical space remaining in text
+    /// let view = View::new(0, 2, 2, 2);
+    /// assert_eq!(View::new(0, 1, 2, 2), view.scroll_up(1));
+    /// assert_eq!(String::from("so\nsh\n"), view.scroll_up(1).text(&text));
+    /// 
+    /// // scrolling saturates at limits of text
+    /// let view = View::new(0, 0, 2, 2);
+    /// assert_eq!(View::new(0, 0, 2, 2), view.scroll_up(1));
+    /// assert_eq!(String::from("id\nso\n"), view.scroll_up(1).text(&text));
+    /// ```
+    #[must_use]
+    pub fn scroll_up(&self, amount: usize) -> View{
+        Self::new(self.horizontal_start, self.vertical_start.saturating_sub(amount), self.width, self.height)
     }
+    /// Returns a `bool` indicating whether the [`View`] should be scrolled or not. If `head` of primary [`Selection2d`]
+    /// is outside [`View`] boundaries, [`View`] should be scrolled.
+    /// ```
+    /// # use ropey::Rope;
+    /// # use edit_core::view::View;
+    /// # use edit_core::selection::{Selection, Selections, CursorSemantics};
+    /// 
+    /// let text = Rope::from("idk\nsome\nshit\n");
+    /// let view = View::new(0, 0, 2, 2);
+    /// 
+    /// // in view
+    /// let selections = Selections::new(vec![Selection::new(0, 0)], 0, &text);
+    /// assert_eq!(false, view.should_scroll(&selections, &text, CursorSemantics::Bar));
+    /// let selections = Selections::new(vec![Selection::new(0, 1)], 0, &text);
+    /// assert_eq!(false, view.should_scroll(&selections, &text, CursorSemantics::Block));
+    /// 
+    /// // out of view horizontally
+    /// let selections = Selections::new(vec![Selection::new(3, 3)], 0, &text);
+    /// assert_eq!(true, view.should_scroll(&selections, &text, CursorSemantics::Bar));
+    /// let selections = Selections::new(vec![Selection::new(3, 4)], 0, &text);
+    /// assert_eq!(true, view.should_scroll(&selections, &text, CursorSemantics::Block));
+    /// 
+    /// // out of view vertically
+    /// let selections = Selections::new(vec![Selection::new(10, 10)], 0, &text);
+    /// assert_eq!(true, view.should_scroll(&selections, &text, CursorSemantics::Bar));
+    /// let selections = Selections::new(vec![Selection::new(10, 11)], 0, &text);
+    /// assert_eq!(true, view.should_scroll(&selections, &text, CursorSemantics::Block));
+    /// ```
+    #[must_use]
+    pub fn should_scroll(&self, selections: &Selections, text: &Rope, semantics: CursorSemantics) -> bool{  //should this take a single Selection instead?
+        let cursor = selections.primary().clone().selection_to_selection2d(text, semantics);
 
-    pub fn scroll_following_cursor(&mut self, selections: &Selections, text: &Rope, semantics: CursorSemantics) -> bool{
+        cursor.head().y() < self.vertical_start 
+        || cursor.head().y() >= self.vertical_start.saturating_add(self.height)
+        || cursor.head().x() < self.horizontal_start
+        || cursor.head().x() >= self.horizontal_start.saturating_add(self.width)
+    }
+    /// Returns a new instance of [`View`] with `horizontal_start` and/or `vertical_start` shifted to keep `head` of
+    /// primary [`Selection2d`] in [`View`].
+    /// ```
+    /// # use ropey::Rope;
+    /// # use edit_core::view::View;
+    /// # use edit_core::selection::{Selection, Selections, CursorSemantics};
+    /// 
+    /// let text = Rope::from("idk\nsome\nshit\n");
+    /// let view = View::new(0, 0, 2, 2);
+    /// 
+    /// // return self when primary [`Selection`] `head` within [`View`] bounds
+    /// let selections = Selections::new(vec![Selection::new(0, 0)], 0, &text);
+    /// assert_eq!(view, view.scroll_following_cursor(&selections, &text, CursorSemantics::Bar));
+    /// assert_eq!(String::from("id\nso\n"), view.scroll_following_cursor(&selections, &text, CursorSemantics::Bar).text(&text));
+    /// let selections = Selections::new(vec![Selection::new(0, 1)], 0, &text);
+    /// assert_eq!(view, view.scroll_following_cursor(&selections, &text, CursorSemantics::Block));
+    /// assert_eq!(String::from("id\nso\n"), view.scroll_following_cursor(&selections, &text, CursorSemantics::Block).text(&text));
+    /// 
+    /// // returns proper [`View`] when [`Selection`] `head` outside [`View`] bounds
+    /// let selections = Selections::new(vec![Selection::new(13, 13)], 0, &text);
+    /// assert_eq!(View::new(3, 1, 2, 2), view.scroll_following_cursor(&selections, &text, CursorSemantics::Bar));
+    /// assert_eq!(String::from("e\nt\n"), view.scroll_following_cursor(&selections, &text, CursorSemantics::Bar).text(&text));
+    /// let selections = Selections::new(vec![Selection::new(13, 14)], 0, &text);
+    /// assert_eq!(View::new(3, 1, 2, 2), view.scroll_following_cursor(&selections, &text, CursorSemantics::Block));
+    /// assert_eq!(String::from("e\nt\n"), view.scroll_following_cursor(&selections, &text, CursorSemantics::Block).text(&text));
+    /// ```
+    #[must_use]
+    pub fn scroll_following_cursor(&self, selections: &Selections, text: &Rope, semantics: CursorSemantics) -> Self{    //should this take a single Selection instead?
         // follow primary cursor
         let cursor = selections.primary().clone().selection_to_selection2d(text, semantics);
 
-        let mut should_update_client_view = false;
+        let mut new_view = self.clone();
 
         if cursor.head().y() < self.vertical_start{
-            self.vertical_start = cursor.head().y();
-            should_update_client_view = true;
+            new_view.vertical_start = cursor.head().y();
         }
         else if cursor.head().y() >= self.vertical_start.saturating_add(self.height){
-            self.vertical_start = cursor.head().y().saturating_sub(self.height).saturating_add(1);
-            should_update_client_view = true;
+            new_view.vertical_start = cursor.head().y().saturating_sub(self.height).saturating_add(1);
         }
     
         if cursor.head().x() < self.horizontal_start{
-            self.horizontal_start = cursor.head().x();
-            should_update_client_view = true;
+            new_view.horizontal_start = cursor.head().x();
         }
         else if cursor.head().x() >= self.horizontal_start.saturating_add(self.width){
-            self.horizontal_start = cursor.head().x().saturating_sub(self.width).saturating_add(1);
-            should_update_client_view = true;
+            new_view.horizontal_start = cursor.head().x().saturating_sub(self.width).saturating_add(1);
         }
 
-        should_update_client_view
+        new_view
     }
-
+    /// Returns a `String` containing the text that can be contained within [`View`] boundaries.
     pub fn text(&self, text: &Rope) -> String{
         let mut client_view_text = String::new();
         for (y, line) in text.lines().enumerate(){
@@ -102,6 +238,7 @@ impl View{
 
         client_view_text
     }
+    /// Returns a `String` containing the line numbers of the text that can be contained within [`View`] boundaries.
     pub fn line_numbers(&self, text: &Rope) -> String{
         let mut client_view_line_numbers = String::new();
         for (y, _) in text.lines().enumerate(){
@@ -121,7 +258,7 @@ impl View{
     }
     */
 
-    /// Returns cursor positions if they are within view.
+    /// Returns cursor positions that are within [`View`] boundaries.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, CursorSemantics, Selections};
@@ -168,25 +305,3 @@ impl View{
         }else{None}
     }
 }
-
-
-//TODO: implement tests for [View] behavior
-//scroll down
-//scroll left
-//scroll right
-//scroll up
-//scroll following cursor
-//etc.
-
-//set client view size (does this need testing?)
-//get client view text
-    //#[test]
-    //fn get_client_view_text_works(){
-    //    let mut doc = Document::default();
-    //    doc.text = Rope::from("idk\nsomething\nelse\n");
-    //    doc.view_mut().set_size(2, 2);
-    //    println!("{:?}", doc.get_client_view_text());
-    //    assert!(doc.get_client_view_text() == String::from("id\nso\n"));
-    //}
-//get client view line numbers
-//get client cursor positions
