@@ -1,5 +1,5 @@
 use ropey::Rope;
-use crate::selection::{CursorSemantics, Selection2d, Selections};
+use crate::selection::{CursorSemantics, Selection, Selection2d, Selections};
 use crate::Position;
 
 
@@ -217,6 +217,41 @@ impl View{
         }
 
         new_view
+    }
+
+    /// Returns an instance of [`View`] vertically centered around specified cursor.
+    /// ```
+    /// # use ropey::Rope;
+    /// # use edit_core::view::View;
+    /// # use edit_core::selection::{Selection, CursorSemantics};
+    /// 
+    /// let text = Rope::from("idk\nsome\nshit\nand\nsomething\nelse\n");   //len 33
+    /// let view = View::new(0, 0, 1, 1);
+    /// 
+    /// let selection = Selection::new(14, 14);
+    /// assert_eq!(View::new(0, 3, 1, 1), view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Bar));
+    /// 
+    /// let selection = Selection::new(0, 0);
+    /// assert_eq!(view, view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Bar));
+    /// 
+    /// let selection = Selection::new(33, 33);
+    /// assert_eq!(View::new(0, 6, 1, 1), view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Bar));
+    /// ```
+    #[must_use]
+    pub fn center_vertically_around_cursor(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> Self{
+        let current_line = text.char_to_line(selection.cursor(semantics));
+
+        let half_view_height = self.height / 2;
+
+        let new_vertical_start = if current_line > half_view_height{
+            current_line.saturating_sub(half_view_height)
+        }else{
+            0
+        };
+
+        let new_vertical_start = new_vertical_start.min(text.len_lines().saturating_sub(self.height));
+
+        Self::new(self.horizontal_start, new_vertical_start, self.width, self.height)
     }
     /// Returns a `String` containing the text that can be contained within [`View`] boundaries.
     pub fn text(&self, text: &Rope) -> String{
