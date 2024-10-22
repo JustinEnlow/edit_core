@@ -28,8 +28,9 @@ impl Editor{
     }
     /// Attempts to open specified document, and associate it with ClientID.
     pub fn open_document(&mut self, path: &PathBuf, client_id: ClientID) -> Result<(), Box<dyn Error>>{
+        // could the hashmap use path as key and doc as value, to allow multiple clients manipulating same doc?
+        // if hashmap contains doc with key path, return
         let doc = Document::open(path, crate::selection::CursorSemantics::Bar)?;
-        //self.documents.insert(client_address.to_string(), doc);
         self.documents.insert(client_id, doc);
 
         Ok(())

@@ -122,6 +122,8 @@ impl Selection{
     /// ```
     #[must_use]
     pub fn direction(&self, semantics: CursorSemantics) -> Direction{
+        //assert!(self.cursor(semantics) <= text.len_chars());  we would need a & to text
+        //assert!(self.anchor <= text.len_chars());
         if self.cursor(semantics) < self.anchor{
             Direction::Backward
         }else{
@@ -148,6 +150,8 @@ impl Selection{
     /// ```
     #[must_use]
     pub fn set_direction(&self, direction: Direction, text: &Rope, semantics: CursorSemantics) -> Self{
+        assert!(self.start() <= self.end());
+        assert!(text.len_lines() > 0);
         let mut selection = Selection::new(0, 0);   //or self.clone(); test which is faster...
         match direction{
             Direction::Forward => {
@@ -222,6 +226,8 @@ impl Selection{
     /// ```
     #[must_use]
     pub fn overlaps(&self, other: Selection) -> bool{
+        assert!(self.start() <= self.end());
+        assert!(other.start() <= other.end());
         self.start() == other.start() || 
         self.end() == other.end() || 
         (self.end() > other.start() && other.end() > self.start())
@@ -296,10 +302,15 @@ impl Selection{
     /// ```
     #[must_use]
     pub fn merge(&self, other: &Selection, text: &Rope) -> Selection{
+        assert!(text.len_lines() > 0);
+        assert!(self.head <= text.len_chars());
+        assert!(self.anchor <= text.len_chars());
+        assert!(other.head <= text.len_chars());
+        assert!(other.anchor <= text.len_chars());
         let anchor = self.start().min(other.start());
         let head = self.end().max(other.end());
         let stored_line_position = text_util::offset_from_line_start(head, text);   //self.cursor instead of head?
-            
+        
         Selection{anchor, head, stored_line_position: Some(stored_line_position)}
     }
 
@@ -328,6 +339,8 @@ impl Selection{
     /// ```
     #[must_use]
     pub fn cursor(&self, semantics: CursorSemantics) -> usize{
+        //assert!(self.cursor(semantics) <= text.len_chars());  //head? head may need text.len_chars() + 1 for block cursor
+        //assert!(self.anchor <= text.len_chars());
         match semantics{
             CursorSemantics::Bar => self.head,
             CursorSemantics::Block => {
@@ -384,7 +397,10 @@ impl Selection{
     /// ```
     #[must_use]
     pub fn put_cursor(&self, to: usize, text: &Rope, movement: Movement, semantics: CursorSemantics, update_stored_line_position: bool) -> Self{
+        assert!(text.len_lines() > 0);
         assert!(to <= text.len_chars());
+        assert!(self.cursor(semantics) <= text.len_chars());
+        assert!(self.anchor <= text.len_chars());
         let mut selection = self.clone();
         match (semantics, movement){
             (CursorSemantics::Bar, Movement::Move) => {
@@ -426,6 +442,9 @@ impl Selection{
             selection.stored_line_position = Some(text_util::offset_from_line_start(selection.cursor(semantics), text));
         }
 
+        assert!(selection.anchor <= text.len_chars());
+        assert!(selection.cursor(semantics) <= text.len_chars());
+
         selection
     }
 
@@ -461,6 +480,10 @@ impl Selection{
     /// ```
     #[must_use]
     pub fn move_vertically(&self, amount: usize, text: &Rope, movement: Movement, direction: Direction, semantics: CursorSemantics) -> Self{
+        assert!(text.len_lines() > 0);
+        assert!(self.cursor(semantics) <= text.len_chars());
+        assert!(self.anchor <= text.len_chars());
+        assert!(amount > 0);
         let mut selection = self.clone();
         let goal_line_number = match direction{
             Direction::Forward => text.char_to_line(self.cursor(semantics)).saturating_add(amount).min(text.len_lines().saturating_sub(1)),
@@ -515,6 +538,9 @@ impl Selection{
     /// ```
     #[must_use]
     pub fn move_horizontally(&self, amount: usize, text: &Rope, movement: Movement, direction: Direction, semantics: CursorSemantics) -> Self{
+        assert!(text.len_lines() > 0);
+        assert!(self.cursor(semantics) <= text.len_chars());
+        assert!(self.anchor <= text.len_chars());
         let new_position = match direction{
             Direction::Forward => self.cursor(semantics).saturating_add(amount).min(text.len_chars()),    //ensures this does not move past text end
             Direction::Backward => self.cursor(semantics).saturating_sub(amount)
@@ -560,6 +586,9 @@ impl Selection{
     /// ```
     #[must_use]
     pub fn set_from_line_number(&self, line_number: usize, text: &Rope, movement: Movement, semantics: CursorSemantics) -> Self{
+        assert!(text.len_lines() > 0);
+        assert!(self.cursor(semantics) <= text.len_chars());
+        assert!(self.anchor <= text.len_chars());
         assert!(line_number < text.len_lines());
         //let line_number = line_number.min(text.len_lines().saturating_sub(1));  //restrict line_number to doc length(-1 because len_lines is 1 based)
         let current_line = text.char_to_line(self.cursor(semantics));
@@ -594,6 +623,9 @@ impl Selection{
     /// ```
     #[must_use]
     pub fn collapse(&self, text: &Rope, semantics: CursorSemantics) -> Self{
+        assert!(text.len_lines() > 0);
+        assert!(self.cursor(semantics) <= text.len_chars());
+        assert!(self.anchor <= text.len_chars());
         self.put_cursor(self.cursor(semantics), text, Movement::Move, semantics, true)
     }
 
@@ -868,8 +900,8 @@ impl Selection{
     /// # use edit_core::selection::{Selection, CursorSemantics};
     /// 
     /// let text = Rope::from("idk\n");
-    /// assert_eq!(Selection::new(12, 12).move_doc_start(&text, CursorSemantics::Bar), Selection::with_stored_line_position(0, 0, 0));
-    /// assert_eq!(Selection::new(12, 13).move_doc_start(&text, CursorSemantics::Block), Selection::with_stored_line_position(0, 1, 0));
+    /// assert_eq!(Selection::new(4, 4).move_doc_start(&text, CursorSemantics::Bar), Selection::with_stored_line_position(0, 0, 0));
+    /// assert_eq!(Selection::new(4, 5).move_doc_start(&text, CursorSemantics::Block), Selection::with_stored_line_position(0, 1, 0));
     /// ```
     #[must_use]
     pub fn move_doc_start(&self, text: &Rope, semantics: CursorSemantics) -> Self{
