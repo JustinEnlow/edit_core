@@ -36,81 +36,50 @@ pub struct Document{
 impl Document{
     pub fn open(path: &PathBuf, cursor_semantics: CursorSemantics) -> Result<Self, Box<dyn Error>>{
         let text = Rope::from_reader(BufReader::new(File::open(path)?))?;
-    
-        Ok(Self{
-            text: text.clone(),
-            file_path: Some(path.clone()),
-            modified: false,
-            selections: match cursor_semantics{
-                CursorSemantics::Bar => Selections::new(vec![Selection::new(0, 0)], 0, &text.clone()),
-                CursorSemantics::Block => Selections::new(vec![Selection::new(0, 1)], 0, &text.clone())
-            },
-            client_view: View::default(),
-            last_saved_text: text.clone(),
-            clipboard: String::new(),
-        })
+
+        Ok(Self::initialize_fields(Some(path.clone()), text, cursor_semantics))
     }
     pub fn new(cursor_semantics: CursorSemantics) -> Self{
+        Self::initialize_fields(None, Rope::new(), cursor_semantics)
+    }
+    fn initialize_fields(
+        file_path: Option<PathBuf>,
+        text: Rope,
+        cursor_semantics: CursorSemantics,
+    ) -> Self{
+        let selections = match cursor_semantics{
+            CursorSemantics::Bar => Selections::new(vec![Selection::new(0, 0)], 0, &text),
+            CursorSemantics::Block => Selections::new(vec![Selection::new(0, 1)], 0, &text),
+        };
         Self{
-            text: Rope::new(),
-            file_path: None,
+            text: text.clone(),
+            file_path,
             modified: false,
-            selections: match cursor_semantics{
-                CursorSemantics::Bar => Selections::new(vec![Selection::new(0, 0)], 0, &Rope::new()),
-                CursorSemantics::Block => Selections::new(vec![Selection::new(0, 1)], 0, &Rope::new())
-            },
+            selections,
             client_view: View::default(),
-            last_saved_text: Rope::new(),
+            last_saved_text: text.clone(),
             clipboard: String::new(),
         }
     }
     /// Add [Rope]-based text to an existing instance of [Document]. Only for testing.
-    pub fn with_text(&self, text: Rope) -> Self{
-        Self{
-            text: text.clone(),
-            file_path: self.file_path.clone(),
-            modified: self.modified,
-            selections: self.selections.clone(),
-            client_view: self.client_view.clone(),
-            last_saved_text: text.clone(),
-            clipboard: self.clipboard.clone(),
-        }
+    pub fn with_text(mut self, text: Rope) -> Self{
+        self.text = text;
+        self
     }
     /// Add [Selections] to an existing instance of [Document]. Only for testing.
-    pub fn with_selections(&self, selections: Selections) -> Self{
-        Self{
-            text: self.text.clone(),
-            file_path: self.file_path.clone(),
-            modified: self.modified,
-            selections,
-            client_view: self.client_view.clone(),
-            last_saved_text: self.last_saved_text.clone(),
-            clipboard: self.clipboard.clone(),
-        }
+    pub fn with_selections(mut self, selections: Selections) -> Self{
+        self.selections = selections;
+        self
     }
     /// Add a [View] to an existing instance of [Document]. Only for testing.
-    pub fn with_view(&self, view: View) -> Self{
-        Self{
-            text: self.text.clone(),
-            file_path: self.file_path.clone(),
-            modified: self.modified,
-            selections: self.selections.clone(),
-            client_view: view,
-            last_saved_text: self.last_saved_text.clone(),
-            clipboard: self.clipboard.clone(),
-        }
+    pub fn with_view(mut self, view: View) -> Self{
+        self.client_view = view;
+        self
     }
     /// Add [String]-based text to an existing instance of [Document]. Clipboard is scoped to the editor only, not the system clipboard. Only for testing.
-    pub fn with_clipboard(&self, clipboard: String) -> Self{
-        Self{
-            text: self.text.clone(),
-            file_path: self.file_path.clone(),
-            modified: self.modified,
-            selections: self.selections.clone(),
-            client_view: self.client_view.clone(),
-            last_saved_text: self.last_saved_text.clone(),
-            clipboard,
-        }
+    pub fn with_clipboard(mut self, clipboard: String) -> Self{
+        self.clipboard = clipboard;
+        self
     }
     pub fn file_name(&self) -> Option<String>{
         match &self.file_path{
@@ -189,24 +158,22 @@ impl Document{
     /// //TODO: test auto indent...
     /// ```
     pub fn enter(&mut self, semantics: CursorSemantics){
-        //self.insert_char('\n', semantics);
         for selection in self.selections.iter_mut().rev(){
             (*selection, self.text) = Document::enter_at_cursor(selection.clone(), &self.text, semantics);
         }
-
-        //self.modified = !(self.text == self.last_saved_text);
+    
+        // Update modified status
         self.modified = self.text != self.last_saved_text;
     }
-    fn enter_at_cursor(mut selection: Selection, text: &Rope, semantics: CursorSemantics) -> (Selection, Rope){
-        //determine indentation level
+    fn enter_at_cursor(selection: Selection, text: &Rope, semantics: CursorSemantics) -> (Selection, Rope){
+        // Determine indentation level (if needed)
 
-        // insert newline
-        let new_text;
-        (selection, new_text) = Document::insert_char_at_cursor(selection.clone(), text, '\n', semantics);
+        // Insert newline and get updated selection and text
+        let (updated_selection, updated_text) = Document::insert_char_at_cursor(selection.clone(), text, '\n', semantics);
 
-        // if auto indent, insert proper indentation characters
+        // If auto indent is enabled, insert appropriate indentation characters
 
-        (selection, new_text)
+        (updated_selection, updated_text)
     }
 
     /// Cut single selection.
@@ -228,16 +195,22 @@ impl Document{
     /// }
     /// 
     /// assert!(test(Selection::new(4, 9), Rope::from("idk\nshit\n"), Selection::with_stored_line_position(4, 4, 0), CursorSemantics::Bar));
+    /// assert!(test(Selection::new(9, 4), Rope::from("idk\nshit\n"), Selection::with_stored_line_position(4, 4, 0), CursorSemantics::Bar));
     /// assert!(test(Selection::new(4, 9), Rope::from("idk\nshit\n"), Selection::with_stored_line_position(4, 5, 0), CursorSemantics::Block));
+    /// assert!(test(Selection::new(9, 4), Rope::from("idk\nshit\n"), Selection::with_stored_line_position(4, 5, 0), CursorSemantics::Block));
     /// ```
     pub fn cut(&mut self, semantics: CursorSemantics){  //-> Result<(), Error>  if multiple selections
         // if multiple selections, trigger warning  //prob to be done in client code
-        //assert!(single selection)
+        //assert!(self.selections.count() == 1);
         let selection = self.selections.primary_mut();
+
+        // Copy the selected text to the clipboard
         self.clipboard = self.text.slice(selection.start()..selection.end()).to_string();
-        // remove from text
-        (self.text, *selection) = Document::delete_at_cursor(selection.clone(), &self.text.clone(), semantics);
-        // set cursor to selection start
+
+        // Remove the selected text from the document
+        (self.text, *selection) = Document::delete_at_cursor(selection.clone(), &self.text, semantics);
+
+        self.modified = self.text != self.last_saved_text;
     }
     /// Copy single selection to clipboard.
     /// Ensure single selection when calling this function.
@@ -259,8 +232,10 @@ impl Document{
     /// ```
     pub fn copy(&mut self){ //-> Result<(), Error>  if multiple selections
         // if multiple selections, trigger warning  //prob to be done in client code
-        //assert!(single selection)
+        //assert!(self.selections.count() == 1);
         let selection = self.selections.primary().clone();
+
+        // Copy the selected text to the clipboard
         self.clipboard = self.text.slice(selection.start()..selection.end()).to_string();
     }
     /// Insert clipboard contents at cursor position(s).
@@ -287,16 +262,25 @@ impl Document{
                 &self.text,
                 &self.clipboard,
                 semantics
-            )
+            );
         }
+
+        self.modified = self.text != self.last_saved_text;
     }
     fn insert_string_at_cursor(mut selection: Selection, text: &Rope, string: &str, semantics: CursorSemantics) -> (Selection, Rope){
         let mut new_text = text.clone();
-        if selection.is_extended(semantics){
+
+        // Delete the current selection if extended
+        if selection.is_extended(semantics) {
             (new_text, selection) = Document::delete_at_cursor(selection.clone(), text, semantics);
         }
-        new_text.insert(selection.cursor(semantics), string);
-        for _ in 0..string.len(){
+
+        // Insert the new string at the cursor position
+        let cursor_pos = selection.cursor(semantics);
+        new_text.insert(cursor_pos, string);
+
+        // Move the selection cursor right by the length of the inserted string
+        for _ in 0..string.len() {
             selection = selection.move_right(&new_text, semantics);
         }
 
@@ -338,7 +322,6 @@ impl Document{
             );
         }
 
-        //self.modified = !(self.text == self.last_saved_text);
         self.modified = self.text != self.last_saved_text;
     }
     fn insert_char_at_cursor(mut selection: Selection, text: &Rope, char: char, semantics: CursorSemantics) -> (Selection, Rope){
@@ -390,7 +373,6 @@ impl Document{
             }
         }
 
-        //self.modified = !(self.text == self.last_saved_text);
         self.modified = self.text != self.last_saved_text;
     }
 
@@ -440,7 +422,6 @@ impl Document{
             (self.text, *selection) = Document::delete_at_cursor(selection.clone(), &self.text, semantics);
         }
 
-        //self.modified = !(self.text == self.last_saved_text);
         self.modified = self.text != self.last_saved_text;
     }
     fn delete_at_cursor(mut selection: Selection, text: &Rope, semantics: CursorSemantics) -> (Rope, Selection){
@@ -494,64 +475,6 @@ impl Document{
                 }
             }
         }
-        
-//        match semantics{
-//            CursorSemantics::Bar => {
-//                match selection.head().cmp(&selection.anchor()){
-//                    //i<dk|\nsome\nshit\n   //i|>\nsome\nshit\n
-//                    std::cmp::Ordering::Less => {
-//                        new_text.remove(selection.head()..selection.anchor());
-//                        selection.put_cursor(selection.head(), text, Movement::Move, semantics, true);
-//                    }
-//                    //|id>k\nsome\nshit\n   //|>k\nsome\nshit\n
-//                    //|idk\nsome\nshit\n>   //|>
-//                    std::cmp::Ordering::Greater => {
-//                        new_text.remove(selection.anchor()..selection.head());
-//                        selection.put_cursor(selection.anchor(), text, Movement::Move, semantics, true);
-//                    }
-//                    std::cmp::Ordering::Equal => {
-//                        //idk\nsome\nshit\n|>   //idk\nsome\nshit\n|>
-//                        if selection.head() == text.len_chars(){}
-//                        //|>idk\nsome\nshit\n   //|>dk\nsome\nshit\n
-//                        else{
-//                            new_text.remove(selection.head()..selection.head().saturating_add(1));
-//                            selection.put_cursor(selection.anchor(), text, Movement::Move, semantics, true);
-//                        }
-//                    }
-//                }
-//            }
-//            CursorSemantics::Block => {
-//                match selection.cursor(semantics).cmp(&selection.anchor()){
-//                    //i<dk|\nsome\nshit\n   //i\nsome\nshit\n
-//                    std::cmp::Ordering::Less => {
-//                        new_text.remove(selection.head()..selection.anchor());
-//                        selection.put_cursor(selection.cursor(semantics), text, Movement::Move, semantics, true);
-//                    }
-//                    std::cmp::Ordering::Greater => {
-//                        //|idk\nsome\nshit\n: > //|: >
-//                        if selection.cursor(semantics) == text.len_chars(){
-//                            new_text.remove(selection.anchor()..selection.cursor(semantics));
-//                            //selection.put_cursor(selection.cursor(semantics), text, Movement::Move, semantics, true);
-//                            selection.put_cursor(selection.anchor(), text, Movement::Move, semantics, true);
-//                        }
-//                        //|i:d>k\nsome\nshit\n  //|:k>\nsome\nshit\n
-//                        else{
-//                            new_text.remove(selection.anchor()..selection.head());
-//                            selection.put_cursor(selection.anchor(), text, Movement::Move, semantics, true);
-//                        }
-//                    }
-//                    std::cmp::Ordering::Equal => {
-//                        //idk\nsome\nshit\n|: > //idk\nsome\nshit\n|: >
-//                        if selection.cursor(semantics) == text.len_chars(){}
-//                        //|:i>dk\nsome\nshit\n  //|:d>k\nsome\nshit\n
-//                        else{
-//                            new_text.remove(selection.anchor()..selection.head());
-//                            selection.put_cursor(selection.anchor(), text, Movement::Move, semantics, true);
-//                        }
-//                    }
-//                }
-//            }
-//        }
 
         (new_text, selection)
     }
@@ -656,7 +579,6 @@ impl Document{
             }
         }
 
-        //self.modified = !(self.text == self.last_saved_text);
         self.modified = self.text != self.last_saved_text;
     }
 }

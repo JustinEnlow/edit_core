@@ -152,19 +152,15 @@ impl Selection{
     pub fn set_direction(&self, direction: Direction, text: &Rope, semantics: CursorSemantics) -> Self{
         assert!(self.start() <= self.end());
         assert!(text.len_lines() > 0);
-        let mut selection = Selection::new(0, 0);   //or self.clone(); test which is faster...
-        match direction{
-            Direction::Forward => {
-                selection.anchor = self.start();
-                selection.head = self.end();
-            }
-            Direction::Backward => {
-                selection.anchor = self.end();
-                selection.head = self.start();
-            }
-        }
+        
+        let (anchor, head) = match direction {
+            Direction::Forward => (self.start(), self.end()),
+            Direction::Backward => (self.end(), self.start()),
+        };
+    
+        let mut selection = Selection::new(anchor, head);
         selection.stored_line_position = Some(text_util::offset_from_line_start(selection.cursor(semantics), text));
-
+    
         selection
     }
 
@@ -182,52 +178,53 @@ impl Selection{
     /// //    selection2 head   = >
     /// 
     /// // non zero width selections, no overlap
-    /// assert_eq!(Selection::new(0, 3).overlaps(Selection::new(3, 6)), false); //[idk]<\nso>me\nshit\n
-    /// assert_eq!(Selection::new(0, 3).overlaps(Selection::new(6, 3)), false); //[idk]>\nso<me\nshit\n
-    /// assert_eq!(Selection::new(3, 0).overlaps(Selection::new(3, 6)), false); //]idk[<\nso>me\nshit\n
-    /// assert_eq!(Selection::new(3, 0).overlaps(Selection::new(6, 3)), false); //]idk[>\nso<me\nshit\n
-    /// assert_eq!(Selection::new(3, 6).overlaps(Selection::new(0, 3)), false); //<idk>[\nso]me\nshit\n
-    /// assert_eq!(Selection::new(3, 6).overlaps(Selection::new(3, 0)), false); //>idk<[\nso]me\nshit\n
-    /// assert_eq!(Selection::new(6, 3).overlaps(Selection::new(0, 3)), false); //<idk>]\nso[me\nshit\n
-    /// assert_eq!(Selection::new(6, 3).overlaps(Selection::new(3, 0)), false); //>idk<]\nso[me\nshit\n
+    /// assert_eq!(Selection::new(0, 3).overlaps(&Selection::new(3, 6)), false); //[idk]<\nso>me\nshit\n
+    /// assert_eq!(Selection::new(0, 3).overlaps(&Selection::new(6, 3)), false); //[idk]>\nso<me\nshit\n
+    /// assert_eq!(Selection::new(3, 0).overlaps(&Selection::new(3, 6)), false); //]idk[<\nso>me\nshit\n
+    /// assert_eq!(Selection::new(3, 0).overlaps(&Selection::new(6, 3)), false); //]idk[>\nso<me\nshit\n
+    /// assert_eq!(Selection::new(3, 6).overlaps(&Selection::new(0, 3)), false); //<idk>[\nso]me\nshit\n
+    /// assert_eq!(Selection::new(3, 6).overlaps(&Selection::new(3, 0)), false); //>idk<[\nso]me\nshit\n
+    /// assert_eq!(Selection::new(6, 3).overlaps(&Selection::new(0, 3)), false); //<idk>]\nso[me\nshit\n
+    /// assert_eq!(Selection::new(6, 3).overlaps(&Selection::new(3, 0)), false); //>idk<]\nso[me\nshit\n
     /// 
     /// // non-zero-width selections, overlap.
-    /// assert_eq!(Selection::new(0, 4).overlaps(Selection::new(3, 6)), true);  //[idk<\n]so>me\nshit\n
-    /// assert_eq!(Selection::new(0, 4).overlaps(Selection::new(6, 3)), true);  //[idk>\n]so<me\nshit\n
-    /// assert_eq!(Selection::new(4, 0).overlaps(Selection::new(3, 6)), true);  //]idk<\n[so>me\nshit\n
-    /// assert_eq!(Selection::new(4, 0).overlaps(Selection::new(6, 3)), true);  //]idk>\n[so<me\nshit\n
-    /// assert_eq!(Selection::new(3, 6).overlaps(Selection::new(0, 4)), true);  //<idk[\n>so]me\nshit\n
-    /// assert_eq!(Selection::new(3, 6).overlaps(Selection::new(4, 0)), true);  //>idk[\n<so]me\nshit\n
-    /// assert_eq!(Selection::new(6, 3).overlaps(Selection::new(0, 4)), true);  //<idk]\n>so[me\nshit\n
-    /// assert_eq!(Selection::new(6, 3).overlaps(Selection::new(4, 0)), true);  //>idk]\n<so[me\nshit\n
+    /// assert_eq!(Selection::new(0, 4).overlaps(&Selection::new(3, 6)), true);  //[idk<\n]so>me\nshit\n
+    /// assert_eq!(Selection::new(0, 4).overlaps(&Selection::new(6, 3)), true);  //[idk>\n]so<me\nshit\n
+    /// assert_eq!(Selection::new(4, 0).overlaps(&Selection::new(3, 6)), true);  //]idk<\n[so>me\nshit\n
+    /// assert_eq!(Selection::new(4, 0).overlaps(&Selection::new(6, 3)), true);  //]idk>\n[so<me\nshit\n
+    /// assert_eq!(Selection::new(3, 6).overlaps(&Selection::new(0, 4)), true);  //<idk[\n>so]me\nshit\n
+    /// assert_eq!(Selection::new(3, 6).overlaps(&Selection::new(4, 0)), true);  //>idk[\n<so]me\nshit\n
+    /// assert_eq!(Selection::new(6, 3).overlaps(&Selection::new(0, 4)), true);  //<idk]\n>so[me\nshit\n
+    /// assert_eq!(Selection::new(6, 3).overlaps(&Selection::new(4, 0)), true);  //>idk]\n<so[me\nshit\n
     /// 
     /// // Zero-width and non-zero-width selections, overlap.
-    /// assert_eq!(Selection::new(0, 3).overlaps(Selection::new(3, 3)), true);  //[idk<>]\nsome\nshit\n
-    /// assert_eq!(Selection::new(3, 0).overlaps(Selection::new(3, 3)), true);  //]idk<>[\nsome\nshit\n
-    /// assert_eq!(Selection::new(3, 3).overlaps(Selection::new(0, 3)), true);  //<idk[]>\nsome\nshit\n
-    /// assert_eq!(Selection::new(3, 3).overlaps(Selection::new(3, 0)), true);  //>idk[]<\nsome\nshit\n
+    /// assert_eq!(Selection::new(0, 3).overlaps(&Selection::new(3, 3)), true);  //[idk<>]\nsome\nshit\n
+    /// assert_eq!(Selection::new(3, 0).overlaps(&Selection::new(3, 3)), true);  //]idk<>[\nsome\nshit\n
+    /// assert_eq!(Selection::new(3, 3).overlaps(&Selection::new(0, 3)), true);  //<idk[]>\nsome\nshit\n
+    /// assert_eq!(Selection::new(3, 3).overlaps(&Selection::new(3, 0)), true);  //>idk[]<\nsome\nshit\n
     /// 
     /// // Zero-width and non-zero-width selections, overlap.
-    /// assert_eq!(Selection::new(1, 4).overlaps(Selection::new(1, 1)), true);  //i[<>dk\n]some\nshit\n
-    /// assert_eq!(Selection::new(4, 1).overlaps(Selection::new(1, 1)), true);  //i]<>dk\n[some\nshit\n
-    /// assert_eq!(Selection::new(1, 1).overlaps(Selection::new(1, 4)), true);  //i[<]dk\n>some\nshit\n
-    /// assert_eq!(Selection::new(1, 1).overlaps(Selection::new(4, 1)), true);  //i[>]dk\n<some\nshit\n
-    /// assert_eq!(Selection::new(1, 4).overlaps(Selection::new(3, 3)), true);  //i[dk<>\n]some\nshit\n
-    /// assert_eq!(Selection::new(4, 1).overlaps(Selection::new(3, 3)), true);  //i]dk<>\n[some\nshit\n
-    /// assert_eq!(Selection::new(3, 3).overlaps(Selection::new(1, 4)), true);  //i<dk[]\n>some\nshit\n
-    /// assert_eq!(Selection::new(3, 3).overlaps(Selection::new(4, 1)), true);  //i>dk[]\n<some\nshit\n
+    /// assert_eq!(Selection::new(1, 4).overlaps(&Selection::new(1, 1)), true);  //i[<>dk\n]some\nshit\n
+    /// assert_eq!(Selection::new(4, 1).overlaps(&Selection::new(1, 1)), true);  //i]<>dk\n[some\nshit\n
+    /// assert_eq!(Selection::new(1, 1).overlaps(&Selection::new(1, 4)), true);  //i[<]dk\n>some\nshit\n
+    /// assert_eq!(Selection::new(1, 1).overlaps(&Selection::new(4, 1)), true);  //i[>]dk\n<some\nshit\n
+    /// assert_eq!(Selection::new(1, 4).overlaps(&Selection::new(3, 3)), true);  //i[dk<>\n]some\nshit\n
+    /// assert_eq!(Selection::new(4, 1).overlaps(&Selection::new(3, 3)), true);  //i]dk<>\n[some\nshit\n
+    /// assert_eq!(Selection::new(3, 3).overlaps(&Selection::new(1, 4)), true);  //i<dk[]\n>some\nshit\n
+    /// assert_eq!(Selection::new(3, 3).overlaps(&Selection::new(4, 1)), true);  //i>dk[]\n<some\nshit\n
     /// 
     /// // zero-width selections, no overlap.
-    /// assert_eq!(Selection::new(0, 0).overlaps(Selection::new(1, 1)), false); //[]i<>dk\nsome\nshit\n
-    /// assert_eq!(Selection::new(1, 1).overlaps(Selection::new(0, 0)), false); //<>i[]dk\nsome\nshit\n
+    /// assert_eq!(Selection::new(0, 0).overlaps(&Selection::new(1, 1)), false); //[]i<>dk\nsome\nshit\n
+    /// assert_eq!(Selection::new(1, 1).overlaps(&Selection::new(0, 0)), false); //<>i[]dk\nsome\nshit\n
     /// 
     /// // zero-width selections, overlap.
-    /// assert_eq!(Selection::new(1, 1).overlaps(Selection::new(1, 1)), true);  //i[<>]dk\nsome\nshit\n
+    /// assert_eq!(Selection::new(1, 1).overlaps(&Selection::new(1, 1)), true);  //i[<>]dk\nsome\nshit\n
     /// ```
     #[must_use]
-    pub fn overlaps(&self, other: Selection) -> bool{
+    pub fn overlaps(&self, other: &Selection) -> bool{
         assert!(self.start() <= self.end());
         assert!(other.start() <= other.end());
+        
         self.start() == other.start() || 
         self.end() == other.end() || 
         (self.end() > other.start() && other.end() > self.start())
@@ -307,6 +304,7 @@ impl Selection{
         assert!(self.anchor <= text.len_chars());
         assert!(other.head <= text.len_chars());
         assert!(other.anchor <= text.len_chars());
+        
         let anchor = self.start().min(other.start());
         let head = self.end().max(other.end());
         let stored_line_position = text_util::offset_from_line_start(head, text);   //self.cursor instead of head?
@@ -401,6 +399,7 @@ impl Selection{
         assert!(to <= text.len_chars());
         assert!(self.cursor(semantics) <= text.len_chars());
         assert!(self.anchor <= text.len_chars());
+        
         let mut selection = self.clone();
         match (semantics, movement){
             (CursorSemantics::Bar, Movement::Move) => {
@@ -484,23 +483,27 @@ impl Selection{
         assert!(self.cursor(semantics) <= text.len_chars());
         assert!(self.anchor <= text.len_chars());
         assert!(amount > 0);
-        let mut selection = self.clone();
-        let goal_line_number = match direction{
-            Direction::Forward => text.char_to_line(self.cursor(semantics)).saturating_add(amount).min(text.len_lines().saturating_sub(1)),
-            Direction::Backward => text.char_to_line(self.cursor(semantics)).saturating_sub(amount)
-        };
         
+        let mut selection = self.clone();
+        
+        let current_line = text.char_to_line(self.cursor(semantics));
+        let goal_line_number = match direction{
+            Direction::Forward => (current_line + amount).min(text.len_lines().saturating_sub(1)),
+            Direction::Backward => current_line.saturating_sub(amount),
+        };
+
         let start_of_line = text.line_to_char(goal_line_number);
         let line_width = text_util::line_width_excluding_newline(text.line(goal_line_number));
-        
-        let stored_line_position = match self.stored_line_position{
-            Some(stored_line_position) => stored_line_position,
-            None => text_util::offset_from_line_start(self.cursor(semantics), text)
-        };
-        
-        let new_position = if stored_line_position < line_width{
+    
+        // Use the stored line position or calculate it if None
+        let stored_line_position = self.stored_line_position.unwrap_or_else(|| {
+            text_util::offset_from_line_start(self.cursor(semantics), text)
+        });
+
+        // Calculate the new position based on line width
+        let new_position = if stored_line_position < line_width {
             start_of_line + stored_line_position
-        }else{
+        } else {
             start_of_line + line_width
         };
 
@@ -541,6 +544,7 @@ impl Selection{
         assert!(text.len_lines() > 0);
         assert!(self.cursor(semantics) <= text.len_chars());
         assert!(self.anchor <= text.len_chars());
+        
         let new_position = match direction{
             Direction::Forward => self.cursor(semantics).saturating_add(amount).min(text.len_chars()),    //ensures this does not move past text end
             Direction::Backward => self.cursor(semantics).saturating_sub(amount)
@@ -590,7 +594,7 @@ impl Selection{
         assert!(self.cursor(semantics) <= text.len_chars());
         assert!(self.anchor <= text.len_chars());
         assert!(line_number < text.len_lines());
-        //let line_number = line_number.min(text.len_lines().saturating_sub(1));  //restrict line_number to doc length(-1 because len_lines is 1 based)
+        // deprecate in favor of assert? //let line_number = line_number.min(text.len_lines().saturating_sub(1));  //restrict line_number to doc length(-1 because len_lines is 1 based)
         let current_line = text.char_to_line(self.cursor(semantics));
         
         let (amount, direction) = if line_number < current_line{
@@ -623,9 +627,6 @@ impl Selection{
     /// ```
     #[must_use]
     pub fn collapse(&self, text: &Rope, semantics: CursorSemantics) -> Self{
-        assert!(text.len_lines() > 0);
-        assert!(self.cursor(semantics) <= text.len_chars());
-        assert!(self.anchor <= text.len_chars());
         self.put_cursor(self.cursor(semantics), text, Movement::Move, semantics, true)
     }
 
@@ -1348,8 +1349,8 @@ impl Selections{
         };
 
         // selections.grapheme_align();
-        selections.sort();
-        selections.merge_overlapping(text);
+        selections = selections.sort();
+        selections = selections.merge_overlapping(text);
 
         assert!(selections.count() > 0);
         selections
@@ -1367,50 +1368,71 @@ impl Selections{
     pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, Selection>{
         self.selections.iter_mut()
     }
-    pub fn pop(&mut self) -> Option<Selection>{
-        assert!(self.count() > 0);
-        //TODO: figure out how to determine what to set primary_selection_index to
-        if self.count() == 1{
-            None
+    /// Returns a new instance of [`Selections`] with the last element removed.
+    /// ```
+    /// # use ropey::Rope;
+    /// # use edit_core::selection::{Selection, Selections};
+    /// 
+    /// let text = Rope::from("idk\nsome\nshit\n");
+    /// let selections = Selections::new(vec![Selection::new(0, 0), Selection::new(1, 1)], 0, &text);
+    /// assert_eq!(Selections::new(vec![Selection::new(0, 0)], 0, &text), selections.pop());
+    /// 
+    /// // always contains at least one selection
+    /// let selections = Selections::new(vec![Selection::new(0, 0)], 0, &text);
+    /// assert_eq!(Selections::new(vec![Selection::new(0, 0)], 0, &text), selections.pop());
+    /// ```
+    pub fn pop(&self) -> Self{
+        let mut new_selections = self.selections.clone();
+        if new_selections.len() > 1{    // Guarantee at least one selection
+            new_selections.pop();
         }else{
-            self.selections.pop()
-            // set new primary_selection_index
+            return self.clone();
+        }
+
+        // Is there a better way to determine new primary selection?
+        let primary_selection_index = new_selections.len().saturating_sub(1);
+
+        Self{
+            selections: new_selections,
+            primary_selection_index
         }
     }
 
-    /// Prepends a [`Selection`] to the front of [Self], and assigns 0 to self.primary_selection_index
+    /// Prepends a [`Selection`] to the front of [Self], with `primary_selection_index` set to 0.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, Selections};
     /// 
     /// let text = Rope::from("idk\nsome\nshit\n");
     /// let mut selections = Selections::new(vec![Selection::new(4, 4)], 0, &text);
-    /// selections.push_front(Selection::new(0, 0));
-    /// let expected_selections = Selections::new(vec![Selection::new(0, 0), Selection::new(4, 4)], 0, &text);
-    /// assert!(selections == expected_selections);
+    /// assert_eq!(Selections::new(vec![Selection::new(0, 0), Selection::new(4, 4)], 0, &text), selections.push_front(Selection::new(0, 0)));
     /// ```
-    pub fn push_front(&mut self, selection: Selection){
-        self.selections.insert(0, selection);
-        self.primary_selection_index = 0;
-        assert!(self.count() > 0);
+    pub fn push_front(&self, selection: Selection) -> Self{
+        let mut new_selections = self.selections.clone();
+        new_selections.insert(0, selection);
+        Self{
+            selections: new_selections,
+            primary_selection_index: 0
+        }
     }
     
-    /// Appends a [`Selection`] to the back of [Self], and assigns its index to self.primary_selection_index
+    /// Appends a [`Selection`] to the back of [Self], with `primary_selection_index` set to num of selections - 1.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, Selections};
     /// 
     /// let text = Rope::from("idk\nsome\nshit\n");
     /// let mut selections = Selections::new(vec![Selection::new(0, 0)], 0, &text); //[]idk\nsome\nshit\n
-    /// selections.push(Selection::new(4, 4));   //[]idk\n[]some\nshit\n
-    /// let expected_selections = Selections::new(vec![Selection::new(0, 0), Selection::new(4, 4)], 1, &text);
-    /// println!("expected: {:#?}\ngot: {:#?}\n", expected_selections, selections);
-    /// assert!(selections == expected_selections);
+    /// assert_eq!(Selections::new(vec![Selection::new(0, 0), Selection::new(4, 4)], 1, &text), selections.push(Selection::new(4, 4)));
     /// ```
-    pub fn push(&mut self, selection: Selection){
-        self.selections.push(selection);
-        self.primary_selection_index = self.count().saturating_sub(1);//self.selections.len().saturating_sub(1);
-        assert!(self.count() > 0);
+    pub fn push(&self, selection: Selection) -> Self{
+        let mut new_selections = self.selections.clone();
+        new_selections.push(selection);
+        let primary_selection_index = new_selections.len().saturating_sub(1);
+        Self{
+            selections: new_selections,
+            primary_selection_index
+        }
     }
     
     /// Returns a reference to the [`Selection`] at `primary_selection_index`.
@@ -1453,20 +1475,19 @@ impl Selections{
     /// 
     /// // increments
     /// let mut selections = Selections::new(vec![Selection::new(0, 0), Selection::new(1, 1)], 0, &text);
-    /// selections.increment_primary_selection();
-    /// assert_eq!(selections.primary_selection_index(), 1);
+    /// assert_eq!(Selections::new(vec![Selection::new(0, 0), Selection::new(1, 1)], 1, &text), selections.increment_primary_selection());
     /// 
     /// // wraps on last selection
     /// let mut selections = Selections::new(vec![Selection::new(0, 0), Selection::new(1, 1)], 1, &text);
-    /// selections.increment_primary_selection();
-    /// assert_eq!(selections.primary_selection_index(), 0);
+    /// assert_eq!(Selections::new(vec![Selection::new(0, 0), Selection::new(1, 1)], 0, &text), selections.increment_primary_selection());
     /// ```
-    pub fn increment_primary_selection(&mut self){  //-> Selections
-        assert!(self.count() > 1);
+    #[must_use]
+    pub fn increment_primary_selection(&self) -> Self{
+        assert!(self.count() > 1);  // multiple selections required to increment
         if self.primary_selection_index.saturating_add(1) < self.count(){
-            self.primary_selection_index += 1;
+            Self{selections: self.selections.clone(), primary_selection_index: self.primary_selection_index + 1}
         }else{
-            self.primary_selection_index = 0;
+            Self{selections: self.selections.clone(), primary_selection_index: 0}
         }
     }
     /// Decrements the primary selection index.
@@ -1489,20 +1510,19 @@ impl Selections{
     /// 
     /// // decrements
     /// let mut selections = Selections::new(vec![Selection::new(0, 0), Selection::new(1, 1)], 1, &text);
-    /// selections.decrement_primary_selection();
-    /// assert_eq!(selections.primary_selection_index(), 0);
+    /// assert_eq!(Selections::new(vec![Selection::new(0, 0), Selection::new(1, 1)], 0, &text), selections.decrement_primary_selection());
     /// 
     /// // wraps on first selection
     /// let mut selections = Selections::new(vec![Selection::new(0, 0), Selection::new(1, 1)], 0, &text);
-    /// selections.decrement_primary_selection();
-    /// assert_eq!(selections.primary_selection_index(), 1);
+    /// assert_eq!(Selections::new(vec![Selection::new(0, 0), Selection::new(1, 1)], 1, &text), selections.decrement_primary_selection());
     /// ```
-    pub fn decrement_primary_selection(&mut self){  //-> Selections
-        assert!(self.count() > 1);
-        if self.primary_selection_index() > 0{
-            self.primary_selection_index -= 1;
+    #[must_use]
+    pub fn decrement_primary_selection(&self) -> Self{
+        assert!(self.count() > 1);  // multiple selections required to decrement
+        if self.primary_selection_index > 0{
+            Self{selections: self.selections.clone(), primary_selection_index: self.primary_selection_index - 1}
         }else{
-            self.primary_selection_index = self.count().saturating_sub(1);//self.selections.len().saturating_sub(1);
+            Self{selections: self.selections.clone(), primary_selection_index: self.count().saturating_sub(1)}
         }
     }
 
@@ -1526,24 +1546,27 @@ impl Selections{
     ///     Selection::new(2, 4),
     ///     Selection::new(3, 6)
     /// ], 1, &text);
-    /// selections.sort();
-    /// println!("expected: {:#?}\ngot: {:#?}", expected_selections, selections);
-    /// assert!(selections == expected_selections);
+    /// assert_eq!(expected_selections, selections.sort());
     /// ```
-    pub fn sort(&mut self){
+    #[must_use]
+    pub fn sort(&self) -> Self{
         if self.count() < 2{
-            return;
+            return self.clone();
         }
 
-        let primary = self.selections[self.primary_selection_index].clone();
-        self.selections.sort_unstable_by_key(Selection::start);
-        self.primary_selection_index = self
-            .selections
+        let primary = self.primary().clone();
+        let mut sorted_selections = self.selections.clone();
+        sorted_selections.sort_unstable_by_key(Selection::start);
+    
+        let primary_selection_index = sorted_selections
             .iter()
-            .position(|selection| selection.clone() == primary)
-            .unwrap();
-
-        assert!(self.count() > 0);
+            .position(|selection| selection == &primary)
+            .unwrap_or(0);
+    
+        Self{
+            selections: sorted_selections,
+            primary_selection_index,
+        }
     }
 
     /// Merges overlapping [`Selection`]s.
@@ -1565,36 +1588,41 @@ impl Selections{
     ///     Selection::new(5, 7),    // i d k \n s[o m]e \n s h i t \n
     ///     Selection::with_stored_line_position(8, 12, 3)    // i d k \n s o m e[\n s h i]t \n
     /// ], 2, &text);
-    /// selections.merge_overlapping(&text);
-    /// println!("expected: {:#?}\ngot: {:#?}", expected_selections, selections);
-    /// assert!(selections == expected_selections);
+    /// assert_eq!(expected_selections, selections.merge_overlapping(&text));
     /// ```
-    pub fn merge_overlapping(&mut self, text: &Rope){
+    pub fn merge_overlapping(&mut self, text: &Rope) -> Self{
         if self.count() < 2{
-            return;
+            return self.clone();
         }
 
-        let mut primary = self.selections[self.primary_selection_index].clone();
-        self.selections.dedup_by(|current_selection, prev_selection| {
-            if prev_selection.overlaps(current_selection.clone()){
-                let new_selection = current_selection.merge(prev_selection, text);
-                if prev_selection == &primary || current_selection == &primary{
-                    primary = new_selection.clone();
-                }
-                *prev_selection = new_selection;
-                true
-            }else{
-                false
-            }
-        });
+        let mut primary = self.primary().clone();
+        let mut new_selections = self.selections.clone();
+        new_selections.dedup_by(|current_selection, prev_selection|{
+                if prev_selection.overlaps(current_selection){
+                    let merged_selection = current_selection.merge(prev_selection, text);
 
-        self.primary_selection_index = self
-            .selections
-            .iter()
-            .position(|selection| selection.clone() == primary)
-            .unwrap();
+                    // Update primary selection to track index in next code block // Only clone if necessary
+                    if prev_selection == &primary || current_selection == &primary{
+                        primary = merged_selection.clone();
+                    }
+            
+                    *prev_selection = merged_selection;
+                    true
+                }else{
+                    false
+                }
+            });
+
+        let primary_selection_index = new_selections.iter()
+            .position(|selection| selection == &primary)
+            .unwrap_or(0);
 
         assert!(self.count() > 0);
+
+        Self{
+            selections: new_selections,
+            primary_selection_index,
+        }
     }
 
     /// Removes all [`Selection`]s except [`Selection`] at `primary_selection_index`.
@@ -1618,15 +1646,19 @@ impl Selections{
     /// 
     /// // normal use
     /// let mut selections = Selections::new(vec![Selection::new(0, 0), Selection::new(4, 4)], 1, &text);
-    /// selections.clear_non_primary_selections();
-    /// assert!(selections == Selections::new(vec![Selection::new(4, 4)], 0, &text));
+    /// assert_eq!(Selections::new(vec![Selection::new(4, 4)], 0, &text), selections.clear_non_primary_selections());
     /// ```
-    // pub fn clear_non_primary_selections(&self) -> Selections{}
-    pub fn clear_non_primary_selections(&mut self){
+    pub fn clear_non_primary_selections(&self) -> Self{
         assert!(self.count() > 1);
-        self.selections = vec![self.selections[self.primary_selection_index].clone()];
-        self.primary_selection_index = 0;
-        assert!(self.count() > 0);
+        
+        let cleared_selections = vec![self.primary().clone()];
+        
+        assert!(cleared_selections.len() == 1);
+        
+        Self{
+            selections: cleared_selections,
+            primary_selection_index: 0
+        }
     }
 
     //TODO: return head and anchor positions

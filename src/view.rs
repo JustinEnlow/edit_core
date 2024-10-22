@@ -51,12 +51,15 @@ impl View{
     #[must_use]
     pub fn scroll_down(&self, amount: usize, text: &Rope) -> Self{
         assert!(amount > 0);
-        assert!(self.height > 0);
         assert!(text.len_lines() > 0);
-        if self.vertical_start + self.height + amount <= text.len_lines(){
-            Self::new(self.horizontal_start, self.vertical_start.saturating_add(amount), self.width, self.height)
+        
+        let new_vertical_start = self.vertical_start.saturating_add(amount);
+        let max_scrollable_position = text.len_lines().saturating_sub(self.height);
+
+        if new_vertical_start <= max_scrollable_position{
+            Self::new(self.horizontal_start, new_vertical_start, self.width, self.height)
         }else{
-            self.clone()
+            Self::new(self.horizontal_start, max_scrollable_position, self.width, self.height)
         }
     }
     /// Returns a new instance of [`View`] with `horizontal_start` decreased by specified amount.
@@ -79,7 +82,6 @@ impl View{
     #[must_use]
     pub fn scroll_left(&self, amount: usize) -> Self{
         assert!(amount > 0);
-        assert!(self.width > 0);
         Self::new(self.horizontal_start.saturating_sub(amount), self.vertical_start, self.width, self.height)
     }
     /// Returns a new instance of [`View`] with `horizontal_start` increased by specified amount.
@@ -102,18 +104,18 @@ impl View{
     #[must_use]
     pub fn scroll_right(&self, amount: usize, text: &Rope) -> Self{
         assert!(amount > 0);
-        assert!(self.width > 0);
-        let mut longest = 0;
-        for line in text.lines(){
-            let line_width = crate::text_util::line_width_excluding_newline(line);
 
-            if line_width > longest{
-                longest = line_width;
-            }
-        }
+        // TODO: cache longest as a field in [`View`] struct to eliminate having to calculate this on each call
+        // Calculate the longest line width in a single pass
+        let longest = text.lines()
+            .map(crate::text_util::line_width_excluding_newline)
+            .max()
+            .unwrap_or(0); // Handle the case where there are no lines
 
-        if self.horizontal_start + self.width + amount <= longest{
-            Self::new(self.horizontal_start.saturating_add(amount), self.vertical_start, self.width, self.height)
+        let new_horizontal_start = self.horizontal_start.saturating_add(amount);
+
+        if new_horizontal_start + self.width <= longest{
+            Self::new(new_horizontal_start, self.vertical_start, self.width, self.height)
         }else{
             self.clone()
         }
@@ -138,7 +140,6 @@ impl View{
     #[must_use]
     pub fn scroll_up(&self, amount: usize) -> View{
         assert!(amount > 0);
-        assert!(self.height > 0);
         Self::new(self.horizontal_start, self.vertical_start.saturating_sub(amount), self.width, self.height)
     }
     /// Returns a `bool` indicating whether the [`View`] should be scrolled or not. If `head` of primary [`Selection2d`]
@@ -171,15 +172,16 @@ impl View{
     /// ```
     #[must_use]
     pub fn should_scroll(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> bool{  //should this take a single Selection instead?
-        assert!(self.height > 0);
-        assert!(self.width > 0);
         assert!(selection.cursor(semantics) <= text.len_chars());
-        let cursor = selection.selection_to_selection2d(text, semantics);
 
-        cursor.head().y() < self.vertical_start 
-        || cursor.head().y() >= self.vertical_start.saturating_add(self.height)
-        || cursor.head().x() < self.horizontal_start
-        || cursor.head().x() >= self.horizontal_start.saturating_add(self.width)
+        let cursor = selection.selection_to_selection2d(text, semantics);
+        let cursor_y = cursor.head().y();
+        let cursor_x = cursor.head().x();
+
+        let within_vertical_bounds = cursor_y >= self.vertical_start && cursor_y < self.vertical_start.saturating_add(self.height);
+        let within_horizontal_bounds = cursor_x >= self.horizontal_start && cursor_x < self.horizontal_start.saturating_add(self.width);
+
+        !(within_vertical_bounds && within_horizontal_bounds)
     }
 
     /// Returns a new instance of [`View`] with `horizontal_start` and/or `vertical_start` shifted to keep `head` of
@@ -210,30 +212,27 @@ impl View{
     /// ```
     #[must_use]
     pub fn scroll_following_cursor(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> Self{
-        assert!(self.height > 0);
-        assert!(self.width > 0);
         assert!(selection.cursor(semantics) <= text.len_chars());
 
         let cursor = selection.selection_to_selection2d(text, semantics);
+        let cursor_y = cursor.head().y();
+        let cursor_x = cursor.head().x();
 
         let mut new_view = self.clone();
 
-        if cursor.head().y() < self.vertical_start{
-            new_view.vertical_start = cursor.head().y();
-        }
-        else if cursor.head().y() >= self.vertical_start.saturating_add(self.height){
-            new_view.vertical_start = cursor.head().y().saturating_sub(self.height).saturating_add(1);
-        }
-    
-        if cursor.head().x() < self.horizontal_start{
-            new_view.horizontal_start = cursor.head().x();
-        }
-        else if cursor.head().x() >= self.horizontal_start.saturating_add(self.width){
-            new_view.horizontal_start = cursor.head().x().saturating_sub(self.width).saturating_add(1);
+        // Adjust vertical view based on cursor position
+        if cursor_y < self.vertical_start{
+            new_view.vertical_start = cursor_y;
+        }else if cursor_y >= self.vertical_start.saturating_add(self.height){
+            new_view.vertical_start = cursor_y.saturating_sub(self.height).saturating_add(1);
         }
 
-        assert!(new_view.height > 0);
-        assert!(new_view.width > 0);
+        // Adjust horizontal view based on cursor position
+        if cursor_x < self.horizontal_start{
+            new_view.horizontal_start = cursor_x;
+        }else if cursor_x >= self.horizontal_start.saturating_add(self.width){
+            new_view.horizontal_start = cursor_x.saturating_sub(self.width).saturating_add(1);
+        }
 
         new_view
     }
@@ -266,53 +265,63 @@ impl View{
     pub fn center_vertically_around_cursor(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> Self{
         assert!(selection.cursor(semantics) <= text.len_chars());    //ensure selection is valid
         assert!(text.len_lines() > 0);  //ensure text is not empty
-        assert!(self.height > 0);  //ensure height is non-zero
-        assert!(self.width > 0);    //ensure width is non-zero
+        
         let current_line = text.char_to_line(selection.cursor(semantics));
-
         let half_view_height = self.height / 2;
 
+        // Calculate the new vertical start position
         let new_vertical_start = if current_line > half_view_height{
             current_line.saturating_sub(half_view_height)
         }else{
             0
-        };
-
-        let new_vertical_start = new_vertical_start.min(text.len_lines().saturating_sub(self.height));
+        }.min(text.len_lines().saturating_sub(self.height));
 
         Self::new(self.horizontal_start, new_vertical_start, self.width, self.height)
     }
     /// Returns a `String` containing the text that can be contained within [`View`] boundaries.
     pub fn text(&self, text: &Rope) -> String{
-        let mut client_view_text = String::new();
+        // preallocate memory for String based on expected size
+        let mut client_view_text = String::with_capacity(self.height * (self.width + 1));   //+1 for added new line
+
+        let vertical_range = self.vertical_start..self.vertical_start + self.height;
+        let horizontal_range = self.horizontal_start..self.horizontal_start + self.width;
+
         for (y, line) in text.lines().enumerate(){
-            let mut bounded_line = String::new();
-            if y >= self.vertical_start
-            && y <= (self.height.saturating_sub(1) + self.vertical_start){
-                for (x, char) in line.chars().enumerate(){
-                    if x >= self.horizontal_start
-                    && x <= (self.width.saturating_sub(1) + self.horizontal_start)
-                    && char != '\n'{
-                        bounded_line.push(char);
-                    }
-                }
-                client_view_text.push_str(format!("{}\n", bounded_line).as_str());
+            if !vertical_range.contains(&y){
+                continue;
             }
+
+            let bounded_line: String = line.chars()
+                .enumerate()
+                .filter_map(|(x, char)|{
+                    if horizontal_range.contains(&x) && char != '\n'{
+                        Some(char)
+                    }else{
+                        None
+                    }
+                })
+                .collect();
+
+            client_view_text.push_str(&bounded_line);
+            client_view_text.push('\n'); // Append newline after each line
         }
 
         client_view_text
     }
     /// Returns a `String` containing the line numbers of the text that can be contained within [`View`] boundaries.
     pub fn line_numbers(&self, text: &Rope) -> String{
-        let mut client_view_line_numbers = String::new();
+        //enhance performance by building the string using a vector and then joining it at the end
+        let mut line_numbers_vec = Vec::with_capacity(self.height);
+
+        let vertical_range = self.vertical_start..self.vertical_start + self.height;
+
         for (y, _) in text.lines().enumerate(){
-            if y >= self.vertical_start
-            && y <= (self.height.saturating_sub(1) + self.vertical_start){
-                client_view_line_numbers.push_str(&format!("{}\n", y.saturating_add(1)));
+            if vertical_range.contains(&y){
+                line_numbers_vec.push((y + 1).to_string()); // Convert number to string
             }
         }
 
-        client_view_line_numbers
+        line_numbers_vec.join("\n") // Join with newline
     }
 
     /*
@@ -345,27 +354,30 @@ impl View{
     /// assert!(test(Selection::new(0, 1), Vec::new(), View::new(1, 1, 2, 2), CursorSemantics::Block));
     /// ```
     pub fn cursor_positions(&self, text: &Rope, selections: &Selections, semantics: CursorSemantics) -> Vec<Position>{
-        let mut positions = Vec::new();
-        for cursor in selections.iter(){
-            if let Some(client_cursor) = Self::cursor_position(
-                cursor.selection_to_selection2d(text, semantics),
-                self.clone()
-            ){
-                positions.push(client_cursor);
-            }
-        }
-        positions
+        selections.iter()
+            .filter_map(|cursor|{
+                Self::cursor_position(cursor.selection_to_selection2d(text, semantics), self)
+            })
+            .collect()
     }
     // translates a document cursor position to a client view cursor position. if outside client view, returns None
-    fn cursor_position(doc_cursor: Selection2d, client_view: View) -> Option<Position>{
-        if doc_cursor.head().x() >= client_view.horizontal_start
-        && doc_cursor.head().x() < client_view.horizontal_start.saturating_add(client_view.width)
-        && doc_cursor.head().y() >= client_view.vertical_start
-        && doc_cursor.head().y() < client_view.vertical_start.saturating_add(client_view.height){
+    fn cursor_position(doc_cursor: Selection2d, client_view: &View) -> Option<Position>{
+        let head_x = doc_cursor.head().x();
+        let head_y = doc_cursor.head().y();
+
+        let in_horizontal_bounds = head_x >= client_view.horizontal_start
+            && head_x < client_view.horizontal_start.saturating_add(client_view.width);
+    
+        let in_vertical_bounds = head_y >= client_view.vertical_start
+            && head_y < client_view.vertical_start.saturating_add(client_view.height);
+
+        if in_horizontal_bounds && in_vertical_bounds{
             Some(Position::new(
-                doc_cursor.head().x().saturating_sub(client_view.horizontal_start),
-                doc_cursor.head().y().saturating_sub(client_view.vertical_start)
+                head_x.saturating_sub(client_view.horizontal_start),
+                head_y.saturating_sub(client_view.vertical_start),
             ))
-        }else{None}
+        }else{
+            None
+        }
     }
 }
