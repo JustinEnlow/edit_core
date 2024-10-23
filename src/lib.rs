@@ -8,6 +8,7 @@ pub mod selection;
 pub mod view;
 pub mod text_util;
 pub mod id;
+pub mod history;
 
 
 
