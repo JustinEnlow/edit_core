@@ -229,6 +229,30 @@ impl Selection{
         (self.end() > other.start() && other.end() > self.start())
     }
 
+    pub fn contains(&self, idx: usize) -> bool{
+        idx >= self.start() && idx <= self.end()
+    }
+
+    /// Returns a new [`Selection`] from the overlap of `self` and `other`.
+    /// ```
+    /// # use edit_core::selection::Selection;
+    /// 
+    /// let first = Selection::new(0, 6);
+    /// let second = Selection::new(3, 9);
+    /// assert_eq!(Selection::new(3, 6), first.intersection(&second).unwrap());
+    /// 
+    /// let first = Selection::new(1, 5);
+    /// let second = Selection::new(2, 3);
+    /// assert_eq!(Selection::new(2, 3), first.intersection(&second).unwrap());
+    /// ```
+    pub fn intersection(&self, other: &Selection) -> Result<Self, ()>{
+        if self.overlaps(other){
+            Ok(Selection::new(self.start().max(other.start()), self.end().min(other.end())))
+        }else{
+            Err(())
+        }
+    }
+
     /// Create a new [`Selection`] by merging self with other.
     ///// Indiscriminate merge. merges whether overlapping, consecutive, 
     ///// contained, or disconnected entirely.
@@ -1286,6 +1310,7 @@ pub struct Selection2d{
 }
 impl Selection2d{
     pub fn new(head: Position, anchor: Position) -> Self{
+    //pub fn new(anchor: Position, head: Position) -> Self{
         Self{
             head,
             anchor
