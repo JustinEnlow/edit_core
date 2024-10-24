@@ -3,7 +3,8 @@ use unicode_segmentation::UnicodeSegmentation;
 use crate::document::TAB_WIDTH;
 use crate::selection::{CursorSemantics, Selection};
 
-//TODO: should be grapheme count instead of char count?
+
+
 /// Returns the count of visible graphemes in a line of text.
 /// # Example
 /// ```
@@ -13,14 +14,12 @@ use crate::selection::{CursorSemantics, Selection};
 /// let text = Rope::from("idk\n");
 /// assert!(text_util::line_width_excluding_newline(text.slice(..)) == 3);
 /// ```
+// TODO: handle non standard width chars such as '\t'
 pub fn line_width_excluding_newline(line: RopeSlice) -> usize{
     let mut line_width = 0;
     let line = line.to_string();
-    //for char in line.chars(){
-        //if char != '\n'{
-    for grapheme in line.graphemes(true){
-        if grapheme != "\n"{
-            //line_width = line_width + 1;
+    for char in line.chars(){
+        if char != '\n'{
             line_width += 1;
         }
     }

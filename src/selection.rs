@@ -1,10 +1,9 @@
 // follow documentation style from https://std-dev-guide.rust-lang.org/development/how-to-write-documentation.html
 
 use ropey::Rope;
+use unicode_segmentation::UnicodeSegmentation;
 use crate::{
-    Position,
-    view::View,
-    text_util
+    document::TAB_WIDTH, text_util, view::View, Position
 };
 
 
@@ -1246,13 +1245,31 @@ impl Selection{
         let head_line_start_idx = text.line_to_char(line_number_head);
         let anchor_line_start_idx = text.line_to_char(line_number_anchor);
 
+        //let mut column_head = 0;
+        //for grapheme in text.slice(head_line_start_idx..self.cursor(semantics)).to_string().graphemes(true){
+        //    if grapheme == "\t"{
+        //        column_head += TAB_WIDTH - (column_head % TAB_WIDTH);
+        //    }else{
+        //        column_head += 1;
+        //    }
+        //}
+        //let mut column_anchor = 0;
+        //for grapheme in text.slice(anchor_line_start_idx..self.anchor).to_string().graphemes(true){
+        //    if grapheme == "\t"{
+        //        column_anchor += TAB_WIDTH - (column_head % TAB_WIDTH);
+        //    }else{
+        //        column_anchor += 1;
+        //    }
+        //}
         Selection2d::new(
             Position::new(
                 self.cursor(semantics).saturating_sub(head_line_start_idx),
+                //column_head,
                 line_number_head
             ), 
             Position::new(
                 self.anchor.saturating_sub(anchor_line_start_idx),
+                //column_anchor,
                 line_number_anchor
             )
         )

@@ -1,6 +1,7 @@
 use ropey::Rope;
 use crate::selection::{CursorSemantics, Selection, Selection2d, Selections};
 use crate::Position;
+use crate::document::TAB_WIDTH;
 
 
 
@@ -171,7 +172,7 @@ impl View{
     /// assert_eq!(true, view.should_scroll(&selection, &text, CursorSemantics::Block));
     /// ```
     #[must_use]
-    pub fn should_scroll(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> bool{  //should this take a single Selection instead?
+    pub fn should_scroll(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> bool{
         assert!(selection.cursor(semantics) <= text.len_chars());
 
         let cursor = selection.selection_to_selection2d(text, semantics);
@@ -279,6 +280,7 @@ impl View{
         Self::new(self.horizontal_start, new_vertical_start, self.width, self.height)
     }
     /// Returns a `String` containing the text that can be contained within [`View`] boundaries.
+    // TODO: need to handle displaying TAB_WIDTH spaces instead of a "\t" character.
     pub fn text(&self, text: &Rope) -> String{
         // preallocate memory for String based on expected size
         let mut client_view_text = String::with_capacity(self.height * (self.width + 1));   //+1 for added new line
@@ -308,6 +310,54 @@ impl View{
 
         client_view_text
     }
+    //pub fn text(&self, text: &Rope) -> String {
+    //    // preallocate memory for String based on expected size
+    //    let mut client_view_text = String::with_capacity(self.height * (self.width + 1)); // +1 for added new line
+    //
+    //    let vertical_range = self.vertical_start..(self.vertical_start + self.height);
+    //    let horizontal_range = self.horizontal_start..(self.horizontal_start + self.width);
+    //
+    //    for (y, line) in text.lines().enumerate(){
+    //        // skip lines outside vertical range
+    //        if !vertical_range.contains(&y){
+    //            continue;
+    //        }
+    //
+    //        let mut bounded_line = String::new();   // init new bounded line to be rendered
+    //        let mut x = 0; // Track the current x position
+    //
+    //        for char in line.chars(){
+    //            if x >= self.width{
+    //                break; // Stop if maximum width reached
+    //            }
+    //
+    //            match char{
+    //                '\t' => {
+    //                    let spaces_to_add = TAB_WIDTH - (x % TAB_WIDTH);
+    //                    bounded_line.push_str(&" ".repeat(spaces_to_add));
+    //                    x += spaces_to_add; // Update x position
+    //                    x = x.min(self.width);
+    //                }
+    //                '\n' => {
+    //                    // ignore newline characters. appropriate newlines will be appended in a later step
+    //                    continue;
+    //                }
+    //                _ => {
+    //                    // skip characters outside horizontal range
+    //                    if horizontal_range.contains(&x){
+    //                        bounded_line.push(char);
+    //                        x += 1; // Update x position for regular characters
+    //                    }
+    //                }
+    //            }
+    //        }
+    //
+    //        client_view_text.push_str(&bounded_line);
+    //        client_view_text.push('\n'); // Append newline after each line
+    //    }
+    //
+    //    client_view_text
+    //}
     /// Returns a `String` containing the line numbers of the text that can be contained within [`View`] boundaries.
     pub fn line_numbers(&self, text: &Rope) -> String{
         //enhance performance by building the string using a vector and then joining it at the end

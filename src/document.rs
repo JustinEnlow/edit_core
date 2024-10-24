@@ -18,6 +18,8 @@ use crate::text_util;
 
 // tab keypress inserts the number of spaces specified in TAB_WIDTH into the focused document
 pub const TAB_WIDTH: usize = 4; //should this be language dependant? on-the-fly configurable?
+// whether to use hard or soft tabs
+pub const USE_HARD_TAB: bool = true;
 // whether to use full file path or just file name
 pub const USE_FULL_FILE_PATH: bool = false;
 
@@ -150,6 +152,7 @@ impl Document{
         self.text != self.last_saved_text
     }
 
+    /// Undoes the most recent change made to the document, restoring the previous state.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::document::Document;
@@ -227,7 +230,7 @@ impl Document{
         }
     }
 
-    /// Re-applies a ChangeSet from the redo stack.
+    /// Redoes the most recent Undo made to the document, restoring the previous state.
     /// Make sure to clear the redo stack in every edit fn. new actions invalidate the redo history
     /// ```
     /// # use ropey::Rope;
@@ -450,32 +453,36 @@ impl Document{
     pub fn insert_string(&mut self, string: &str, semantics: CursorSemantics){
         let mut changes = Vec::new();
 
-        //if string == "\n"{}   // handle behavior specific to pressing "enter". auto-indent, etc...
-        /*else */if string == "\t"{ // handle behavior specific to pressing "tab".
+        // handle behavior specific to pressing "enter". auto-indent, etc...
+        //if string == "\n"{}
+        // handle behavior specific to pressing "tab".
+        /*else */if string == "\t"{
             for selection in self.selections.iter_mut().rev(){
-                let tab_distance = text_util::distance_to_next_multiple_of_tab_width(selection.clone(), &self.text, semantics);
-                let modified_tab_width = if tab_distance > 0 && tab_distance < TAB_WIDTH{
-                    tab_distance
-                }else{
-                    TAB_WIDTH
-                };
-                let mut soft_tab = String::new();
-                //for _ in 0..modified_tab_width{   //deprecating: this produces a change for each space character inserted, instead of a change inserting them all at once
-                //    let (new_text, change) = Document::insert_string_single_selection(selection, &self.text, &' '.to_string(), semantics);
+                //if USE_HARD_TAB{  // TODO: hard tabs aren't quite behaving correctly. i believe this may be an issue in the view text tho...
+                //    let (new_text, change) = Document::insert_string_single_selection(selection, &self.text, "\t", semantics);
                 //    self.text = new_text;
                 //    *selection = change.new_selection();
                 //    changes.push(change);
-                //}
+                //}else{
+                    let tab_distance = text_util::distance_to_next_multiple_of_tab_width(selection.clone(), &self.text, semantics);
+                    let modified_tab_width = if tab_distance > 0 && tab_distance < TAB_WIDTH{
+                        tab_distance
+                    }else{
+                        TAB_WIDTH
+                    };
+                    let mut soft_tab = String::new();
 
-                for _ in 0..modified_tab_width{
-                    soft_tab.push(' ');
-                }
-                let (new_text, change) = Document::insert_string_single_selection(selection, &self.text, &soft_tab, semantics);
-                self.text = new_text;
-                *selection = change.new_selection();
-                changes.push(change);
+                    for _ in 0..modified_tab_width{
+                        soft_tab.push(' ');
+                    }
+                    let (new_text, change) = Document::insert_string_single_selection(selection, &self.text, &soft_tab, semantics);
+                    self.text = new_text;
+                    *selection = change.new_selection();
+                    changes.push(change);
+                //}
             }
         }
+        // handle any other inserted string
         else{
             // insert string at each selection
             for selection in self.selections.iter_mut().rev(){
