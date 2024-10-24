@@ -353,7 +353,7 @@ impl View{
     /// let selections = Selections::new(vec![Selection::new(1, 2), Selection::new(5, 6)], 0, &text);
     /// let view = View::new(0, 0, 3, 3);
     /// assert_eq!(
-    ///     Some(vec![Selection2d::new(Position::new(2, 0), Position::new(1, 0)), Selection2d::new(Position::new(2, 1), Position::new(1, 1))]),
+    ///     Some(vec![Selection2d::new(Position::new(1, 0), Position::new(2, 0)), Selection2d::new(Position::new(1, 1), Position::new(2, 1))]),
     ///     view.selections(&selections, &text, CursorSemantics::Bar)
     /// );
     /// 
@@ -379,9 +379,9 @@ impl View{
     /// // e l s e                     |e l s>e
     /// let view = View::new(1, 2, 4, 3);
     /// assert_eq!(Some(vec![
-    ///         Selection2d::new(Position::new(2, 2), Position::new(1, 2)),
-    ///         Selection2d::new(Position::new(3, 3), Position::new(2, 3)),
-    ///         Selection2d::new(Position::new(3, 4), Position::new(1, 4))
+    ///         Selection2d::new(Position::new(1, 2), Position::new(2, 2)),
+    ///         Selection2d::new(Position::new(2, 3), Position::new(3, 3)),
+    ///         Selection2d::new(Position::new(1, 4), Position::new(3, 4))
     ///     ]), 
     ///     view.selections(&selections, &text, CursorSemantics::Bar)
     /// );
