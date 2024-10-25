@@ -1,7 +1,6 @@
 use ropey::Rope;
 use crate::selection::{CursorSemantics, Selection, Selection2d, Selections};
 use crate::Position;
-use crate::document::TAB_WIDTH;
 
 
 
@@ -386,6 +385,7 @@ impl View{
     ///     view.selections(&selections, &text, CursorSemantics::Bar)
     /// );
     /// ```
+    // should this return Option<Vec<Selection, usize>> with usize being the selection's line number instead?
     pub fn selections(&self, selections: &Selections, text: &Rope, semantics: CursorSemantics) -> Option<Vec<Selection2d>>{
         let view_blocks = self.view_blocks(text);
         let mut visible_selections = Vec::new();
@@ -440,6 +440,7 @@ impl View{
     /// let view = View::new(1, 2, 4, 3);
     /// assert_eq!(vec![Selection::new(10, 13), Selection::new(15, 17), Selection::new(19, 23)], view.view_blocks(&text));
     /// ```
+    // should this include newlines('\n') in its width calculation? maybe pass in include_newline bool?
     pub fn view_blocks(&self, text: &Rope) -> Vec<Selection>{
         let mut view_blocks = Vec::new();
 
@@ -447,11 +448,13 @@ impl View{
             // only include lines in vertical bounds
             if y >= self.vertical_start && y < self.vertical_start.saturating_add(self.height){
                 let line_start = text.line_to_char(y);
-                let line_width = crate::text_util::line_width_excluding_newline(line);
+                let line_width = crate::text_util::line_width(line, false);
                 let line_end = line_start + line_width;
                 
                 let mut view_start = line_start;
                 let mut view_end = line_end;
+
+                //TODO: do any of the ifs below need to become else ifs?
                 if self.horizontal_start > 0{   //shift view right
                     view_start += self.horizontal_start;
                 }

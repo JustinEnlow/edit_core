@@ -26,6 +26,21 @@ pub fn line_width_excluding_newline(line: RopeSlice) -> usize{
     line_width
 }
 
+pub fn line_width(line: RopeSlice, include_newline: bool) -> usize{
+    let mut line_width = 0;
+    let line = line.to_string();
+    for char in line.chars(){
+        if include_newline{
+            line_width += 1;
+        }else{
+            if char != '\n'{
+                line_width += 1;
+            }
+        }
+    }
+    line_width
+}
+
 //TODO: handle graphemes instead of chars?
 /// Returns the offset of the first non whitespace grapheme from the start of a line of text.
 /// # Example

@@ -453,16 +453,20 @@ impl Document{
     pub fn insert_string(&mut self, string: &str, semantics: CursorSemantics){
         let mut changes = Vec::new();
 
+        fn apply_single_insert(text: &mut Rope, selection: &mut Selection, changes: &mut Vec<Change>, string: &str, semantics: CursorSemantics){
+            let (new_text, change) = Document::insert_string_single_selection(selection, text, string, semantics);
+            *text = new_text;
+            *selection = change.new_selection();
+            changes.push(change);
+        }
+
         // handle behavior specific to pressing "enter". auto-indent, etc...
         //if string == "\n"{}
         // handle behavior specific to pressing "tab".
         /*else */if string == "\t"{
             for selection in self.selections.iter_mut().rev(){
                 //if USE_HARD_TAB{  // TODO: hard tabs aren't quite behaving correctly. i believe this may be an issue in the view text tho...
-                //    let (new_text, change) = Document::insert_string_single_selection(selection, &self.text, "\t", semantics);
-                //    self.text = new_text;
-                //    *selection = change.new_selection();
-                //    changes.push(change);
+                //    apply_single_insert(&mut self.text, selection, &mut changes, string, semantics);
                 //}else{
                     let tab_distance = text_util::distance_to_next_multiple_of_tab_width(selection.clone(), &self.text, semantics);
                     let modified_tab_width = if tab_distance > 0 && tab_distance < TAB_WIDTH{
@@ -475,10 +479,7 @@ impl Document{
                     for _ in 0..modified_tab_width{
                         soft_tab.push(' ');
                     }
-                    let (new_text, change) = Document::insert_string_single_selection(selection, &self.text, &soft_tab, semantics);
-                    self.text = new_text;
-                    *selection = change.new_selection();
-                    changes.push(change);
+                    apply_single_insert(&mut self.text, selection, &mut changes, &soft_tab, semantics);
                 //}
             }
         }
@@ -486,10 +487,7 @@ impl Document{
         else{
             // insert string at each selection
             for selection in self.selections.iter_mut().rev(){
-                let (new_text, change) = Document::insert_string_single_selection(selection, &self.text, string, semantics);
-                self.text = new_text;
-                *selection = change.new_selection();
-                changes.push(change);
+                apply_single_insert(&mut self.text, selection, &mut changes, string, semantics);
             }
         }
 

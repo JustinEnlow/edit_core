@@ -1,9 +1,8 @@
 // follow documentation style from https://std-dev-guide.rust-lang.org/development/how-to-write-documentation.html
 
 use ropey::Rope;
-use unicode_segmentation::UnicodeSegmentation;
 use crate::{
-    document::TAB_WIDTH, text_util, view::View, Position
+    text_util, view::View, Position
 };
 
 
@@ -1303,13 +1302,12 @@ impl Selection{
 
 
 /// 2 dimensional representation of a single selection(between anchor and head) within document text
-#[derive(Default, PartialEq, Debug)]
+#[derive(Default, PartialEq, Debug, Clone)]
 pub struct Selection2d{
     anchor: Position,
     head: Position, //TODO: should this be cursor? because we are using cursor in selection_to_selection2d...
 }
 impl Selection2d{
-    //pub fn new(head: Position, anchor: Position) -> Self{
     pub fn new(anchor: Position, head: Position) -> Self{
         Self{
             anchor,
