@@ -515,7 +515,8 @@ impl Selection{
         };
 
         let start_of_line = text.line_to_char(goal_line_number);
-        let line_width = text_util::line_width_excluding_newline(text.line(goal_line_number));
+        //let line_width = text_util::line_width_excluding_newline(text.line(goal_line_number));
+        let line_width = text_util::line_width(text.line(goal_line_number), false);
     
         // Use the stored line position or calculate it if None
         let stored_line_position = self.stored_line_position.unwrap_or_else(|| {
@@ -797,7 +798,8 @@ impl Selection{
     pub fn move_line_text_end(&self, text: &Rope, semantics: CursorSemantics) -> Self{
         let line_number = text.char_to_line(self.cursor(semantics));
         let line = text.line(line_number);
-        let line_width = text_util::line_width_excluding_newline(line);
+        //let line_width = text_util::line_width_excluding_newline(line);
+        let line_width = text_util::line_width(line, false);
         let line_start = text.line_to_char(line_number);
         let line_end = line_start.saturating_add(line_width);
 
@@ -1067,7 +1069,8 @@ impl Selection{
     pub fn extend_line_text_end(&self, text: &Rope, semantics: CursorSemantics) -> Self{
         let line_number = text.char_to_line(self.head);
         let line = text.line(line_number);
-        let line_width = text_util::line_width_excluding_newline(line);
+        //let line_width = text_util::line_width_excluding_newline(line);
+        let line_width = text_util::line_width(line, false);
         let line_start = text.line_to_char(line_number);
         let line_end = match semantics{
             CursorSemantics::Bar => line_start.saturating_add(line_width),

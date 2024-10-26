@@ -108,7 +108,8 @@ impl View{
         // TODO: cache longest as a field in [`View`] struct to eliminate having to calculate this on each call
         // Calculate the longest line width in a single pass
         let longest = text.lines()
-            .map(crate::text_util::line_width_excluding_newline)
+            //.map(crate::text_util::line_width_excluding_newline)
+            .map(|line| crate::text_util::line_width(line, false))
             .max()
             .unwrap_or(0); // Handle the case where there are no lines
 
@@ -341,6 +342,7 @@ impl View{
     }
 
     /// Returns a [`Vec`] of [`Selection2d`]s that represent [`Selection`]s with any portion of itself within the boundaries of [`View`].
+    /// Returned selections should be in screen space coordinates.
     /// ```
     /// # use ropey::Rope;
     /// # use edit_core::selection::{Selection, Selections, Selection2d, CursorSemantics};
@@ -351,16 +353,28 @@ impl View{
     /// let text = Rope::from("idk\nsome\nshit\n");
     /// let selections = Selections::new(vec![Selection::new(1, 2), Selection::new(5, 6)], 0, &text);
     /// let view = View::new(0, 0, 3, 3);
+    /// //[i|d>k]
+    /// //[s|o>m]e
+    /// //[s h i]t
     /// assert_eq!(
-    ///     Some(vec![Selection2d::new(Position::new(1, 0), Position::new(2, 0)), Selection2d::new(Position::new(1, 1), Position::new(2, 1))]),
-    ///     view.selections(&selections, &text, CursorSemantics::Bar)
+    ///     //Some(vec![Selection2d::new(Position::new(1, 0), Position::new(2, 0)), Selection2d::new(Position::new(1, 1), Position::new(2, 1))]),
+    ///     Some(vec![Selection2d::new(Position::new(1, 0), Position::new(2, 0)), Selection2d::new(Position::new(1, 1), Position::new(2, 1)), Selection2d::new(Position::new(0, 2), Position::new(0, 2))]),
+    ///     view.selections(&selections, &text)
     /// );
     /// 
     /// // no selection in view
     /// let text = Rope::from("idk\nsome\nshit\n");
     /// let selections = Selections::new(vec![Selection::new(7, 8)], 0, &text);
     /// let view = View::new(0, 0, 2, 2);
-    /// assert_eq!(None, view.selections(&selections, &text, CursorSemantics::Bar));
+    /// //[i d]k
+    /// //[s o]m|e>
+    /// // s h i t
+    /// assert_eq!(Some(vec![
+    ///         Selection2d::new(Position::new(0, 0), Position::new(0, 0)), 
+    ///         Selection2d::new(Position::new(0, 1), Position::new(0, 1))
+    ///     ]), 
+    ///     view.selections(&selections, &text)
+    /// );
     /// 
     /// // mix of in view and out
     /// let text = Rope::from("idk\nsome\nshit\nidk\nsomething\nelse\n");
@@ -369,42 +383,60 @@ impl View{
     /// // |i d>k \n s o m|e \n s h>i t \n i d|k \n s o m>e t h i n g \n|e l s>e \n     //selections
     /// //  i d k \n s o m e \n s[h i t]\n i[d k]\n s[o m e t]h i n g \n e l s e \n     //view_blocks
     /// let selections = Selections::new(vec![Selection::new(0, 2), Selection::new(7, 11), Selection::new(16, 21), Selection::new(28, 31)], 0, &text);
-    /// // view blocks                  selections
-    /// // i d k                       |i d>k
-    /// // s o m e                      s o m|e
-    /// // s[h i t  ]                   s h>i t                 (1, 2)
-    /// // i[d k    ]                   i d|k                   (2, 3)
-    /// // s[o m e t]h i n g            s o m>e t h i n g       (1, 3)
-    /// // e l s e                     |e l s>e
+    /// //|i d>k
+    /// // s o m|e
+    /// // s[h>i t  ]
+    /// // i[d|k    ]
+    /// // s[o m>e t]h i n g
+    /// //|e l s>e
     /// let view = View::new(1, 2, 4, 3);
     /// assert_eq!(Some(vec![
-    ///         Selection2d::new(Position::new(1, 2), Position::new(2, 2)),
-    ///         Selection2d::new(Position::new(2, 3), Position::new(3, 3)),
-    ///         Selection2d::new(Position::new(1, 4), Position::new(3, 4))
+    ///         Selection2d::new(Position::new(0, 0), Position::new(1, 0)),
+    ///         Selection2d::new(Position::new(1, 1), Position::new(2, 1)),
+    ///         Selection2d::new(Position::new(0, 2), Position::new(2, 2))
     ///     ]), 
-    ///     view.selections(&selections, &text, CursorSemantics::Bar)
+    ///     view.selections(&selections, &text)
     /// );
+    /// 
+    /// let text = Rope::from("idk\n\nsomething\n");
+    /// let view = View::new(2, 0, 1, 3);
+    /// let selections = Selections::new(vec![Selection::new(1, 3), Selection::new(5, 11)], 0, &text);
+    /// // i|d[k]>
+    /// //    [ ]
+    /// //|s o[m]e t h>i n g
+    /// assert_eq!(Some(vec![
+    ///         Selection2d::new(Position::new(0, 0), Position::new(1, 0)),
+    ///         Selection2d::new(Position::new(0, 1), Position::new(0, 1)),
+    ///         Selection2d::new(Position::new(0, 2), Position::new(1, 2))
+    ///     ]),
+    ///     view.selections(&selections, &text)
+    /// );
+    /// 
+    /// // TODO: test multiple selections per line
     /// ```
     // should this return Option<Vec<Selection, usize>> with usize being the selection's line number instead?
-    pub fn selections(&self, selections: &Selections, text: &Rope, semantics: CursorSemantics) -> Option<Vec<Selection2d>>{
+    pub fn selections(&self, selections: &Selections, text: &Rope) -> Option<Vec<Selection2d>>{
         let view_blocks = self.view_blocks(text);
-        let mut visible_selections = Vec::new();
+        let mut selections_in_view = Vec::new();
 
-        for view_block in view_blocks{
+        for (y, view_block) in view_blocks.iter().enumerate(){
+            let view_start = view_block.anchor();
+            let mut intersected = false;
             for selection in selections.iter(){
-                if let Ok(visible_selection) = view_block.intersection(selection){
-                    visible_selections.push(visible_selection.selection_to_selection2d(text, semantics));
+                if let Ok(result) = view_block.intersection(selection){
+                    // add intersecting to list //this represents a selection in view bounds
+                    selections_in_view.push(Selection2d::new(Position::new(result.anchor() - view_start, y), Position::new(result.head() - view_start, y)));
+                    intersected = true;
                 }
+            }
+
+            if intersected == false{
+                // retain non intersecting view_blocks  //this represents no selection in view
+                selections_in_view.push(Selection2d::new(Position::new(0, y), Position::new(0, y)));
             }
         }
 
-        visible_selections.dedup();
-
-        if visible_selections.is_empty(){
-            None
-        }else{
-            Some(visible_selections)
-        }
+        Some(selections_in_view)
     }
 
     /// Maps a [`View`] as a [`Vec`] of [`Selection`]s over a text rope.
@@ -415,16 +447,32 @@ impl View{
     /// 
     /// let text = Rope::from("idk\nsome\nshit\n");
     /// let view = View::new(0, 0, 2, 2);
+    /// //[i d]k
+    /// //[s o]m e
+    /// // s h i t
+    /// //[i d]k \n[s o]m e \n s h i t \n
     /// assert_eq!(vec![Selection::new(0, 2), Selection::new(4, 6)], view.view_blocks(&text));
     /// 
     /// let view = View::new(0, 1, 2, 2);
+    /// // i d k
+    /// //[s o]m e
+    /// //[s h]i t
+    /// // i d k \n[s o]m e \n[s h]i t \n
     /// assert_eq!(vec![Selection::new(4, 6), Selection::new(9, 11)], view.view_blocks(&text));
     /// 
     /// let view = View::new(1, 0, 2, 2);
+    /// // i[d k]
+    /// // s[o m]e
+    /// // s h i t
+    /// // i[d k]\n s[o m]e \n s h i t
     /// assert_eq!(vec![Selection::new(1, 3), Selection::new(5, 7)], view.view_blocks(&text));
     /// 
     /// let text = Rope::from("idk\nsomething\nelse");
     /// let view = View::new(5, 0, 2, 2);
+    /// // i d k    [   ]
+    /// // s o m e t[h i]n g
+    /// // e l s e
+    /// //[]i d k \n s o m e t[h i]n g \n e l s e
     /// assert_eq!(vec![Selection::new(0, 0), Selection::new(9, 11)], view.view_blocks(&text));
     /// 
     /// // i d k
@@ -439,33 +487,46 @@ impl View{
     /// let text = Rope::from("idk\nsome\nshit\nidk\nsomething\nelse\n");
     /// let view = View::new(1, 2, 4, 3);
     /// assert_eq!(vec![Selection::new(10, 13), Selection::new(15, 17), Selection::new(19, 23)], view.view_blocks(&text));
+    /// 
+    /// let text = Rope::from("idk\n\nsomething\n");
+    /// let view = View::new(2, 0, 1, 3);
+    /// // i d[k]
+    /// //    [ ]
+    /// // s o[m]e t h i n g
+    /// // i d[k]\n[]\n s o[m]e t h i n g
+    /// assert_eq!(vec![Selection::new(2, 3), Selection::new(4, 4), Selection::new(7, 8)], view.view_blocks(&text));
+    /// 
+    /// let text = Rope::from("\n\nidk\n");
+    /// let view = View::new(0, 0, 2, 3);
+    /// //[   ]
+    /// //[   ]
+    /// //[i d]k
+    /// // \n \n i d k \n
+    /// assert_eq!(vec![Selection::new(0, 0), Selection::new(1, 1), Selection::new(2, 4)], view.view_blocks(&text));
     /// ```
     // should this include newlines('\n') in its width calculation? maybe pass in include_newline bool?
+    // we want to highlight newlines as well
+    // but that may mess with the logic for "empty" lines...idk
     pub fn view_blocks(&self, text: &Rope) -> Vec<Selection>{
         let mut view_blocks = Vec::new();
+        let vertical_range = self.vertical_start..self.vertical_start + self.height;
 
         for (y, line) in text.lines().enumerate(){
             // only include lines in vertical bounds
-            if y >= self.vertical_start && y < self.vertical_start.saturating_add(self.height){
+            if vertical_range.contains(&y){
                 let line_start = text.line_to_char(y);
                 let line_width = crate::text_util::line_width(line, false);
                 let line_end = line_start + line_width;
                 
-                let mut view_start = line_start;
-                let mut view_end = line_end;
+                let mut view_start = line_start + self.horizontal_start;    //start view at horizontal offset of view
+                let mut view_end = view_start + line_width.min(self.width); //restrict view width
 
                 //TODO: do any of the ifs below need to become else ifs?
-                if self.horizontal_start > 0{   //shift view right
-                    view_start += self.horizontal_start;
+                if line_end < view_start{   //handle view shifted right past end of line text(includes empty lines)
+                    view_start = line_start;
+                    view_end = line_start;  //zero width output selections represent a line with no text in view bounds
                 }
-                if line_end > self.width{   //restrict view width
-                    view_end = view_start + line_width.min(self.width)
-                }
-                if line_end < view_start{   //handle view shifted right past end of line text
-                    view_start = 0;
-                    view_end = 0;
-                }
-                if line_end < view_end{
+                else if line_end < view_end{
                     view_end = line_end;
                 }
                 view_blocks.push(Selection::new(view_start, view_end));

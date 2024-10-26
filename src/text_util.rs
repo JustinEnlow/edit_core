@@ -12,19 +12,20 @@ use crate::selection::{CursorSemantics, Selection};
 /// # use edit_core::text_util;
 /// 
 /// let text = Rope::from("idk\n");
-/// assert!(text_util::line_width_excluding_newline(text.slice(..)) == 3);
+/// assert!(text_util::line_width(text.slice(..), false) == 3);
+/// assert!(text_util::line_width(text.slice(..), true) == 4);
 /// ```
 // TODO: handle non standard width chars such as '\t'
-pub fn line_width_excluding_newline(line: RopeSlice) -> usize{
-    let mut line_width = 0;
-    let line = line.to_string();
-    for char in line.chars(){
-        if char != '\n'{
-            line_width += 1;
-        }
-    }
-    line_width
-}
+//pub fn line_width_excluding_newline(line: RopeSlice) -> usize{
+//    let mut line_width = 0;
+//    let line = line.to_string();
+//    for char in line.chars(){
+//        if char != '\n'{
+//            line_width += 1;
+//        }
+//    }
+//    line_width
+//}
 
 pub fn line_width(line: RopeSlice, include_newline: bool) -> usize{
     let mut line_width = 0;
