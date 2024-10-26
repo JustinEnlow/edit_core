@@ -1450,6 +1450,7 @@ impl Selections{
     /// let mut selections = Selections::new(vec![Selection::new(4, 4)], 0, &text);
     /// assert_eq!(Selections::new(vec![Selection::new(0, 0), Selection::new(4, 4)], 0, &text), selections.push_front(Selection::new(0, 0)));
     /// ```
+    // TODO: this function should take an input bool update_primary, that indicates whether the pushed selection should become the primary
     pub fn push_front(&self, selection: Selection) -> Self{
         let mut new_selections = self.selections.clone();
         new_selections.insert(0, selection);
@@ -1468,6 +1469,7 @@ impl Selections{
     /// let mut selections = Selections::new(vec![Selection::new(0, 0)], 0, &text); //[]idk\nsome\nshit\n
     /// assert_eq!(Selections::new(vec![Selection::new(0, 0), Selection::new(4, 4)], 1, &text), selections.push(Selection::new(4, 4)));
     /// ```
+    // TODO: this function should take an input bool update_primary, that indicates whether the pushed selection should become the primary
     pub fn push(&self, selection: Selection) -> Self{
         let mut new_selections = self.selections.clone();
         new_selections.push(selection);
@@ -1486,17 +1488,17 @@ impl Selections{
     pub fn primary_mut(&mut self) -> &mut Selection{
         &mut self.selections[self.primary_selection_index]
     }
-    //pub fn first(&self) -> &Selection{
-    //    // unwrapping because we ensure at least one selection is always present
-    //    self.selections.first().unwrap()
-    //}
+    pub fn first(&self) -> &Selection{
+        // unwrapping because we ensure at least one selection is always present
+        self.selections.first().unwrap()
+    }
     //pub fn first_mut(&mut self) -> &mut Selection{
     //    self.selections.first_mut().unwrap()
     //}
-    //pub fn last(&self) -> &Selection{
-    //    // unwrapping because we ensure at least one selection is always present
-    //    self.selections.last().unwrap()
-    //}
+    pub fn last(&self) -> &Selection{
+        // unwrapping because we ensure at least one selection is always present
+        self.selections.last().unwrap()
+    }
 
     /// Increments `primary_selection_index`.
     /// 
@@ -1714,5 +1716,53 @@ impl Selections{
             document_cursor.head().x().saturating_add(1), 
             document_cursor.head().y().saturating_add(1)
         )
+    }
+
+    /// ```
+    /// # use ropey::Rope;
+    /// # use edit_core::selection::{Selection, Selections};
+    /// 
+    /// // intended use
+    /// let text = Rope::from("idk\nsome\nshit\n");
+    /// let mut selections = Selections::new(vec![Selection::new(4, 4)], 0, &text);
+    /// assert_eq!(
+    ///     Ok(Selections::new(vec![Selection::new(0, 0), Selection::new(4, 4)], 0, &text)),
+    ///     selections.add_selection_above(&text)
+    /// );
+    /// 
+    /// let mut selections = Selections::new(vec![Selection::new(5, 7)], 0, &text);
+    /// assert_eq!(
+    ///     Ok(Selections::new(vec![Selection::new(1, 3), Selection::new(5, 7)], 0, &text)),
+    ///     selections.add_selection_above(&text)
+    /// );
+    /// 
+    /// // should error when top selection is on line 0
+    /// let mut selections = Selections::new(vec![Selection::new(1, 3)], 0, &text);
+    /// assert_eq!(Err(()), selections.add_selection_above(&text));
+    /// 
+    /// // should error when any selection is a multi-line selection
+    /// let mut selections = Selections::new(vec![Selection::new(4, 9)], 0, &text);
+    /// assert_eq!(Err(()), selections.add_selection_above(&text));
+    /// ```
+    // should this use start() and end() instead of head and anchor?
+    pub fn add_selection_above(&self, text: &Rope) -> Result<Self, ()>{
+        assert!(self.count() > 0);  //ensure at least one selection in selections
+        // should fail if any selection spans multiple lines. // should this be changed to allow this in the future?
+        for selection in self.selections.iter(){
+            if text.char_to_line(selection.anchor) != text.char_to_line(selection.head){
+                return Err(()); //cannot add selection above
+            }
+        }
+        let top_selection = self.first();
+        let current_line = text.char_to_line(top_selection.anchor);
+        if current_line == 0{
+            return Err(());
+        }
+        let anchor_offset = text_util::offset_from_line_start(top_selection.anchor, text);
+        let head_offset = text_util::offset_from_line_start(top_selection.head, text);
+        let line_above = current_line.saturating_sub(1);
+        let line_start = text.line_to_char(line_above);
+        let line_width = text_util::line_width(text.line(line_above), true);
+        Ok(self.push_front(Selection::new(line_start + anchor_offset, line_start + head_offset.min(line_width))))
     }
 }

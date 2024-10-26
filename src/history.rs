@@ -69,7 +69,7 @@ impl ChangeSet{
     pub fn invert(&self) -> Vec<Change>{
         let mut new_changes = Vec::new();
             
-        for change in self.changes(){
+        for change in self.changes(){   //should this be self.changes().rev()? we want to edit the doc from end to beginning so that edits don't affect document state prior to that position
             match change.operation(){
                 Operation::Insert => {
                     // Create a Change that represents the deletion of the inserted text
