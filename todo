@@ -22,7 +22,6 @@
     [x] insert
     [x] remove
     [ ] figure out how to handle proper tabs, instead of inserting spaces
-    [ ] perform edits over selections in reverse order to ensure edits do not effect subsequent selection positions in reference text
 [x] set up client-server to save documents
 [x] set up client-server to handle multiple client connections
 [ ] handle multiple selections(should selections be attached to a document, or a client instance of said document?)

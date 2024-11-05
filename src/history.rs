@@ -1,101 +1,66 @@
-use crate::selection::Selection;
+use crate::selection::{Selection, Selections};
+
+
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Operation{
-    Insert,
+    Insert{inserted_text: String},  //should this be Insert(String), so that when destructuring, the variable name can be assigned to make its intended more clear?
     Delete,
+    Replace{replacement_text: String},  //should this be Replace(String), so that when destructuring, the variable name can be assigned to make its intended use more clear?
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Change{
     operation: Operation,
-    text: String,
-    old_selection: Selection,
-    new_selection: Selection,
+    selection_before_change: Selection, //these are selections with positions offset by any previous change applied
+    selection_after_change: Selection,  //these are selections with positions offset by any previous change applied
+    inverse_operation: Operation,
 }
 impl Change{
-    pub fn new(operation: Operation, text: String, old_selection: Selection, new_selection: Selection) -> Self{
+    pub fn new(operation: Operation, old_selection: Selection, new_selection: Selection, inverse_operation: Operation) -> Self{
         Self{
             operation,
-            text,
-            old_selection,
-            new_selection
+            selection_before_change: old_selection,
+            selection_after_change: new_selection,
+            inverse_operation,
         }
     }
     pub fn operation(&self) -> Operation{
         self.operation.clone()
     }
-    pub fn text(&self) -> String{
-        self.text.clone()
+    pub fn selection_after_change(&self) -> Selection{
+        self.selection_after_change.clone()
     }
-    pub fn new_selection(&self) -> Selection{
-        self.new_selection.clone()
+    pub fn selection_before_change(&self) -> Selection{
+        self.selection_before_change.clone()
     }
-    pub fn old_selection(&self) -> Selection{
-        self.old_selection.clone()
+    pub fn inverse(&self) -> Operation{
+        self.inverse_operation.clone()
     }
 }
 
+/// ChangeSet holds a vec of Changes that should coinside with the vec of Selection in Selections(so the change at changes[0], should be associated with the selection at selections[0])
 #[derive(Clone, Debug, PartialEq)]
 pub struct ChangeSet{
     changes: Vec<Change>,
+    selections_before_changes: Selections, //this could be selections without positions offset by any previous change applied     // could need this for certain things to work. ex. Backspace
+    selections_after_changes: Selections,  //this is prob the same as selection_after_change from Change
 }
 impl ChangeSet{
-    pub fn new(changes: Vec<Change>) -> Self{
-        Self{changes}
+    pub fn new(changes: Vec<Change>, selections_before_changes: Selections, selections_after_changes: Selections) -> Self{
+        Self{changes, selections_before_changes, selections_after_changes}
     }
     pub fn changes(&self) -> Vec<Change>{
         self.changes.clone()
     }
-    /// ```
-    /// # use edit_core::selection::Selection;
-    /// # use edit_core::history::{Operation, Change, ChangeSet};
-    /// 
-    /// 
-    /// // "|>"
-    /// // "idk\n|>"
-    /// let original_changes = vec![Change::new(Operation::Insert, "idk\n".to_string(), Selection::new(0, 0), Selection::with_stored_line_position(4, 4, 0))];
-    /// //let inverse_changes = vec![Change::new(Operation::Delete, "idk\n".to_string(), Selection::new(4, 4), Selection::new(0, 0))];
-    /// // maybe inverse_changes should be     Operation::Delete, "idk\n".to_string(), Selection::new(0, 4), Selection::new(0, 0)?
-    /// let inverse_changes = vec![Change::new(Operation::Delete, "idk\n".to_string(), Selection::new(0, 4), Selection::new(0, 0))];
-    /// assert_eq!(inverse_changes, ChangeSet::new(original_changes).invert());
-    /// 
-    /// // "idk\n|>"
-    /// // "|>"
-    /// let original_changes = vec![Change::new(Operation::Delete, "idk\n".to_string(), Selection::new(4, 4), Selection::with_stored_line_position(0, 0, 0))];
-    /// let inverse_changes = vec![Change::new(Operation::Insert, "idk\n".to_string(), Selection::new(0, 0), Selection::new(4, 4))];
-    /// assert_eq!(inverse_changes, ChangeSet::new(original_changes).invert());
-    /// ```
-    pub fn invert(&self) -> Vec<Change>{
-        let mut new_changes = Vec::new();
-            
-        for change in self.changes(){   //should this be self.changes().rev()? we want to edit the doc from end to beginning so that edits don't affect document state prior to that position
-            match change.operation(){
-                Operation::Insert => {
-                    // Create a Change that represents the deletion of the inserted text
-                    let undo_change = Change::new(
-                        Operation::Delete,
-                        change.text(),
-                        //Selection::new(change.new_selection.anchor(), change.new_selection.head()),
-                        Selection::new(change.old_selection.anchor(), change.new_selection.anchor()),
-                        Selection::new(change.old_selection.anchor(), change.old_selection.head())
-                    );
-                    new_changes.push(undo_change);
-                }
-                Operation::Delete => {
-                    // Create a Change that represents the insertion of the deleted text
-                    let undo_change = Change::new(
-                        Operation::Insert,
-                        change.text(),
-                        Selection::new(change.new_selection.anchor(), change.new_selection.head()),
-                        Selection::new(change.old_selection.anchor(), change.old_selection.head())
-                    );
-                    new_changes.push(undo_change);
-                }
-            }
-        }
-
-        new_changes
+    pub fn len(&self) -> usize{
+        self.changes.len()
+    }
+    pub fn selections_before_changes(&self) -> Selections{
+        self.selections_before_changes.clone()
+    }
+    pub fn selections_after_changes(self) -> Selections{
+        self.selections_after_changes.clone()
     }
 }
 impl Iterator for ChangeSet{

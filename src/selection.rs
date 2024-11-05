@@ -1499,6 +1499,9 @@ impl Selections{
         // unwrapping because we ensure at least one selection is always present
         self.selections.last().unwrap()
     }
+    pub fn nth_mut(&mut self, index: usize) -> &mut Selection{
+        self.selections.get_mut(index).unwrap()
+    }
 
     /// Increments `primary_selection_index`.
     /// 

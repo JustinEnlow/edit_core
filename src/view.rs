@@ -605,4 +605,5 @@ impl View{
             None
         }
     }
+    //pub fn primary_cursor_position(){}    //should impl so we can track the primary cursor individually
 }
