@@ -28,9 +28,9 @@ impl Change{
     pub fn operation(&self) -> Operation{
         self.operation.clone()
     }
-    pub fn selection_after_change(&self) -> Selection{
-        self.selection_after_change.clone()
-    }
+    //pub fn selection_after_change(&self) -> Selection{    //this doesn't appear to be needed just yet...
+    //    self.selection_after_change.clone()
+    //}
     pub fn selection_before_change(&self) -> Selection{
         self.selection_before_change.clone()
     }

@@ -145,31 +145,31 @@ impl Document{
     }
     
     // TODO: test. should test rope is edited correctly and selection is moved correctly, not necessarily the returned change. behavior, not impl
-    fn apply_replace(text: &mut Rope, replacement_text: &str, selection: &mut Selection, semantics: CursorSemantics) -> Change{
+    fn apply_replace(doc_text: &mut Rope, replacement_text: &str, selection: &mut Selection, semantics: CursorSemantics) -> Change{
         let old_selection = selection.clone();
         let mut replaced_text = String::new();
-        let delete_change = Document::apply_delete(text, selection, semantics);
+        let delete_change = Document::apply_delete(doc_text, selection, semantics);
         if let Operation::Insert{inserted_text} = delete_change.inverse(){
             replaced_text = inserted_text;
         }
-        let _ = Document::apply_insert(text, replacement_text, selection, semantics);   //intentionally discard returned Change
+        let _ = Document::apply_insert(doc_text, replacement_text, selection, semantics);   //intentionally discard returned Change
 
         Change::new(Operation::Replace{replacement_text: replacement_text.to_string()}, old_selection, selection.clone(), Operation::Replace{replacement_text: replaced_text})
     }
     // TODO: test. should test rope is edited correctly and selection is moved correctly, not necessarily the returned change. behavior, not impl
-    fn apply_insert(text: &mut Rope, string: &str, selection: &mut Selection, semantics: CursorSemantics) -> Change{
+    fn apply_insert(doc_text: &mut Rope, string: &str, selection: &mut Selection, semantics: CursorSemantics) -> Change{
         let old_selection = selection.clone();
-        text.insert(selection.cursor(semantics), string);
+        doc_text.insert(selection.cursor(semantics), string);
         for _ in 0..string.len(){
-            *selection = selection.move_right(text, semantics);
+            *selection = selection.move_right(doc_text, semantics);
         }
 
         Change::new(Operation::Insert{inserted_text: string.to_string()}, old_selection, selection.clone(), Operation::Delete)
     }
     // TODO: test. should test rope is edited correctly and selection is moved correctly, not necessarily the returned change. behavior, not impl
-    fn apply_delete(text: &mut Rope, selection: &mut Selection, semantics: CursorSemantics) -> Change{
+    fn apply_delete(doc_text: &mut Rope, selection: &mut Selection, semantics: CursorSemantics) -> Change{
         let old_selection = selection.clone();
-        let original_text = text.clone();
+        let original_text = doc_text.clone();
         let rope = Rope::new();
         let mut change_text = rope.slice(..);
 
@@ -179,7 +179,7 @@ impl Document{
                 //i<dk|\nsome\nshit\n   //i|>\nsome\nshit\n
                 //i<dk|\nsome\nshit\n   //i|:\n>some\nshit\n
                 change_text = original_text.slice(selection.head()..selection.anchor());
-                text.remove(selection.head()..selection.anchor());
+                doc_text.remove(selection.head()..selection.anchor());
                 *selection = selection.put_cursor(selection.cursor(semantics), &original_text, Movement::Move, semantics, true);
             }
             Ordering::Greater => {  //cursor > anchor
@@ -188,19 +188,19 @@ impl Document{
                         //|id>k\nsome\nshit\n   //|>k\nsome\nshit\n
                         //|idk\nsome\nshit\n>   //|>
                         change_text = original_text.slice(selection.anchor()..selection.head());
-                        text.remove(selection.anchor()..selection.head());
+                        doc_text.remove(selection.anchor()..selection.head());
                         *selection = selection.put_cursor(selection.anchor(), &original_text, Movement::Move, semantics, true);
                     }
                     CursorSemantics::Block => {
                         //|idk\nsome\nshit\n: > //|: >
-                        if selection.cursor(semantics) == text.len_chars(){
+                        if selection.cursor(semantics) == doc_text.len_chars(){
                             change_text = original_text.slice(selection.anchor()..selection.cursor(semantics));
-                            text.remove(selection.anchor()..selection.cursor(semantics));
+                            doc_text.remove(selection.anchor()..selection.cursor(semantics));
                         }
                         //|i:d>k\nsome\nshit\n  //|:k>\nsome\nshit\n
                         else{
                             change_text = original_text.slice(selection.anchor()..selection.head());
-                            text.remove(selection.anchor()..selection.head());
+                            doc_text.remove(selection.anchor()..selection.head());
                         }
                         *selection = selection.put_cursor(selection.anchor(), &original_text, Movement::Move, semantics, true);
                     }
@@ -209,18 +209,18 @@ impl Document{
             Ordering::Equal => {    //cursor == anchor
                 //idk\nsome\nshit\n|>   //idk\nsome\nshit\n|>
                 //idk\nsome\nshit\n|: > //idk\nsome\nshit\n|: >
-                if selection.cursor(semantics) == text.len_chars(){}    //do nothing    //or preferrably return error
+                if selection.cursor(semantics) == doc_text.len_chars(){}    //do nothing    //or preferrably return error
                 else{
                     match semantics{
                         CursorSemantics::Bar => {
                             //|>idk\nsome\nshit\n   //|>dk\nsome\nshit\n
                             change_text = original_text.slice(selection.head()..selection.head().saturating_add(1));
-                            text.remove(selection.head()..selection.head().saturating_add(1));
+                            doc_text.remove(selection.head()..selection.head().saturating_add(1));
                         }
                         CursorSemantics::Block => {
                             //|:i>dk\nsome\nshit\n  //|:d>k\nsome\nshit\n
                             change_text = original_text.slice(selection.anchor()..selection.head());
-                            text.remove(selection.anchor()..selection.head());
+                            doc_text.remove(selection.anchor()..selection.head());
                         }
                     }
                     *selection = selection.put_cursor(selection.anchor(), &original_text, Movement::Move, semantics, true);
@@ -231,56 +231,109 @@ impl Document{
         Change::new(Operation::Delete, old_selection, selection.clone(), Operation::Insert{inserted_text: change_text.to_string()})
     }
 
-//    /// Undoes the most recent change made to the document, restoring the previous state.
-//    /// ```
-//    /// # use ropey::Rope;
-//    /// # use edit_core::document::Document;
-//    /// # use edit_core::selection::{Selection, Selections, CursorSemantics};
-//    /// # use edit_core::history::{Change, ChangeSet, Operation};
-//    /// 
-//    ///// let text = Rope::from("idk\nshit\n");
-//    ///// let mut document = Document::new(CursorSemantics::Bar).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(4, 4)], 0, &text));
-//    ///// document.insert_string("some\n", CursorSemantics::Bar);
-//    ///// assert_eq!("idk\nsome\nshit\n", document.text().clone());
-//    ///// assert_eq!(vec![ChangeSet::new(vec![Change::new(Operation::Insert, "some\n".to_string(), Selection::new(4, 4), Selection::with_stored_line_position(9, 9, 0))])], document.undo_stack());
-//    ///// document.undo(CursorSemantics::Bar);
-//    ///// assert_eq!(vec![ChangeSet::new(vec![Change::new(Operation::Insert, "some\n".to_string(), Selection::new(4, 4), Selection::with_stored_line_position(9, 9, 0))])], document.redo_stack());
-//    ///// //assert_eq!(vec![ChangeSet::new(vec![Change::new(Operation::Delete, "some\n".to_string(), Selection::new(9, 9), Selection::new(4, 4))])], document.undo_stack());
-//    ///// //assert_eq!(vec![ChangeSet::new(vec![Change::new(Operation::Delete, "some\n".to_string(), Selection::new(4, 9), Selection::new(4, 4))])], document.undo_stack());
-//    ///// assert_eq!("idk\nshit\n", document.text().clone());
-//    /// 
-//    /// // basic usage with successful undo
-//    /// //let text = Rope::from("some\nshit\n");
-//    /// //let mut doc = Document::new(CursorSemantics::Bar).with_text(text.clone());
-//    /// let mut doc = Document::new(CursorSemantics::Bar).with_text(Rope::from("some\nshit\n"));
-//    /// doc.insert_string("idk\n", CursorSemantics::Bar);
-//    /// assert_eq!("idk\nsome\nshit\n", doc.text());
-//    /// assert!(doc.is_modified());
-//    /// doc.undo(CursorSemantics::Bar);
-//    /// assert_eq!("some\nshit\n", doc.text());
-//    /// assert!(!doc.is_modified());
-//    /// 
-//    /// let text = Rope::from("idk\nsome\nshit\n");
-//    /// let mut doc = Document::new(CursorSemantics::Bar).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(4, 9)], 0, &text));
-//    /// doc.delete(CursorSemantics::Bar);
-//    /// assert_eq!("idk\nshit\n", doc.text());
-//    /// assert!(doc.is_modified());
-//    /// doc.undo(CursorSemantics::Bar);
-//    /// assert_eq!("idk\nsome\nshit\n", doc.text());
-//    /// assert!(!doc.is_modified());
-//    /// 
-//    /// // attempting to undo with no changes
-//    /// let mut doc = Document::new(CursorSemantics::Bar);
-//    /// assert!(doc.undo(CursorSemantics::Bar).is_err());
-//    /// ```
+    /// Undoes the most recent change made to the document, restoring the previous state.
+    /// ```
+    /// # use ropey::Rope;
+    /// # use edit_core::document::Document;
+    /// # use edit_core::selection::{Selection, Selections, CursorSemantics};
+    /// # use edit_core::history::{Change, ChangeSet, Operation};
+    /// 
+    /// // basic usage with successful undo
+    /// 
+    /// // undo insert (multi selection with single char insert)    //TODO: test selection positions after undo
+    /// let text = Rope::from("idk\nsome\nshit\n");
+    /// let semantics = CursorSemantics::Block;
+    /// let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(0, 1), Selection::new(9, 10)], 0, &text));
+    /// doc.insert_string("x", semantics);
+    /// assert_eq!("xidk\nsome\nxshit\n", doc.text());
+    /// assert!(doc.is_modified());
+    /// doc.undo(semantics);
+    /// assert_eq!("idk\nsome\nshit\n", doc.text());
+    /// assert!(!doc.is_modified());
+    /// 
+    /// // undo insert (multi selection with multi char insert)     //TODO: test selection positions after undo
+    /// let semantics = CursorSemantics::Block;
+    /// let text = Rope::from("some\nshit\n");
+    /// let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(0, 1), Selection::new(5, 6)], 0, &text));
+    /// doc.insert_string("idk\n", semantics);
+    /// assert_eq!("idk\nsome\nidk\nshit\n", doc.text());
+    /// // ensure selections are correct
+    /// assert!(doc.is_modified());
+    /// doc.undo(semantics);
+    /// assert_eq!("some\nshit\n", doc.text());
+    /// // ensure selections are correct
+    /// assert!(!doc.is_modified());
+    /// 
+    /// // undo delete (multi selection delete forward)     //TODO: test selection positions after undo
+    /// let text = Rope::from("idk\nsome\nshit\n");
+    /// let semantics = CursorSemantics::Block;
+    /// let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(0, 1), Selection::new(9, 10)], 0, &text));
+    /// doc.delete(semantics);
+    /// assert_eq!("dk\nsome\nhit\n", doc.text());
+    /// assert!(doc.is_modified());
+    /// doc.undo(semantics);
+    /// assert_eq!("idk\nsome\nshit\n", doc.text());
+    /// assert!(!doc.is_modified());
+    /// 
+    /// // undo delete (multi selection delete forward with selections extended)    //TODO: test selection positions after undo
+    /// let text = Rope::from("idk\nsome\nshit\n");
+    /// let semantics = CursorSemantics::Block;
+    /// let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(0, 4), Selection::new(9, 14)], 0, &text));
+    /// doc.delete(semantics);
+    /// assert_eq!("some\n", doc.text());
+    /// assert!(doc.is_modified());
+    /// doc.undo(semantics);
+    /// assert_eq!("idk\nsome\nshit\n", doc.text());
+    /// assert!(!doc.is_modified());
+    /// 
+    /// // undo delete (multi selection delete backward)    //TODO: test selection positions after undo
+    /// let text = Rope::from("idk\nsome\nshit\n");
+    /// let semantics = CursorSemantics::Block;
+    /// let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(1, 2), Selection::new(10, 11)], 0, &text));
+    /// doc.backspace(semantics);
+    /// assert_eq!("dk\nsome\nhit\n", doc.text());
+    /// assert!(doc.is_modified());
+    /// doc.undo(semantics);
+    /// assert_eq!("idk\nsome\nshit\n", doc.text());
+    /// assert!(!doc.is_modified());
+    /// 
+    /// // undo delete (multi selection delete backward with selections extended)   //TODO: test selection positions after undo
+    /// let text = Rope::from("idk\nsome\nshit\n");
+    /// let semantics = CursorSemantics::Block;
+    /// let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(0, 4), Selection::new(9, 14)], 0, &text));
+    /// doc.backspace(semantics);
+    /// assert_eq!("some\n", doc.text());
+    /// assert!(doc.is_modified());
+    /// doc.undo(semantics);
+    /// assert_eq!("idk\nsome\nshit\n", doc.text());
+    /// assert!(!doc.is_modified());
+    /// 
+    /// // undo replace (multi selection with replacement string same len as selected)
+    /// // undo replace (multi selection with replacement string more chars than selected)
+    /// // undo replace (multi selection with replacement string less chars than selected)    //TODO: test selection positions after undo
+    /// let text = Rope::from("idk\nsome\nshit\n");
+    /// let semantics = CursorSemantics::Bar;
+    /// let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(0, 3), Selection::new(9, 13)], 0, &text));
+    /// doc.insert_string("x", semantics);
+    /// assert_eq!("x\nsome\nx\n", doc.text());
+    /// assert!(doc.is_modified());
+    /// doc.undo(semantics);
+    /// assert_eq!("idk\nsome\nshit\n", doc.text());
+    /// assert!(!doc.is_modified());
+    /// 
+    /// // attempting to undo with nothing in undo stack
+    /// let semantics = CursorSemantics::Bar;   //should be the same for bar or block
+    /// let mut doc = Document::new(semantics);
+    /// assert!(doc.undo(semantics).is_err());
+    /// ```
     pub fn undo(&mut self, semantics: CursorSemantics) -> Result<(), ()>{
         // Check if there is something to undo
         if let Some(changes) = self.undo_stack.pop(){
             let changes_as_vec = changes.changes();
-
+            
             *self.selections_mut() = changes.clone().selections_after_changes();    //set selections to selections_after_changes to account for any selection movements that may have occurred since edit
             assert!(self.selections.count() == changes_as_vec.len());
-            
+
             for i in 0..self.selections.count(){
                 let change = changes_as_vec[i].clone();
                 let selection = self.selections.nth_mut(i);
@@ -299,8 +352,17 @@ impl Document{
                                 *selection = selection.move_left(&self.text, semantics);
                             }
                             if inserted_text.len() > 1{
-                                for _ in 0..inserted_text.len().saturating_sub(1){
-                                    *selection = selection.extend_right(&self.text, semantics);
+                                match semantics{
+                                    CursorSemantics::Bar => {
+                                        for _ in 0..inserted_text.len(){
+                                            *selection = selection.extend_right(&self.text, semantics);
+                                        }
+                                    }
+                                    CursorSemantics::Block => {
+                                        for _ in 0..inserted_text.len().saturating_sub(1){
+                                            *selection = selection.extend_right(&self.text, semantics);
+                                        }
+                                    }
                                 }
                             }
                             let _ = Document::apply_delete(&mut self.text, selection, semantics);
@@ -317,7 +379,7 @@ impl Document{
                                 *selection = selection.move_left(&self.text, semantics);
                             }
                             if replacement_text.len() > 1{
-                                for _ in 0..replacement_text.len().saturating_sub(1){
+                                for _ in 0..replacement_text.len().saturating_sub(1){   //may not need the sub 1 for bar cursor semantics
                                     *selection = selection.extend_right(&self.text, semantics);
                                 }
                             }
@@ -348,78 +410,121 @@ impl Document{
             // selections should be the same as they were before changes were made, because we are restoring that previous state
             *self.selections_mut() = changes.selections_before_changes();
 
+            // Push inverted changes onto redo stack
+            self.redo_stack.push(changes);
+
             Ok(())
         }else{
             Err(())
         }
     }
 
-//    /// Redoes the most recent Undo made to the document, restoring the previous state.
-//    /// Make sure to clear the redo stack in every edit fn. new actions invalidate the redo history
-//    /// ```
-//    /// # use ropey::Rope;
-//    /// # use edit_core::document::Document;
-//    /// # use edit_core::selection::{Selection, Selections, CursorSemantics};
-//    /// # use edit_core::history::{Change, ChangeSet, Operation};
-//    /// 
-//    /// // basic usage with successful redo
-//    /// let mut doc = Document::new(CursorSemantics::Bar).with_text(Rope::from("some\nshit\n"));
-//    /// doc.insert_string("idk\n", CursorSemantics::Bar);
-//    /// assert_eq!("idk\nsome\nshit\n", doc.text());
-//    /// assert!(doc.is_modified());
-//    /// doc.undo(CursorSemantics::Bar);
-//    /// assert_eq!("some\nshit\n", doc.text());
-//    /// assert!(!doc.is_modified());
-//    /// doc.redo(CursorSemantics::Bar);
-//    /// assert_eq!("idk\nsome\nshit\n", doc.text());
-//    /// assert!(doc.is_modified());
-//    /// 
-//    /// let text = Rope::from("idk\nsome\nshit\n");
-//    /// let mut doc = Document::new(CursorSemantics::Bar).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(4, 9)], 0, &text));
-//    /// doc.delete(CursorSemantics::Bar);
-//    /// assert_eq!("idk\nshit\n", doc.text());
-//    /// assert!(doc.is_modified());
-//    /// doc.undo(CursorSemantics::Bar);
-//    /// assert_eq!("idk\nsome\nshit\n", doc.text());
-//    /// assert!(!doc.is_modified());
-//    /// doc.redo(CursorSemantics::Bar);
-//    /// assert_eq!("idk\nshit\n", doc.text());
-//    /// assert!(doc.is_modified());
-//    /// 
-//    /// // attempting to redo with no changes
-//    /// let mut doc = Document::new(CursorSemantics::Bar);
-//    /// assert!(doc.redo(CursorSemantics::Bar).is_err());
-//    /// ```
-//    pub fn redo(&mut self, semantics: CursorSemantics) -> Result<(), ()>{
-//        // Check if there is something to redo
-//        if let Some(changes) = self.redo_stack.pop(){
-//            let mut new_selections = Vec::new();
-//            for change in changes.clone(){
-//                match change.operation(){
-//                    Operation::Insert => {
-//                        // TODO: handle selection extended
-//                        let (new_text, new_change) = Document::insert_string_single_selection(&change.old_selection(), &self.text, &change.text(), semantics);
-//                        self.text = new_text;
-//                        new_selections.push(new_change.new_selection());
-//                    }
-//                    Operation::Delete => {
-//                        let (new_text, new_change) = Document::delete_single_selection(&change.old_selection(), &self.text, semantics);
-//                        self.text = new_text;
-//                        new_selections.push(new_change.new_selection());
-//                    }
-//                }
-//            }
-//            let selections = Selections::new(new_selections, self.selections.primary_selection_index(), &self.text);
-//            *self.selections_mut() = selections;
-//
-//            // Push changes back onto the undo stack
-//            self.undo_stack.push(changes);
-//
-//            Ok(())
-//        }else{
-//            Err(())
-//        }
-//    }
+    /// Redoes the most recent Undo made to the document, restoring the previous state.
+    /// Make sure to clear the redo stack in every edit fn. new actions invalidate the redo history
+    /// ```
+    /// # use ropey::Rope;
+    /// # use edit_core::document::Document;
+    /// # use edit_core::selection::{Selection, Selections, CursorSemantics};
+    /// # use edit_core::history::{Change, ChangeSet, Operation};
+    /// 
+    /// // basic usage with successful redo
+    /// let semantics = CursorSemantics::Block;
+    /// let mut doc = Document::new(semantics).with_text(Rope::from("some\nshit\n"));
+    /// doc.insert_string("idk\n", semantics);
+    /// assert_eq!("idk\nsome\nshit\n", doc.text());
+    /// assert!(doc.is_modified());
+    /// doc.undo(semantics);
+    /// assert_eq!("some\nshit\n", doc.text());
+    /// assert!(!doc.is_modified());
+    /// doc.redo(semantics);
+    /// assert_eq!("idk\nsome\nshit\n", doc.text());
+    /// assert!(doc.is_modified());
+    /// 
+    /// let text = Rope::from("idk\nsome\nshit\n");
+    /// let mut doc = Document::new(CursorSemantics::Bar).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(4, 9)], 0, &text));
+    /// doc.delete(CursorSemantics::Bar);
+    /// assert_eq!("idk\nshit\n", doc.text());
+    /// assert!(doc.is_modified());
+    /// doc.undo(CursorSemantics::Bar);
+    /// assert_eq!("idk\nsome\nshit\n", doc.text());
+    /// assert!(!doc.is_modified());
+    /// doc.redo(CursorSemantics::Bar);
+    /// assert_eq!("idk\nshit\n", doc.text());
+    /// assert!(doc.is_modified());
+    /// 
+    /// // attempting to redo with no changes
+    /// let mut doc = Document::new(CursorSemantics::Bar);
+    /// assert!(doc.redo(CursorSemantics::Bar).is_err());
+    /// ```
+    pub fn redo(&mut self, semantics: CursorSemantics) -> Result<(), ()>{
+        // Check if there is something to redo
+        if let Some(changes) = self.redo_stack.pop(){
+            let changes_as_vec = changes.changes();
+
+            *self.selections_mut() = changes.clone().selections_before_changes();    //set selections to selections_before_changes to account for any selection movements that may have occurred since undo
+            assert!(self.selections.count() == changes_as_vec.len());   //num selections should match num changes
+            
+            for i in 0..self.selections.count(){
+                let change = changes_as_vec[i].clone();
+                let selection = self.selections.nth_mut(i);
+
+                // reapply change
+                match change.operation(){
+                    Operation::Insert{inserted_text} => {
+                        let _ = Document::apply_insert(&mut self.text, &inserted_text, selection, semantics);
+                        for j in i.saturating_add(1)..self.selections.count(){
+                            let subsequent_selection = self.selections.nth_mut(j);
+                            *subsequent_selection = Selection::new(subsequent_selection.anchor().saturating_add(inserted_text.len()), subsequent_selection.head().saturating_add(inserted_text.len()));
+                        }
+                    }
+                    Operation::Delete => {  //not working for backspace...
+                        *selection = change.selection_before_change();  //this somehow makes backspace work...
+                        let change = Document::apply_delete(&mut self.text, selection, semantics);
+                        if let Operation::Insert{inserted_text} = change.inverse(){
+                            for j in i.saturating_add(1)..self.selections.count(){
+                                let subsequent_selection = self.selections.nth_mut(j);
+                                *subsequent_selection = Selection::new(subsequent_selection.anchor().saturating_sub(inserted_text.len()), subsequent_selection.head().saturating_sub(inserted_text.len()));
+                            }
+                        }
+                    }
+                    Operation::Replace{replacement_text} => {
+                        let change = Document::apply_replace(&mut self.text, &replacement_text, selection, semantics);
+                        let redo_text = replacement_text;
+                        if let Operation::Replace{replacement_text} = change.inverse(){   //destructure to get currently selected text
+                            let current_text = replacement_text;
+                            use std::cmp::Ordering;
+                            match redo_text.len().cmp(&current_text.len()){    //old selected text vs new text
+                                Ordering::Greater => {
+                                    let difference = redo_text.len().saturating_sub(current_text.len());
+                                    for j in i.saturating_add(1)..self.selections.count(){
+                                        let selection = self.selections.nth_mut(j);
+                                        *selection = Selection::new(selection.anchor().saturating_sub(difference), selection.head().saturating_sub(difference));
+                                    }
+                                }
+                                Ordering::Less => {
+                                    let difference = current_text.len().saturating_sub(redo_text.len());
+                                    for j in i.saturating_add(1)..self.selections.count(){
+                                        let selection = self.selections.nth_mut(j);
+                                        *selection = Selection::new(selection.anchor().saturating_add(difference), selection.head().saturating_add(difference));
+                                    }
+                                }
+                                Ordering::Equal => {}   // no change to subsequent selections
+                            }
+                        }
+                    }
+                }
+            }
+
+            //assert!(self.selections == changes.clone().selections_after_changes());
+
+            // Push changes back onto the undo stack
+            self.undo_stack.push(changes);
+
+            Ok(())
+        }else{
+            Err(())
+        }
+    }
 
 //    /// Inserts provided string into text at each selection.
 //    /// ```
@@ -671,8 +776,8 @@ impl Document{
             if let Operation::Insert{inserted_text} = change.inverse(){
                 // move subsequent selections to account for deletion
                 for j in i.saturating_add(1)..self.selections.count(){
-                    let selection = self.selections.nth_mut(j);
-                    *selection = Selection::new(selection.anchor().saturating_sub(inserted_text.len()), selection.head().saturating_sub(inserted_text.len()));
+                    let subsequent_selection = self.selections.nth_mut(j);
+                    *subsequent_selection = Selection::new(subsequent_selection.anchor().saturating_sub(inserted_text.len()), subsequent_selection.head().saturating_sub(inserted_text.len()));
                 }
             }
             changes.push(change);
@@ -685,65 +790,65 @@ impl Document{
         self.redo_stack.clear();
     }
 
-//    /// Deletes the previous character, or deletes selection if extended.
-//    /// #### Invariants:
-//    /// - will not delete past start of doc
-//    /// - at start of line, appends current line to end of previous line
-//    /// - removes previous soft tab, if TAB_WIDTH spaces are before cursor
-//    /// - deletes selection if selection extended
-//    /// # Example
-//    /// ```
-//    /// # use ropey::Rope;
-//    /// # use edit_core::document::{Document, TAB_WIDTH};
-//    /// # use edit_core::selection::{Selection, Selections, CursorSemantics};
-//    /// 
-//    /// fn test(name: &str, selection: Selection, expected: Rope, semantics: CursorSemantics) -> bool{
-//    ///     let text = Rope::from("idk\nsome\nshit\n");
-//    ///     let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![selection], 0, &text));
-//    ///     doc.backspace(semantics);
-//    ///     println!("{:#?}\n{:#?}\nexpected: {:#?}\ngot: {:#?}\n", name, semantics, expected, doc.text().clone());
-//    ///     doc.text().clone() == expected
-//    /// }
-//    /// 
-//    /// let text = Rope::from("idk\nsome\nshit\n");
-//    /// 
-//    /// // does nothing at doc start
-//    /// assert!(test("test0", Selection::new(0, 0), Rope::from("idk\nsome\nshit\n"), CursorSemantics::Bar));
-//    /// assert!(test("test0", Selection::new(0, 1), Rope::from("idk\nsome\nshit\n"), CursorSemantics::Block));
-//    /// 
-//    /// // without selection deletes previous char
-//    /// assert!(test("test1", Selection::new(1, 1), Rope::from("dk\nsome\nshit\n"), CursorSemantics::Bar));
-//    /// assert!(test("test1", Selection::new(1, 2), Rope::from("dk\nsome\nshit\n"), CursorSemantics::Block));   //i|:d>k\nsome\nshit\n
-//    /// 
-//    /// // backspace at start of line appends current line to end of previous line
-//    /// assert!(test("test2", Selection::new(4, 4), Rope::from("idksome\nshit\n"), CursorSemantics::Bar));
-//    /// assert!(test("test2", Selection::new(4, 5), Rope::from("idksome\nshit\n"), CursorSemantics::Block));
-//    /// 
-//    /// // with selection and head > anchor
-//    /// assert!(test("test3", Selection::new(0, 2), Rope::from("k\nsome\nshit\n"), CursorSemantics::Bar));
-//    /// assert!(test("test3", Selection::new(0, 2), Rope::from("k\nsome\nshit\n"), CursorSemantics::Block));
-//    /// 
-//    /// // with selection and head < anchor
-//    /// assert!(test("test4", Selection::new(2, 0), Rope::from("k\nsome\nshit\n"), CursorSemantics::Bar));
-//    /// assert!(test("test4", Selection::new(2, 0), Rope::from("k\nsome\nshit\n"), CursorSemantics::Block));
-//    /// 
-//    /// // at text end
-//    /// assert!(test("test5", Selection::new(14, 14), Rope::from("idk\nsome\nshit"), CursorSemantics::Bar));
-//    /// assert!(test("test5", Selection::new(14, 15), Rope::from("idk\nsome\nshit"), CursorSemantics::Block));  //idk\nsome\nshit\n|: > //idk\nsome\nshit|: >
-//    /// 
-//    /// // backspace removes previous tab
-//    /// let mut spaces = String::new();
-//    /// for x in 0..TAB_WIDTH{
-//    ///     spaces.push(' ');
-//    /// }
-//    /// let text = Rope::from(format!("{}idk\nsome\nshit\n", spaces));
-//    /// let semantics = CursorSemantics::Block; //test Bar too
-//    /// let selection = Selection::new(TAB_WIDTH, match semantics{CursorSemantics::Bar => TAB_WIDTH, CursorSemantics::Block => TAB_WIDTH.saturating_add(1)});
-//    /// let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![selection], 0, &text));
-//    /// doc.backspace(semantics);
-//    /// assert!(doc.text().clone() == Rope::from("idk\nsome\nshit\n"));
-//    /// assert!(doc.selections().primary().clone() == Selection::with_stored_line_position(0, match semantics{CursorSemantics::Bar => 0, CursorSemantics::Block => 1}, 0));
-//    /// ```
+    /// Deletes the previous character, or deletes selection if extended.
+    /// #### Invariants:
+    /// - will not delete past start of doc
+    /// - at start of line, appends current line to end of previous line
+    /// - removes previous soft tab, if TAB_WIDTH spaces are before cursor
+    /// - deletes selection if selection extended
+    /// # Example
+    /// ```
+    /// # use ropey::Rope;
+    /// # use edit_core::document::{Document, TAB_WIDTH};
+    /// # use edit_core::selection::{Selection, Selections, CursorSemantics};
+    /// 
+    /// fn test(name: &str, selection: Selection, expected: Rope, semantics: CursorSemantics) -> bool{
+    ///     let text = Rope::from("idk\nsome\nshit\n");
+    ///     let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![selection], 0, &text));
+    ///     doc.backspace(semantics);
+    ///     println!("{:#?}\n{:#?}\nexpected: {:#?}\ngot: {:#?}\n", name, semantics, expected, doc.text().clone());
+    ///     doc.text().clone() == expected
+    /// }
+    /// 
+    /// let text = Rope::from("idk\nsome\nshit\n");
+    /// 
+    /// // does nothing at doc start
+    /// assert!(test("test0", Selection::new(0, 0), Rope::from("idk\nsome\nshit\n"), CursorSemantics::Bar));
+    /// assert!(test("test0", Selection::new(0, 1), Rope::from("idk\nsome\nshit\n"), CursorSemantics::Block));
+    /// 
+    /// // without selection deletes previous char
+    /// assert!(test("test1", Selection::new(1, 1), Rope::from("dk\nsome\nshit\n"), CursorSemantics::Bar));
+    /// assert!(test("test1", Selection::new(1, 2), Rope::from("dk\nsome\nshit\n"), CursorSemantics::Block));   //i|:d>k\nsome\nshit\n
+    /// 
+    /// // backspace at start of line appends current line to end of previous line
+    /// assert!(test("test2", Selection::new(4, 4), Rope::from("idksome\nshit\n"), CursorSemantics::Bar));
+    /// assert!(test("test2", Selection::new(4, 5), Rope::from("idksome\nshit\n"), CursorSemantics::Block));
+    /// 
+    /// // with selection and head > anchor
+    /// assert!(test("test3", Selection::new(0, 2), Rope::from("k\nsome\nshit\n"), CursorSemantics::Bar));
+    /// assert!(test("test3", Selection::new(0, 2), Rope::from("k\nsome\nshit\n"), CursorSemantics::Block));
+    /// 
+    /// // with selection and head < anchor
+    /// assert!(test("test4", Selection::new(2, 0), Rope::from("k\nsome\nshit\n"), CursorSemantics::Bar));
+    /// assert!(test("test4", Selection::new(2, 0), Rope::from("k\nsome\nshit\n"), CursorSemantics::Block));
+    /// 
+    /// // at text end
+    /// assert!(test("test5", Selection::new(14, 14), Rope::from("idk\nsome\nshit"), CursorSemantics::Bar));
+    /// assert!(test("test5", Selection::new(14, 15), Rope::from("idk\nsome\nshit"), CursorSemantics::Block));  //idk\nsome\nshit\n|: > //idk\nsome\nshit|: >
+    /// 
+    /// // backspace removes previous tab
+    /// let mut spaces = String::new();
+    /// for x in 0..TAB_WIDTH{
+    ///     spaces.push(' ');
+    /// }
+    /// let text = Rope::from(format!("{}idk\nsome\nshit\n", spaces));
+    /// let semantics = CursorSemantics::Block; //test Bar too
+    /// let selection = Selection::new(TAB_WIDTH, match semantics{CursorSemantics::Bar => TAB_WIDTH, CursorSemantics::Block => TAB_WIDTH.saturating_add(1)});
+    /// let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![selection], 0, &text));
+    /// doc.backspace(semantics);
+    /// assert!(doc.text().clone() == Rope::from("idk\nsome\nshit\n"));
+    /// assert!(doc.selections().primary().clone() == Selection::with_stored_line_position(0, match semantics{CursorSemantics::Bar => 0, CursorSemantics::Block => 1}, 0));
+    /// ```
     #[allow(clippy::collapsible_else_if)]
     pub fn backspace(&mut self, semantics: CursorSemantics){
         let selections_before_changes = self.selections.clone();
@@ -797,9 +902,6 @@ impl Document{
             }
 
             if let Some(change) = changes.last(){
-                //if let Operation::Delete{deleted_text} = change.operation(){
-                //    sum += deleted_text.len()
-                //}
                 if let Operation::Insert{inserted_text} = change.inverse(){
                     sum += inserted_text.len();
                 }
