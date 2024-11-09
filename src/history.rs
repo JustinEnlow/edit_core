@@ -63,10 +63,10 @@ impl ChangeSet{
         self.selections_after_changes.clone()
     }
 }
-impl Iterator for ChangeSet{
-    type Item = Change;
-
-    fn next(&mut self) -> Option<Self::Item>{
-        self.changes.pop()
-    }
-}
+//impl Iterator for ChangeSet{
+//    type Item = Change;
+//
+//    fn next(&mut self) -> Option<Self::Item>{
+//        self.changes.pop()
+//    }
+//}
