@@ -53,9 +53,6 @@ impl ChangeSet{
     pub fn changes(&self) -> Vec<Change>{
         self.changes.clone()
     }
-    pub fn len(&self) -> usize{
-        self.changes.len()
-    }
     pub fn selections_before_changes(&self) -> Selections{
         self.selections_before_changes.clone()
     }
@@ -63,10 +60,3 @@ impl ChangeSet{
         self.selections_after_changes.clone()
     }
 }
-//impl Iterator for ChangeSet{
-//    type Item = Change;
-//
-//    fn next(&mut self) -> Option<Self::Item>{
-//        self.changes.pop()
-//    }
-//}

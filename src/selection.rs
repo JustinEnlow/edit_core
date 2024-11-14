@@ -9,10 +9,8 @@ use crate::{
 
 #[derive(Clone, Copy, Debug)]
 pub enum CursorSemantics{
-    // default selection has width of 0
-    Bar,
-    // default selection has width of 1
-    Block
+    Bar,    //difference between anchor and head is 0
+    Block   //difference between anchor and head is 1 grapheme
 }
 
 #[derive(PartialEq, Debug)]
@@ -244,6 +242,7 @@ impl Selection{
     /// let second = Selection::new(2, 3);
     /// assert_eq!(Selection::new(2, 3), first.intersection(&second).unwrap());
     /// ```
+    #[allow(clippy::result_unit_err)]
     pub fn intersection(&self, other: &Selection) -> Result<Self, ()>{
         if self.overlaps(other){
             Ok(Selection::new(self.start().max(other.start()), self.end().min(other.end())))
@@ -1231,6 +1230,27 @@ impl Selection{
         selection.put_cursor(text.len_chars(), text, Movement::Extend, semantics, true)
     }
 
+    // should this be made purely functional?
+    pub fn shift_and_extend(&mut self, amount: usize, text: &Rope, semantics: CursorSemantics){
+        for _ in 0..amount{
+            *self = self.move_left(text, semantics);
+        }
+        if amount > 1{
+            match semantics{
+                CursorSemantics::Bar => {
+                    for _ in 0..amount{
+                        *self = self.extend_right(text, semantics);
+                    }
+                }
+                CursorSemantics::Block => {
+                    for _ in 0..amount.saturating_sub(1){
+                        *self = self.extend_right(text, semantics);
+                    }
+                }
+            }
+        }
+    }
+
     /// Translates a [`Selection`] to a [Selection2d].
     /// ```
     /// # use ropey::Rope;
@@ -1748,6 +1768,7 @@ impl Selections{
     /// assert_eq!(Err(()), selections.add_selection_above(&text));
     /// ```
     // should this use start() and end() instead of head and anchor?
+    #[allow(clippy::result_unit_err)]
     pub fn add_selection_above(&self, text: &Rope) -> Result<Self, ()>{
         assert!(self.count() > 0);  //ensure at least one selection in selections
         // should fail if any selection spans multiple lines. // should this be changed to allow this in the future?
@@ -1767,5 +1788,19 @@ impl Selections{
         let line_start = text.line_to_char(line_above);
         let line_width = text_util::line_width(text.line(line_above), true);
         Ok(self.push_front(Selection::new(line_start + anchor_offset, line_start + head_offset.min(line_width))))
+    }
+
+    // should these be made purely functional?
+    pub fn shift_subsequent_selections_forward(&mut self, current_selection_index: usize, amount: usize){
+        for subsequent_selection_index in current_selection_index.saturating_add(1)..self.count(){
+            let subsequent_selection = self.nth_mut(subsequent_selection_index);
+            *subsequent_selection = Selection::new(subsequent_selection.anchor().saturating_add(amount), subsequent_selection.head().saturating_add(amount));
+        }
+    }
+    pub fn shift_subsequent_selections_backward(&mut self, current_selection_index: usize, amount: usize){
+        for subsequent_selection_index in current_selection_index.saturating_add(1)..self.count(){
+            let subsequent_selection = self.nth_mut(subsequent_selection_index);
+            *subsequent_selection = Selection::new(subsequent_selection.anchor().saturating_sub(amount), subsequent_selection.head().saturating_sub(amount));
+        }
     }
 }

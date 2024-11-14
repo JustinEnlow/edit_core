@@ -457,7 +457,7 @@ fn insert_single_char_with_multi_selection(){
     fn cut_test(selection: Selection, expected: Rope, expected_selection: Selection, semantics: CursorSemantics) -> bool{
         let text = Rope::from("idk\nsome\nshit\n");
         let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![selection], 0, &text));
-        doc.cut(semantics);
+        let _ = doc.cut(semantics);
         println!("expected: {:#?}\ngot: {:#?}\nexpected_position: {:#?}\ngot: {:#?}\n", expected, doc.text().clone(), expected_selection, doc.selections().primary().clone());
         doc.text().clone() == expected && doc.selections().primary().clone() == expected_selection
     
@@ -475,6 +475,13 @@ fn insert_single_char_with_multi_selection(){
         assert!(cut_test(Selection::new(9, 4), Rope::from("idk\nshit\n"), Selection::with_stored_line_position(4, 4, 0), CursorSemantics::Bar));
         assert!(cut_test(Selection::new(9, 4), Rope::from("idk\nshit\n"), Selection::with_stored_line_position(4, 5, 0), CursorSemantics::Block));
     }
+
+    #[test]
+    fn cut_with_multiple_selections_returns_error(){
+        let text = Rope::from("idk\nsome\nshit\n");
+        let mut doc = Document::new(CursorSemantics::Bar).with_selections(Selections::new(vec![Selection::new(0, 3), Selection::new(4, 7)], 0, &text));
+        assert!(doc.cut(CursorSemantics::Bar).is_err());
+    }
     ////////////////////////////////////////////////////////////////////// Cut ///////////////////////////////////////////////////////////////////////////
     
     ////////////////////////////////////////////////////////////////////// Copy ///////////////////////////////////////////////////////////////////////////
@@ -485,7 +492,7 @@ fn insert_single_char_with_multi_selection(){
     fn copy_test(selection: Selection, expected: &str, semantics: CursorSemantics) -> bool{
         let text = Rope::from("idk\nsome\nshit\n");
         let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![selection], 0, &text));
-        doc.copy();
+        let _ = doc.copy();
         println!("expected: {:#?}\ngot: {:#?}\n", expected, doc.clipboard());
         doc.clipboard() == expected
     }
@@ -494,6 +501,13 @@ fn insert_single_char_with_multi_selection(){
     fn copy_with_selection_anchor_less_than_head(){
         assert!(copy_test(Selection::new(4, 9), "some\n", CursorSemantics::Bar));
         assert!(copy_test(Selection::new(4, 9), "some\n", CursorSemantics::Block));    //idk\n|some:\n>shit\n
+    }
+
+    #[test]
+    fn copy_with_multiple_selections_should_error(){
+        let text = Rope::from("idk\nsome\nshit\n");
+        let mut doc = Document::new(CursorSemantics::Bar).with_selections(Selections::new(vec![Selection::new(0, 0), Selection::new(4, 4)], 0, &text));
+        assert!(doc.copy().is_err());
     }
     ////////////////////////////////////////////////////////////////////// Copy ///////////////////////////////////////////////////////////////////////////
 

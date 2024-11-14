@@ -449,7 +449,7 @@ impl View{
                 }
             }
 
-            if intersected == false{
+            if !intersected{
                 // retain non intersecting view_blocks  //this represents no selection in view
                 selections_in_view.push(Selection2d::new(Position::new(0, y), Position::new(0, y)));
             }
