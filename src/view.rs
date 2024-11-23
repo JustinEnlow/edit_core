@@ -32,22 +32,6 @@ impl View{
     }
 
     /// Returns a new instance of [`View`] with `vertical_start` increased by specified amount.
-    /// ```
-    /// # use ropey::Rope;
-    /// # use edit_core::view::View;
-    /// 
-    /// let text = Rope::from("idk\nsome\nshit\n");
-    /// 
-    /// // scrolls when vertical space remaining in text
-    /// let view = View::new(0, 0, 2, 2);
-    /// assert_eq!(View::new(0, 1, 2, 2), view.scroll_down(1, &text));
-    /// assert_eq!(String::from("so\nsh\n"), view.scroll_down(1, &text).text(&text));
-    /// 
-    /// // scrolling saturates at limits of text
-    /// let view = View::new(0, 2, 2, 2);
-    /// assert_eq!(View::new(0, 2, 2, 2), view.scroll_down(1, &text));
-    /// assert_eq!(String::from("sh\n\n"), view.scroll_down(1, &text).text(&text));
-    /// ```
     #[must_use]
     pub fn scroll_down(&self, amount: usize, text: &Rope) -> Self{
         assert!(amount > 0);
@@ -63,44 +47,12 @@ impl View{
         }
     }
     /// Returns a new instance of [`View`] with `horizontal_start` decreased by specified amount.
-    /// ```
-    /// # use ropey::Rope;
-    /// # use edit_core::view::View;
-    /// 
-    /// let text = Rope::from("idk\nsome\nshit\n");
-    /// 
-    /// // scrolling saturates at limits of text
-    /// let view = View::new(0, 0, 2, 2);
-    /// assert_eq!(View::new(0, 0, 2, 2), view.scroll_left(1));
-    /// assert_eq!(String::from("id\nso\n"), view.scroll_left(1).text(&text));
-    /// 
-    /// // scrolls when horizontal space remaining in text
-    /// let view = View::new(2, 0, 2, 2);
-    /// assert_eq!(View::new(1, 0, 2, 2), view.scroll_left(1));
-    /// assert_eq!(String::from("dk\nom\n"), view.scroll_left(1).text(&text));
-    /// ```
     #[must_use]
     pub fn scroll_left(&self, amount: usize) -> Self{
         assert!(amount > 0);
         Self::new(self.horizontal_start.saturating_sub(amount), self.vertical_start, self.width, self.height)
     }
     /// Returns a new instance of [`View`] with `horizontal_start` increased by specified amount.
-    /// ```
-    /// # use ropey::Rope;
-    /// # use edit_core::view::View;
-    /// 
-    /// let text = Rope::from("idk\nsome\nshit\n");
-    /// 
-    /// // scrolling saturates at limits of text
-    /// let view = View::new(2, 0, 2, 2);
-    /// assert_eq!(View::new(2, 0, 2, 2), view.scroll_right(1, &text));
-    /// assert_eq!(String::from("k\nme\n"), view.scroll_right(1, &text).text(&text));
-    /// 
-    /// // scrolls when horizontal space remaining in text
-    /// let view = View::new(0, 0, 2, 2);
-    /// assert_eq!(View::new(1, 0, 2, 2), view.scroll_right(1, &text));
-    /// assert_eq!(String::from("dk\nom\n"), view.scroll_right(1, &text).text(&text));
-    /// ```
     #[must_use]
     pub fn scroll_right(&self, amount: usize, text: &Rope) -> Self{
         assert!(amount > 0);
@@ -108,7 +60,6 @@ impl View{
         // TODO: cache longest as a field in [`View`] struct to eliminate having to calculate this on each call
         // Calculate the longest line width in a single pass
         let longest = text.lines()
-            //.map(crate::text_util::line_width_excluding_newline)
             .map(|line| crate::text_util::line_width(line, false))
             .max()
             .unwrap_or(0); // Handle the case where there are no lines
@@ -122,22 +73,6 @@ impl View{
         }
     }
     /// Returns a new instance of [`View`] with `vertical_start` decreased by specified amount.
-    /// ```
-    /// # use ropey::Rope;
-    /// # use edit_core::view::View;
-    /// 
-    /// let text = Rope::from("idk\nsome\nshit\n");
-    /// 
-    /// // scrolls when vertical space remaining in text
-    /// let view = View::new(0, 2, 2, 2);
-    /// assert_eq!(View::new(0, 1, 2, 2), view.scroll_up(1));
-    /// assert_eq!(String::from("so\nsh\n"), view.scroll_up(1).text(&text));
-    /// 
-    /// // scrolling saturates at limits of text
-    /// let view = View::new(0, 0, 2, 2);
-    /// assert_eq!(View::new(0, 0, 2, 2), view.scroll_up(1));
-    /// assert_eq!(String::from("id\nso\n"), view.scroll_up(1).text(&text));
-    /// ```
     #[must_use]
     pub fn scroll_up(&self, amount: usize) -> View{
         assert!(amount > 0);
@@ -145,32 +80,6 @@ impl View{
     }
     /// Returns a `bool` indicating whether the [`View`] should be scrolled or not. If `head` of primary [`Selection2d`]
     /// is outside [`View`] boundaries, [`View`] should be scrolled.
-    /// ```
-    /// # use ropey::Rope;
-    /// # use edit_core::view::View;
-    /// # use edit_core::selection::{Selection, CursorSemantics};
-    /// 
-    /// let text = Rope::from("idk\nsome\nshit\n");
-    /// let view = View::new(0, 0, 2, 2);
-    /// 
-    /// // in view
-    /// let selection = Selection::new(0, 0);
-    /// assert_eq!(false, view.should_scroll(&selection, &text, CursorSemantics::Bar));
-    /// let selection = Selection::new(0, 1);
-    /// assert_eq!(false, view.should_scroll(&selection, &text, CursorSemantics::Block));
-    /// 
-    /// // out of view horizontally
-    /// let selection = Selection::new(3, 3);
-    /// assert_eq!(true, view.should_scroll(&selection, &text, CursorSemantics::Bar));
-    /// let selection = Selection::new(3, 4);
-    /// assert_eq!(true, view.should_scroll(&selection, &text, CursorSemantics::Block));
-    /// 
-    /// // out of view vertically
-    /// let selection = Selection::new(10, 10);
-    /// assert_eq!(true, view.should_scroll(&selection, &text, CursorSemantics::Bar));
-    /// let selection = Selection::new(10, 11);
-    /// assert_eq!(true, view.should_scroll(&selection, &text, CursorSemantics::Block));
-    /// ```
     #[must_use]
     pub fn should_scroll(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> bool{
         assert!(selection.cursor(semantics) <= text.len_chars());
@@ -187,30 +96,6 @@ impl View{
 
     /// Returns a new instance of [`View`] with `horizontal_start` and/or `vertical_start` shifted to keep `head` of
     /// [`Selection`] in [`View`].
-    /// ```
-    /// # use ropey::Rope;
-    /// # use edit_core::view::View;
-    /// # use edit_core::selection::{Selection, CursorSemantics};
-    /// 
-    /// let text = Rope::from("idk\nsome\nshit\n");
-    /// let view = View::new(0, 0, 2, 2);
-    /// 
-    /// // return self when primary [`Selection`] `head` within [`View`] bounds
-    /// let selection = Selection::new(0, 0);
-    /// assert_eq!(view, view.scroll_following_cursor(&selection, &text, CursorSemantics::Bar));
-    /// assert_eq!(String::from("id\nso\n"), view.scroll_following_cursor(&selection, &text, CursorSemantics::Bar).text(&text));
-    /// let selection = Selection::new(0, 1);
-    /// assert_eq!(view, view.scroll_following_cursor(&selection, &text, CursorSemantics::Block));
-    /// assert_eq!(String::from("id\nso\n"), view.scroll_following_cursor(&selection, &text, CursorSemantics::Block).text(&text));
-    /// 
-    /// // returns proper [`View`] when [`Selection`] `head` outside [`View`] bounds
-    /// let selection = Selection::new(13, 13);
-    /// assert_eq!(View::new(3, 1, 2, 2), view.scroll_following_cursor(&selection, &text, CursorSemantics::Bar));
-    /// assert_eq!(String::from("e\nt\n"), view.scroll_following_cursor(&selection, &text, CursorSemantics::Bar).text(&text));
-    /// let selection = Selection::new(13, 14);
-    /// assert_eq!(View::new(3, 1, 2, 2), view.scroll_following_cursor(&selection, &text, CursorSemantics::Block));
-    /// assert_eq!(String::from("e\nt\n"), view.scroll_following_cursor(&selection, &text, CursorSemantics::Block).text(&text));
-    /// ```
     #[must_use]
     pub fn scroll_following_cursor(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> Self{
         assert!(selection.cursor(semantics) <= text.len_chars());
@@ -239,29 +124,6 @@ impl View{
     }
 
     /// Returns an instance of [`View`] vertically centered around specified cursor.
-    /// ```
-    /// # use ropey::Rope;
-    /// # use edit_core::view::View;
-    /// # use edit_core::selection::{Selection, CursorSemantics};
-    /// 
-    /// let text = Rope::from("idk\nsome\nshit\nand\nsomething\nelse\n");   //len 33
-    /// let view = View::new(0, 0, 1, 1);
-    /// 
-    /// let selection = Selection::new(14, 14);
-    /// assert_eq!(View::new(0, 3, 1, 1), view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Bar));
-    /// let selection = Selection::new(14, 15);
-    /// assert_eq!(View::new(0, 3, 1, 1), view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Block));
-    /// 
-    /// let selection = Selection::new(0, 0);
-    /// assert_eq!(view, view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Bar));
-    /// let selection = Selection::new(0, 1);
-    /// assert_eq!(view, view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Block));
-    /// 
-    /// let selection = Selection::new(33, 33);
-    /// assert_eq!(View::new(0, 6, 1, 1), view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Bar));
-    /// let selection = Selection::new(33, 34);
-    /// assert_eq!(View::new(0, 6, 1, 1), view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Block));
-    /// ```
     #[must_use]
     pub fn center_vertically_around_cursor(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> Self{
         assert!(selection.cursor(semantics) <= text.len_chars());    //ensure selection is valid
@@ -282,47 +144,48 @@ impl View{
 
     /// Returns a `String` containing the text that can be contained within [`View`] boundaries.
     // TODO: need to handle displaying TAB_WIDTH spaces instead of a "\t" character.
-    pub fn text(&self, text: &Rope) -> String{
-        // preallocate memory for String based on expected size
-        let mut client_view_text = String::with_capacity(self.height * (self.width + 1));   //+1 for added new line
-
-        let vertical_range = self.vertical_start..self.vertical_start + self.height;
-        let horizontal_range = self.horizontal_start..self.horizontal_start + self.width;
-
-        for (y, line) in text.lines().enumerate(){
-            if !vertical_range.contains(&y){
-                continue;
-            }
-
-            let bounded_line: String = line.chars()
-                .enumerate()
-                .filter_map(|(x, char)|{
-                    if horizontal_range.contains(&x) && char != '\n'{
-                        Some(char)
-                    }else{
-                        None
-                    }
-                })
-                .collect();
-
-            client_view_text.push_str(&bounded_line);
-            client_view_text.push('\n'); // Append newline after each line
-        }
-
-        client_view_text
-    }
-    // returns text using view blocks, but may be harder to implement hard tab handling, or other wide characters
+    // TODO: test
     //pub fn text(&self, text: &Rope) -> String{
-    //    let view_blocks = self.view_blocks(text);
-    //    let mut client_view_text = String::new();
+    //    // preallocate memory for String based on expected size
+    //    let mut client_view_text = String::with_capacity(self.height * (self.width + 1));   //+1 for added new line
     //
-    //    for view_block in view_blocks.iter(){
-    //        client_view_text.push_str(&text.slice(view_block.start()..view_block.end()).to_string());
-    //        client_view_text.push('\n');
+    //    let vertical_range = self.vertical_start..self.vertical_start + self.height;
+    //    let horizontal_range = self.horizontal_start..self.horizontal_start + self.width;
+    //
+    //    for (y, line) in text.lines().enumerate(){
+    //        if !vertical_range.contains(&y){
+    //            continue;
+    //        }
+    //
+    //        let bounded_line: String = line.chars()
+    //            .enumerate()
+    //            .filter_map(|(x, char)|{
+    //                if horizontal_range.contains(&x) && char != '\n'{
+    //                    Some(char)
+    //                }else{
+    //                    None
+    //                }
+    //            })
+    //            .collect();
+    //
+    //        client_view_text.push_str(&bounded_line);
+    //        client_view_text.push('\n'); // Append newline after each line
     //    }
     //
     //    client_view_text
     //}
+    // returns text using view blocks, but may be harder to implement hard tab handling, or other wide characters
+    pub fn text(&self, text: &Rope) -> String{
+        let view_blocks = self.view_blocks(text, false);
+        let mut client_view_text = String::new();
+    
+        for view_block in view_blocks.iter(){
+            client_view_text.push_str(&text.slice(view_block.start()..view_block.end()).to_string());
+            client_view_text.push('\n');
+        }
+    
+        client_view_text
+    }
     
 
     /// Returns a `String` containing the line numbers of the text that can be contained within [`View`] boundaries.
@@ -344,92 +207,6 @@ impl View{
     /// Returns a [`Vec`] of [`Selection2d`]s that represent [`Selection`]s with any portion of itself within the boundaries of [`View`].
     /// Returned selections should be in screen space coordinates.
     /// Assumes selections are already sorted and merged.
-    /// ```
-    /// # use ropey::Rope;
-    /// # use edit_core::selection::{Selection, Selections, Selection2d, CursorSemantics};
-    /// # use edit_core::view::View;
-    /// # use edit_core::Position;
-    /// 
-    /// // selections in view
-    /// let text = Rope::from("idk\nsome\nshit\n");
-    /// let selections = Selections::new(vec![Selection::new(1, 2), Selection::new(5, 6)], 0, &text);
-    /// let view = View::new(0, 0, 3, 3);
-    /// //[i|d>k]
-    /// //[s|o>m]e
-    /// //[s h i]t
-    /// assert_eq!(
-    ///     //Some(vec![Selection2d::new(Position::new(1, 0), Position::new(2, 0)), Selection2d::new(Position::new(1, 1), Position::new(2, 1))]),
-    ///     Some(vec![Selection2d::new(Position::new(1, 0), Position::new(2, 0)), Selection2d::new(Position::new(1, 1), Position::new(2, 1)), Selection2d::new(Position::new(0, 2), Position::new(0, 2))]),
-    ///     view.selections(&selections, &text)
-    /// );
-    /// 
-    /// // no selection in view
-    /// let text = Rope::from("idk\nsome\nshit\n");
-    /// let selections = Selections::new(vec![Selection::new(7, 8)], 0, &text);
-    /// let view = View::new(0, 0, 2, 2);
-    /// //[i d]k
-    /// //[s o]m|e>
-    /// // s h i t
-    /// assert_eq!(Some(vec![
-    ///         Selection2d::new(Position::new(0, 0), Position::new(0, 0)), 
-    ///         Selection2d::new(Position::new(0, 1), Position::new(0, 1))
-    ///     ]), 
-    ///     view.selections(&selections, &text)
-    /// );
-    /// 
-    /// // mix of in view and out
-    /// let text = Rope::from("idk\nsome\nshit\nidk\nsomething\nelse\n");
-    /// //                       1                     2                    3
-    /// // 0 1 2 3  4 5 6 7 8  9 0 1 2 3  4 5 6 7  8 9 0 1 2 3 4 5 6 7  8 9 0 1 2  3
-    /// // |i d>k \n s o m|e \n s h>i t \n i d|k \n s o m>e t h i n g \n|e l s>e \n     //selections
-    /// //  i d k \n s o m e \n s[h i t]\n i[d k]\n s[o m e t]h i n g \n e l s e \n     //view_blocks
-    /// let selections = Selections::new(vec![Selection::new(0, 2), Selection::new(7, 11), Selection::new(16, 21), Selection::new(28, 31)], 0, &text);
-    /// //|i d>k
-    /// // s o m|e
-    /// // s[h>i t  ]
-    /// // i[d|k    ]
-    /// // s[o m>e t]h i n g
-    /// //|e l s>e
-    /// let view = View::new(1, 2, 4, 3);
-    /// assert_eq!(Some(vec![
-    ///         Selection2d::new(Position::new(0, 0), Position::new(1, 0)),
-    ///         //Selection2d::new(Position::new(1, 1), Position::new(2, 1)),
-    ///         Selection2d::new(Position::new(1, 1), Position::new(3, 1)),
-    ///         Selection2d::new(Position::new(0, 2), Position::new(2, 2))
-    ///     ]), 
-    ///     view.selections(&selections, &text)
-    /// );
-    /// 
-    /// let text = Rope::from("idk\n\nsomething\n");
-    /// let view = View::new(2, 0, 1, 3);
-    /// let selections = Selections::new(vec![Selection::new(1, 3), Selection::new(5, 11)], 0, &text);
-    /// // i|d[k]>
-    /// //    [ ]
-    /// //|s o[m]e t h>i n g
-    /// assert_eq!(Some(vec![
-    ///         Selection2d::new(Position::new(0, 0), Position::new(1, 0)),
-    ///         Selection2d::new(Position::new(0, 1), Position::new(0, 1)),
-    ///         Selection2d::new(Position::new(0, 2), Position::new(1, 2))
-    ///     ]),
-    ///     view.selections(&selections, &text)
-    /// );
-    /// 
-    /// // TODO: test multiple selections per line
-    /// let text = Rope::from("idk\nsome\nshit\n");
-    /// let view = View::new(0, 0, 3, 3);
-    /// let selections = Selections::new(vec![Selection::new(0, 1), Selection::new(2, 3), Selection::new(5, 6)], 0, &text);
-    /// //[|i>d|k>]
-    /// //[s|o>m]e
-    /// //[s h i]t
-    /// assert_eq!(Some(vec![
-    ///         Selection2d::new(Position::new(0, 0), Position::new(1, 0)),
-    ///         Selection2d::new(Position::new(2, 0), Position::new(3, 0)),
-    ///         Selection2d::new(Position::new(1, 1), Position::new(2, 1)),
-    ///         Selection2d::new(Position::new(0, 2), Position::new(0, 2)),
-    ///     ]),
-    ///     view.selections(&selections, &text)
-    /// );
-    /// ```
     // should this return Option<Vec<Selection, usize>> with usize being the selection's line number instead?
     pub fn selections(&self, selections: &Selections, text: &Rope) -> Option<Vec<Selection2d>>{
         let view_blocks = self.view_blocks(text, true); //make sure to adjust tests to include newline
@@ -459,70 +236,6 @@ impl View{
     }
 
     /// Maps a [`View`] as a [`Vec`] of [`Selection`]s over a text rope.
-    /// ```
-    /// # use ropey::Rope;
-    /// # use edit_core::selection::Selection;
-    /// # use edit_core::view::View;
-    /// 
-    /// let text = Rope::from("idk\nsome\nshit\n");
-    /// let view = View::new(0, 0, 2, 2);
-    /// //[i d]k
-    /// //[s o]m e
-    /// // s h i t
-    /// //[i d]k \n[s o]m e \n s h i t \n
-    /// assert_eq!(vec![Selection::new(0, 2), Selection::new(4, 6)], view.view_blocks(&text, false));
-    /// 
-    /// let view = View::new(0, 1, 2, 2);
-    /// // i d k
-    /// //[s o]m e
-    /// //[s h]i t
-    /// // i d k \n[s o]m e \n[s h]i t \n
-    /// assert_eq!(vec![Selection::new(4, 6), Selection::new(9, 11)], view.view_blocks(&text, false));
-    /// 
-    /// let view = View::new(1, 0, 2, 2);
-    /// // i[d k]
-    /// // s[o m]e
-    /// // s h i t
-    /// // i[d k]\n s[o m]e \n s h i t
-    /// assert_eq!(vec![Selection::new(1, 3), Selection::new(5, 7)], view.view_blocks(&text, false));
-    /// 
-    /// let text = Rope::from("idk\nsomething\nelse");
-    /// let view = View::new(5, 0, 2, 2);
-    /// // i d k    [   ]
-    /// // s o m e t[h i]n g
-    /// // e l s e
-    /// //[]i d k \n s o m e t[h i]n g \n e l s e
-    /// assert_eq!(vec![Selection::new(0, 0), Selection::new(9, 11)], view.view_blocks(&text, false));
-    /// 
-    /// // i d k
-    /// // s o m e
-    /// // s[h i t  ]
-    /// // i[d k    ]
-    /// // s[o m e t]h i n g
-    /// // e l s e
-    /// //                      1                     2                    3
-    /// //0 1 2 3  4 5 6 7 8  9 0 1 2 3  4 5 6 7  8 9 0 1 2 3 4 5 6 7  8 9 0 1 2  3
-    /// // i d k \n s o m e \n s[h i t]\n i[d k]\n s[o m e t]h i n g \n e l s e \n
-    /// let text = Rope::from("idk\nsome\nshit\nidk\nsomething\nelse\n");
-    /// let view = View::new(1, 2, 4, 3);
-    /// assert_eq!(vec![Selection::new(10, 13), Selection::new(15, 17), Selection::new(19, 23)], view.view_blocks(&text, false));
-    /// 
-    /// let text = Rope::from("idk\n\nsomething\n");
-    /// let view = View::new(2, 0, 1, 3);
-    /// // i d[k]
-    /// //    [ ]
-    /// // s o[m]e t h i n g
-    /// // i d[k]\n[]\n s o[m]e t h i n g
-    /// assert_eq!(vec![Selection::new(2, 3), Selection::new(4, 4), Selection::new(7, 8)], view.view_blocks(&text, false));
-    /// 
-    /// let text = Rope::from("\n\nidk\n");
-    /// let view = View::new(0, 0, 2, 3);
-    /// //[   ]
-    /// //[   ]
-    /// //[i d]k
-    /// // \n \n i d k \n
-    /// assert_eq!(vec![Selection::new(0, 0), Selection::new(1, 1), Selection::new(2, 4)], view.view_blocks(&text, false));
-    /// ```
     // should this include newlines('\n') in its width calculation? maybe pass in include_newline bool?
     // we want to highlight newlines as well
     // but that may mess with the logic for "empty" lines...idk
@@ -540,7 +253,6 @@ impl View{
                 let mut view_start = line_start + self.horizontal_start;    //start view at horizontal offset of view
                 let mut view_end = view_start + line_width.min(self.width); //restrict view width
 
-                //TODO: do any of the ifs below need to become else ifs?
                 if line_end < view_start{   //handle view shifted right past end of line text(includes empty lines)
                     view_start = line_start;
                     view_end = line_start;  //zero width output selections represent a line with no text in view bounds
@@ -556,35 +268,35 @@ impl View{
     }
     
 
-    /// Returns cursor positions that are within [`View`] boundaries.
-    /// ```
-    /// # use ropey::Rope;
-    /// # use edit_core::selection::{Selection, CursorSemantics, Selections};
-    /// # use edit_core::view::View;
-    /// # use edit_core::document::Document;
-    /// # use edit_core::Position;
-    /// 
-    /// fn test(selection: Selection, expected: Vec<Position>, view: View, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("idk\nsome\nshit\n");
-    ///     let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![selection], 0, &text)).with_view(view);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, doc.view().cursor_positions(&text, &doc.selections(), semantics));
-    ///     doc.view().cursor_positions(&text, &doc.selections(), semantics) == expected
-    /// }
-    /// 
-    /// assert!(test(Selection::new(0, 0), vec![Position::new(0, 0)], View::new(0, 0, 2, 2), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 1), vec![Position::new(0, 0)], View::new(0, 0, 2, 2), CursorSemantics::Block));
-    /// assert!(test(Selection::new(0, 0), Vec::new(), View::new(1, 0, 2, 2), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 1), Vec::new(), View::new(1, 0, 2, 2), CursorSemantics::Block));
-    /// assert!(test(Selection::new(0, 0), Vec::new(), View::new(1, 1, 2, 2), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 1), Vec::new(), View::new(1, 1, 2, 2), CursorSemantics::Block));
-    /// ```
-    pub fn cursor_positions(&self, text: &Rope, selections: &Selections, semantics: CursorSemantics) -> Vec<Position>{
-        selections.iter()
-            .filter_map(|cursor|{
-                Self::cursor_position(cursor.selection_to_selection2d(text, semantics), self)
-            })
-            .collect()
-    }
+    ///// Returns cursor positions that are within [`View`] boundaries.
+    ///// ```
+    ///// # use ropey::Rope;
+    ///// # use edit_core::selection::{Selection, CursorSemantics, Selections};
+    ///// # use edit_core::view::View;
+    ///// # use edit_core::document::Document;
+    ///// # use edit_core::Position;
+    ///// 
+    ///// fn test(selection: Selection, expected: Vec<Position>, view: View, semantics: CursorSemantics) -> bool{
+    /////     let text = Rope::from("idk\nsome\nshit\n");
+    /////     let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![selection], 0, &text)).with_view(view);
+    /////     println!("expected: {:#?}\ngot: {:#?}\n", expected, doc.view().cursor_positions(&text, &doc.selections(), semantics));
+    /////     doc.view().cursor_positions(&text, &doc.selections(), semantics) == expected
+    ///// }
+    ///// 
+    ///// assert!(test(Selection::new(0, 0), vec![Position::new(0, 0)], View::new(0, 0, 2, 2), CursorSemantics::Bar));
+    ///// assert!(test(Selection::new(0, 1), vec![Position::new(0, 0)], View::new(0, 0, 2, 2), CursorSemantics::Block));
+    ///// assert!(test(Selection::new(0, 0), Vec::new(), View::new(1, 0, 2, 2), CursorSemantics::Bar));
+    ///// assert!(test(Selection::new(0, 1), Vec::new(), View::new(1, 0, 2, 2), CursorSemantics::Block));
+    ///// assert!(test(Selection::new(0, 0), Vec::new(), View::new(1, 1, 2, 2), CursorSemantics::Bar));
+    ///// assert!(test(Selection::new(0, 1), Vec::new(), View::new(1, 1, 2, 2), CursorSemantics::Block));
+    ///// ```
+    //pub fn cursor_positions(&self, text: &Rope, selections: &Selections, semantics: CursorSemantics) -> Vec<Position>{
+    //    selections.iter()
+    //        .filter_map(|cursor|{
+    //            Self::cursor_position(cursor.selection_to_selection2d(text, semantics), self)
+    //        })
+    //        .collect()
+    //}
     // translates a document cursor position to a client view cursor position. if outside client view, returns None
     fn cursor_position(doc_cursor: Selection2d, client_view: &View) -> Option<Position>{
         let head_x = doc_cursor.head().x();
@@ -605,5 +317,8 @@ impl View{
             None
         }
     }
-    //pub fn primary_cursor_position(){}    //should impl so we can track the primary cursor individually
+    pub fn primary_cursor_position(&self, text: &Rope, selections: &Selections, semantics: CursorSemantics) -> Option<Position>{
+        let primary = selections.primary();
+        Self::cursor_position(primary.selection_to_selection2d(text, semantics), self)
+    }
 }
