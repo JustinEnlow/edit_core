@@ -166,7 +166,10 @@ impl Document{
         let old_selection = selection.clone();
         doc_text.insert(selection.cursor(semantics), string);
         for _ in 0..string.len(){
-            *selection = selection.move_right(doc_text, semantics);
+            //*selection = selection.move_right(doc_text, semantics);
+            if let Ok(new_selection) = selection.move_right(doc_text, semantics){
+                *selection = new_selection;
+            }
         }
 
         Change::new(Operation::Insert{inserted_text: string.to_string()}, old_selection, selection.clone(), Operation::Delete)
@@ -202,7 +205,10 @@ impl Document{
 
         let change_text = original_text.slice(start..end);
         doc_text.remove(start..end);
-        *selection = selection.put_cursor(new_cursor, &original_text, Movement::Move, semantics, true);
+        //*selection = selection.put_cursor(new_cursor, &original_text, Movement::Move, semantics, true);
+        if let Ok(new_selection) = selection.put_cursor(new_cursor, &original_text, Movement::Move, semantics, true){
+            *selection = new_selection;
+        }
 
         Change::new(Operation::Delete, old_selection, selection.clone(), Operation::Insert{inserted_text: change_text.to_string()})
     }
@@ -418,7 +424,10 @@ impl Document{
                     self.selections.shift_subsequent_selections_backward(i, TAB_WIDTH);
                 }
                 else if selection.cursor(semantics) > 0{
-                    *selection = selection.move_left(&self.text, semantics);
+                    //*selection = selection.move_left(&self.text, semantics);
+                    if let Ok(new_selection) = selection.move_left(&self.text, semantics){
+                        *selection = new_selection;
+                    }
                     changes.push(Document::apply_delete(&mut self.text, selection, semantics));
                     self.selections.shift_subsequent_selections_backward(i, 1);
                 }//else{return Err(());}    //cannot backspace at beginning of text
