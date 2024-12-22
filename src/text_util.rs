@@ -123,3 +123,80 @@ pub fn offset_from_line_start(point: usize, text: &Rope) -> usize{
     let line_start = text.line_to_char(text.char_to_line(point));
     point.saturating_sub(line_start)
 }
+
+/// Returns the start index of the first matching pattern inside a text if one exists, or None
+pub fn naive_search(text: &str, pattern: &str) -> Option<usize> {
+    let text_len = text.len();
+    let pattern_len = pattern.len();
+
+    if pattern_len == 0 || pattern_len > text_len {
+        return None;
+    }
+
+    for i in 0..=text_len - pattern_len {
+        if &text[i..i + pattern_len] == pattern {
+            return Some(i); // return the index where pattern starts
+        }
+    }
+
+    None // if pattern is not found
+}
+
+fn build_lps(pattern: &str) -> Vec<usize> {
+    let m = pattern.len();
+    let mut lps = vec![0; m]; // Longest prefix suffix array
+    let mut length = 0; // Length of the previous longest prefix suffix
+    let mut i = 1; // Start from the second character of the pattern
+
+    // Loop to fill the lps array
+    while i < m {
+        if pattern.as_bytes()[i] == pattern.as_bytes()[length] {
+            length += 1;
+            lps[i] = length;
+            i += 1;
+        } else {
+            if length != 0 {
+                length = lps[length - 1];
+            } else {
+                lps[i] = 0;
+                i += 1;
+            }
+        }
+    }
+
+    lps
+}
+
+pub fn kmp_search(text: &str, pattern: &str) -> Option<usize> {
+    let n = text.len();
+    let m = pattern.len();
+
+    if m == 0 {
+        return Some(0); // Empty pattern is trivially found at index 0
+    }
+
+    let lps = build_lps(pattern); // Build the longest prefix suffix array
+    let mut i = 0; // Index for text
+    let mut j = 0; // Index for pattern
+
+    // Start searching through the text
+    while i < n {
+        if text.as_bytes()[i] == pattern.as_bytes()[j] {
+            i += 1;
+            j += 1;
+        }
+
+        if j == m {
+            // Pattern found, return starting index
+            return Some(i - j);
+        } else if i < n && text.as_bytes()[i] != pattern.as_bytes()[j] {
+            if j != 0 {
+                j = lps[j - 1];
+            } else {
+                i += 1;
+            }
+        }
+    }
+
+    None // Pattern not found
+}

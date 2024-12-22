@@ -1100,15 +1100,15 @@ fn add_selection_above_with_selection_extension_across_lines_of_multiple_widths_
 fn add_selection_above_should_error_when_selection_on_line_0(){
     let text = Rope::from("idk\nsome\nshit\n");
     let selections = Selections::new(vec![Selection::new(1, 3)], 0, &text);
-    assert_eq!(Err(()), selections.add_selection_above(&text, CursorSemantics::Bar));
-    assert_eq!(Err(()), selections.add_selection_above(&text, CursorSemantics::Block));
+    assert!(selections.add_selection_above(&text, CursorSemantics::Bar).is_err());
+    assert!(selections.add_selection_above(&text, CursorSemantics::Block).is_err());
 }
 #[test]
 fn add_selection_above_should_error_when_any_selection_is_multi_line(){ //may not require this later...
     let text = Rope::from("idk\nsome\nshit\n");
     let selections = Selections::new(vec![Selection::new(4, 10)], 0, &text);
-    assert_eq!(Err(()), selections.add_selection_above(&text, CursorSemantics::Bar));
-    assert_eq!(Err(()), selections.add_selection_above(&text, CursorSemantics::Block));
+    assert!(selections.add_selection_above(&text, CursorSemantics::Bar).is_err());
+    assert!(selections.add_selection_above(&text, CursorSemantics::Block).is_err());
 }
 
 #[test]
@@ -1188,16 +1188,16 @@ fn add_selection_below_with_selection_extension_across_lines_of_multiple_widths_
 fn add_selection_below_should_error_when_selection_on_last_line(){
     let text = Rope::from("idk\nsome\nshit\n");
     let selections = Selections::new(vec![Selection::new(14, 14)], 0, &text);
-    assert_eq!(Err(()), selections.add_selection_below(&text, CursorSemantics::Bar));
+    assert!(selections.add_selection_below(&text, CursorSemantics::Bar).is_err());
     let selections = Selections::new(vec![Selection::new(14, 15)], 0, &text);
-    assert_eq!(Err(()), selections.add_selection_below(&text, CursorSemantics::Block));
+    assert!(selections.add_selection_below(&text, CursorSemantics::Block).is_err());
 }
 #[test]
 fn add_selection_below_should_error_when_any_selection_is_multi_line(){ //may not require this later...
     let text = Rope::from("idk\nsome\nshit\n");
     let selections = Selections::new(vec![Selection::new(4, 10)], 0, &text);
-    assert_eq!(Err(()), selections.add_selection_below(&text, CursorSemantics::Bar));
-    assert_eq!(Err(()), selections.add_selection_below(&text, CursorSemantics::Block));
+    assert!(selections.add_selection_below(&text, CursorSemantics::Bar).is_err());
+    assert!(selections.add_selection_below(&text, CursorSemantics::Block).is_err());
 }
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

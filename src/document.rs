@@ -1,5 +1,5 @@
 use crate::view::View;
-use crate::selection::{CursorSemantics, Movement, Selection, Selections};
+use crate::selection::{CursorSemantics, Movement, Selection, Selections, SelectionsError};
 use crate::history::{Operation, Change, ChangeSet};
 use std::fs::{self, File};
 use std::error::Error;
@@ -18,6 +18,11 @@ pub const USE_FULL_FILE_PATH: bool = false;
 
 
 
+#[derive(Debug)]
+pub enum DocumentError{
+    NoChangesToUndo,
+    NoChangesToRedo,
+}
 pub struct Document{
     text: Rope,
     file_path: Option<PathBuf>,
@@ -215,7 +220,7 @@ impl Document{
 
     /// Undoes the most recent change made to the document, restoring the previous state.
     #[allow(clippy::result_unit_err)]
-    pub fn undo(&mut self, semantics: CursorSemantics) -> Result<(), ()>{
+    pub fn undo(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{    //should this be a HistoryError instead?...
         // Check if there is something to undo
         if let Some(change_set) = self.undo_stack.pop(){
             let changes = change_set.changes();
@@ -258,13 +263,13 @@ impl Document{
             self.redo_stack.push(change_set);
 
             Ok(())
-        }else{Err(())}
+        }else{Err(DocumentError::NoChangesToUndo)}
     }
 
     /// Redoes the most recent Undo made to the document, restoring the previous state.
     /// Make sure to clear the redo stack in every edit fn. new actions invalidate the redo history
     #[allow(clippy::result_unit_err)]
-    pub fn redo(&mut self, semantics: CursorSemantics) -> Result<(), ()>{
+    pub fn redo(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{    //should this be HistoryError instead?...
         // Check if there is something to redo
         if let Some(change_set) = self.redo_stack.pop(){
             let changes = change_set.changes();
@@ -305,11 +310,11 @@ impl Document{
             self.undo_stack.push(change_set);
 
             Ok(())
-        }else{Err(())}
+        }else{Err(DocumentError::NoChangesToRedo)}
     }
 
     /// Inserts provided string into text at each selection.
-    pub fn insert_string(&mut self, string: &str, semantics: CursorSemantics){
+    pub fn insert_string(&mut self, string: &str, semantics: CursorSemantics){  //-> Result<(), ()>{    //error if empty string
         let selections_before_changes = self.selections.clone();
         let mut changes = Vec::new();
 
@@ -370,7 +375,7 @@ impl Document{
     // if selection.is_extended() || direction == Direction::Forward, apply delete, else use backspace code
 
     /// Deletes text inside each [`Selection`] in [`Selections`], or if [`Selection`] not extended, the next character, and pushes changes to undo stack.
-    pub fn delete(&mut self, semantics: CursorSemantics){
+    pub fn delete(&mut self, semantics: CursorSemantics){   //-> Result<(), ()>{    //error if delete would result in same state(like at end of doc)
         let selections_before_changes = self.selections.clone();
         let mut changes = Vec::new();
 
@@ -397,7 +402,7 @@ impl Document{
     /// - removes previous soft tab, if TAB_WIDTH spaces are before cursor
     /// - deletes selection if selection extended
     #[allow(clippy::collapsible_else_if)]
-    pub fn backspace(&mut self, semantics: CursorSemantics){    //-> Result<(), ()>{    //if backspace will result in same state, return err
+    pub fn backspace(&mut self, semantics: CursorSemantics){    //-> Result<(), ()>{    //if backspace will result in same state, return err(like at start of doc)
         let selections_before_changes = self.selections.clone();
         let mut changes = Vec::new();
 
@@ -445,8 +450,8 @@ impl Document{
     /// Copies text to clipboard and removes selected text from document.
     /// Ensure single selection when calling this function.
     #[allow(clippy::result_unit_err)]
-    pub fn cut(&mut self, semantics: CursorSemantics) -> Result<(), ()>{    //if multiple selections
-        if self.selections.count() > 1{return Err(())}
+    pub fn cut(&mut self, semantics: CursorSemantics) -> Result<(), SelectionsError>{
+        if self.selections.count() > 1{return Err(SelectionsError::MultipleSelections)}
 
         let selection = self.selections.primary_mut();
         // Copy the selected text to the clipboard
@@ -459,8 +464,8 @@ impl Document{
     /// Copy single selection to clipboard.
     /// Ensure single selection when calling this function.
     #[allow(clippy::result_unit_err)]
-    pub fn copy(&mut self) -> Result<(), ()>{    //if multiple selections
-        if self.selections.count() > 1{return Err(())}
+    pub fn copy(&mut self) -> Result<(), SelectionsError>{
+        if self.selections.count() > 1{return Err(SelectionsError::MultipleSelections)}
         
         let selection = self.selections.primary().clone();
         // Copy the selected text to the clipboard
@@ -470,7 +475,27 @@ impl Document{
     }
 
     /// Insert clipboard contents at cursor position(s).
-    pub fn paste(&mut self, semantics: CursorSemantics){
+    pub fn paste(&mut self, semantics: CursorSemantics){    //-> Result<(), ()>{    //error if clipboard string is empty string
         self.insert_string(&self.clipboard.clone(), semantics);
+    }
+
+    // frontend application should save previous selections for case where user exits search mode
+    pub fn search(&mut self, input: &str, semantics: CursorSemantics){
+        let mut selections = Vec::new();
+        let mut start = 0;
+        
+        while let Some(index_of_match) = text_util::kmp_search(&self.text.to_string()[start..], input){
+        //while let Some(index_of_match) = text_util::naive_search(&self.text.to_string()[start..], input){
+            let index_of_match_end = index_of_match + input.len();
+            selections.push(Selection::new(index_of_match + start, index_of_match_end + start));
+            start = index_of_match_end + start;
+            if start >= self.text.len_chars(){
+                break;
+            }
+        }
+
+        if !selections.is_empty(){
+            self.selections = Selections::new(selections, 0, &self.text);
+        }
     }
 }

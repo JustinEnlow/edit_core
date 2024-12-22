@@ -96,6 +96,7 @@ impl View{
 
     /// Returns a new instance of [`View`] with `horizontal_start` and/or `vertical_start` shifted to keep `head` of
     /// [`Selection`] in [`View`].
+    /// Can follow any specified selection, not just primary selection.
     #[must_use]
     pub fn scroll_following_cursor(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> Self{
         assert!(selection.cursor(semantics) <= text.len_chars());
