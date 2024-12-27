@@ -411,14 +411,23 @@ impl Selection{
 
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended to the end of the current line.
     #[must_use]
-    pub fn extend_line_text_end(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{    //TODO: for block cursor, have this toggle between w/ and w/o newline. similar to extend_home...
+    pub fn extend_line_text_end(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
         let line_number = text.char_to_line(self.head);
         let line = text.line(line_number);
         let line_width = text_util::line_width(line, false);
         let line_start = text.line_to_char(line_number);
         let line_end = match semantics{
             CursorSemantics::Bar => line_start.saturating_add(line_width),
-            CursorSemantics::Block => line_start.saturating_add(line_width).saturating_sub(1)
+            //CursorSemantics::Block => line_start.saturating_add(line_width).saturating_sub(1)
+            CursorSemantics::Block => {
+                let start_line = text.char_to_line(self.start());
+                let end_line = text.char_to_line(self.end());
+                if self.cursor(semantics) == self.start() && end_line > start_line{
+                    line_start.saturating_add(line_width)
+                }else{
+                    line_start.saturating_add(line_width).saturating_sub(1)
+                }
+            }
         };
 
         if self.cursor(semantics) == line_end{return Err(SelectionError::ResultsInSameState);}

@@ -704,8 +704,8 @@ fn extend_line_text_end(){
 #[test]
 fn extend_line_text_end_errors_if_already_at_text_end(){
     let text = Rope::from("idk\n");
-    assert!(Selection::new(4, 4).extend_line_text_end(&text, CursorSemantics::Bar).is_err());
-    assert!(Selection::new(3, 4).extend_line_text_end(&text, CursorSemantics::Block).is_err());
+    assert!(Selection::new(3, 3).extend_line_text_end(&text, CursorSemantics::Bar).is_err());
+    assert!(Selection::new(2, 3).extend_line_text_end(&text, CursorSemantics::Block).is_err());
 }
 
 #[test]

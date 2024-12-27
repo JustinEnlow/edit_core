@@ -17,6 +17,7 @@
     [x] cursor left at line start moves to previous line end if available
     [x] cursor right at line end moves to next line start if available
     [x] make cursor maintain horizontal position or go to line end when moving up/down
+    [ ] if extend_to_line_end called, and selection end is on a greater line, set cursor over newline. otherwise, set cursor over last character
     [ ] when selection is extended and cursor moves, collapse selection cursors. + test
 [x] set up client-server with editing functionality
     [x] insert
