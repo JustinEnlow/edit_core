@@ -480,7 +480,7 @@ impl Document{
     }
 
     // frontend application should save previous selections for case where user exits search mode
-    pub fn search(&mut self, input: &str, semantics: CursorSemantics){
+    pub fn search(&mut self, input: &str/*, semantics: CursorSemantics*/){
         let mut selections = Vec::new();
         let mut start = 0;
         

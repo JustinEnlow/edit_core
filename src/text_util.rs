@@ -14,6 +14,10 @@ use crate::selection::{CursorSemantics, Selection};
 /// let text = Rope::from("idk\n");
 /// assert!(text_util::line_width(text.slice(..), false) == 3);
 /// assert!(text_util::line_width(text.slice(..), true) == 4);
+/// 
+/// //let text = Rope::from("idk\n\n");
+/// //assert!(text_util::line_width(text.slice(..), false) == 3);
+/// //assert!(text_util::line_width(text.slice(..), true) == 4);
 /// ```
 // TODO: handle non standard width chars such as '\t'
 pub fn line_width(line: RopeSlice, include_newline: bool) -> usize{

@@ -21,7 +21,7 @@ pub enum Movement{
     Extend,
     Move,
 }
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum SelectionError{        //or should each fallible fn have its own fn specific Error? this would prevent the calling fn from having to match unused variants in the fallible fn...
     ResultsInSameState,
     NoOverlap,
@@ -412,26 +412,30 @@ impl Selection{
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended to the end of the current line.
     #[must_use]
     pub fn extend_line_text_end(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
-        let line_number = text.char_to_line(self.head);
+        let line_number = text.char_to_line(self.cursor(semantics));
         let line = text.line(line_number);
-        let line_width = text_util::line_width(line, false);
+        let line_width = text_util::line_width(line, false);    //doesn't include newline
         let line_start = text.line_to_char(line_number);
-        let line_end = match semantics{
-            CursorSemantics::Bar => line_start.saturating_add(line_width),
-            //CursorSemantics::Block => line_start.saturating_add(line_width).saturating_sub(1)
+        let line_end = line_start.saturating_add(line_width);   //index at end of line text, not including newline
+
+        match semantics{
+            CursorSemantics::Bar => {
+                if self.cursor(semantics) == line_end{return Err(SelectionError::ResultsInSameState);}
+                self.put_cursor(line_end, text, Movement::Extend, semantics, true)
+            }
             CursorSemantics::Block => {
+                if self.cursor(semantics) == line_end.saturating_sub(1)
+                || self.cursor(semantics) == line_end{return Err(SelectionError::ResultsInSameState);}
                 let start_line = text.char_to_line(self.start());
                 let end_line = text.char_to_line(self.end());
                 if self.cursor(semantics) == self.start() && end_line > start_line{
-                    line_start.saturating_add(line_width)
+                    self.put_cursor(line_end, text, Movement::Extend, semantics, true)  //put cursor over newline, if extending from a line below
                 }else{
-                    line_start.saturating_add(line_width).saturating_sub(1)
+                    self.put_cursor(line_end.saturating_sub(1), text, Movement::Extend, semantics, true)
                 }
+                
             }
-        };
-
-        if self.cursor(semantics) == line_end{return Err(SelectionError::ResultsInSameState);}
-        self.put_cursor(line_end, text, Movement::Extend, semantics, true)
+        }
     }
 
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended to absolute start of line, or line text start, depending on [`Selection`] `head` position.

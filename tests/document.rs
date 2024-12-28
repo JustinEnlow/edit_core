@@ -535,16 +535,26 @@ fn insert_single_char_with_multi_selection(){
     #[test]
     fn search_works(){
         let text = Rope::from("idk\nsome\nshit\nidk\n");
+
         let mut doc = Document::new(CursorSemantics::Block).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(0, 1)], 0, &text));
-        doc.search("idk", CursorSemantics::Block);
+        doc.search("idk"/*, CursorSemantics::Block*/);
+        assert_eq!(&Selections::new(vec![Selection::new(0, 3), Selection::new(14, 17)], 0, &text), doc.selections());
+
+        let mut doc = Document::new(CursorSemantics::Bar).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(0, 0)], 0, &text));
+        doc.search("idk"/*, CursorSemantics::Bar*/);
         assert_eq!(&Selections::new(vec![Selection::new(0, 3), Selection::new(14, 17)], 0, &text), doc.selections());
     }
 
     #[test]
     fn maintains_current_selections_if_no_matching_substring(){
         let text = Rope::from("idk\nsome\nshit\nidk\n");
+
         let mut doc = Document::new(CursorSemantics::Block).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(0, 1)], 0, &text));
-        doc.search("fuck", CursorSemantics::Block);
+        doc.search("fuck"/*, CursorSemantics::Block*/);
         assert_eq!(&Selections::new(vec![Selection::new(0, 1)], 0, &text), doc.selections());
+
+        let mut doc = Document::new(CursorSemantics::Bar).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(0, 0)], 0, &text));
+        doc.search("fuck"/*, CursorSemantics::Bar*/);
+        assert_eq!(&Selections::new(vec![Selection::new(0, 0)], 0, &text), doc.selections());
     }
     ////////////////////////////////////////////////////////////////////// Search ///////////////////////////////////////////////////////////////////////////
