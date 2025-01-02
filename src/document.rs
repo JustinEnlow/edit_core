@@ -22,6 +22,9 @@ pub const USE_FULL_FILE_PATH: bool = false;
 pub enum DocumentError{
     NoChangesToUndo,
     NoChangesToRedo,
+    SelectionAtDocBounds,
+    InvalidInput,
+    SelectionsError(SelectionsError)
 }
 pub struct Document{
     text: Rope,
@@ -314,9 +317,11 @@ impl Document{
     }
 
     /// Inserts provided string into text at each selection.
-    pub fn insert_string(&mut self, string: &str, semantics: CursorSemantics){  //-> Result<(), ()>{    //error if empty string
+    pub fn insert_string(&mut self, string: &str, semantics: CursorSemantics) -> Result<(), DocumentError>{
         let selections_before_changes = self.selections.clone();
         let mut changes = Vec::new();
+
+        if string.is_empty(){return Err(DocumentError::InvalidInput);}
 
         for i in 0..self.selections.count(){
             let selection = self.selections.nth_mut(i);
@@ -351,6 +356,8 @@ impl Document{
 
         // clear redo stack. new actions invalidate the redo history
         self.redo_stack.clear();
+
+        Ok(())
     }
     fn handle_insert_replace(&mut self, current_selection_index: usize, semantics: CursorSemantics, new_text: &str) -> Change{
         let selection = self.selections.nth_mut(current_selection_index);
@@ -375,9 +382,15 @@ impl Document{
     // if selection.is_extended() || direction == Direction::Forward, apply delete, else use backspace code
 
     /// Deletes text inside each [`Selection`] in [`Selections`], or if [`Selection`] not extended, the next character, and pushes changes to undo stack.
-    pub fn delete(&mut self, semantics: CursorSemantics){   //-> Result<(), ()>{    //error if delete would result in same state(like at end of doc)
+    pub fn delete(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
         let selections_before_changes = self.selections.clone();
         let mut changes = Vec::new();
+
+        // if any selection errors, don't allow deletion for any other...
+        for i in 0..self.selections.count(){
+            let selection = self.selections.nth_mut(i);
+            if !selection.is_extended(semantics) && selection.cursor(semantics) >= self.text.len_chars(){return Err(DocumentError::SelectionAtDocBounds);}
+        }
 
         for i in 0..self.selections.count(){
             let selection = self.selections.nth_mut(i);
@@ -393,6 +406,8 @@ impl Document{
 
         // clear redo stack. new actions invalidate the redo history
         self.redo_stack.clear();
+
+        Ok(())
     }
 
     /// Deletes the previous character, or deletes selection if extended.
@@ -402,9 +417,15 @@ impl Document{
     /// - removes previous soft tab, if TAB_WIDTH spaces are before cursor
     /// - deletes selection if selection extended
     #[allow(clippy::collapsible_else_if)]
-    pub fn backspace(&mut self, semantics: CursorSemantics){    //-> Result<(), ()>{    //if backspace will result in same state, return err(like at start of doc)
+    pub fn backspace(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
         let selections_before_changes = self.selections.clone();
         let mut changes = Vec::new();
+
+        // if any selection errors, don't allow deletion for any other...
+        for i in 0..self.selections.count(){
+            let selection = self.selections.nth_mut(i);
+            if !selection.is_extended(semantics) && selection.cursor(semantics) == 0{return Err(DocumentError::SelectionAtDocBounds);}
+        }
 
         for i in 0..self.selections.count(){
             let selection = self.selections.nth_mut(i);
@@ -428,14 +449,15 @@ impl Document{
                     changes.push(Document::apply_delete(&mut self.text, selection, semantics));
                     self.selections.shift_subsequent_selections_backward(i, TAB_WIDTH);
                 }
-                else if selection.cursor(semantics) > 0{
+                //else if selection.cursor(semantics) > 0{
+                else{
                     //*selection = selection.move_left(&self.text, semantics);
                     if let Ok(new_selection) = selection.move_left(&self.text, semantics){
                         *selection = new_selection;
-                    }
+                    }   //TODO: handle error    //first for loop guarantees no selection is at doc bounds, so this should be ok to ignore...
                     changes.push(Document::apply_delete(&mut self.text, selection, semantics));
                     self.selections.shift_subsequent_selections_backward(i, 1);
-                }//else{return Err(());}    //cannot backspace at beginning of text
+                }
             }
         }
 
@@ -444,28 +466,28 @@ impl Document{
 
         // clear redo stack. new actions invalidate the redo history
         self.redo_stack.clear();
+
+        Ok(())
     }
 
     /// Cut single selection.
     /// Copies text to clipboard and removes selected text from document.
     /// Ensure single selection when calling this function.
     #[allow(clippy::result_unit_err)]
-    pub fn cut(&mut self, semantics: CursorSemantics) -> Result<(), SelectionsError>{
-        if self.selections.count() > 1{return Err(SelectionsError::MultipleSelections)}
+    pub fn cut(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        if self.selections.count() > 1{return Err(DocumentError::SelectionsError(SelectionsError::MultipleSelections));}
 
         let selection = self.selections.primary_mut();
         // Copy the selected text to the clipboard
         self.clipboard = self.text.slice(selection.start()..selection.end()).to_string();
-        self.delete(semantics);
-
-        Ok(())
+        self.delete(semantics)  //notice this is returning the result from delete
     }
 
     /// Copy single selection to clipboard.
     /// Ensure single selection when calling this function.
     #[allow(clippy::result_unit_err)]
-    pub fn copy(&mut self) -> Result<(), SelectionsError>{
-        if self.selections.count() > 1{return Err(SelectionsError::MultipleSelections)}
+    pub fn copy(&mut self) -> Result<(), DocumentError>{
+        if self.selections.count() > 1{return Err(DocumentError::SelectionsError(SelectionsError::MultipleSelections));}
         
         let selection = self.selections.primary().clone();
         // Copy the selected text to the clipboard
@@ -475,12 +497,12 @@ impl Document{
     }
 
     /// Insert clipboard contents at cursor position(s).
-    pub fn paste(&mut self, semantics: CursorSemantics){    //-> Result<(), ()>{    //error if clipboard string is empty string
-        self.insert_string(&self.clipboard.clone(), semantics);
+    pub fn paste(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        self.insert_string(&self.clipboard.clone(), semantics)
     }
 
     // frontend application should save previous selections for case where user exits search mode
-    pub fn search(&mut self, input: &str/*, semantics: CursorSemantics*/){
+    pub fn search(&mut self, input: &str/*, semantics: CursorSemantics*/){  //TODO: may want to return Result
         let mut selections = Vec::new();
         let mut start = 0;
         

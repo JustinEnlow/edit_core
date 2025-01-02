@@ -33,7 +33,7 @@ impl View{
 
     /// Returns a new instance of [`View`] with `vertical_start` increased by specified amount.
     #[must_use]
-    pub fn scroll_down(&self, amount: usize, text: &Rope) -> Self{
+    pub fn scroll_down(&self, amount: usize, text: &Rope) -> Self{  //TODO: return error if results in same state
         assert!(amount > 0);
         assert!(text.len_lines() > 0);
         
@@ -48,13 +48,13 @@ impl View{
     }
     /// Returns a new instance of [`View`] with `horizontal_start` decreased by specified amount.
     #[must_use]
-    pub fn scroll_left(&self, amount: usize) -> Self{
+    pub fn scroll_left(&self, amount: usize) -> Self{   //TODO: return error if results in same state
         assert!(amount > 0);
         Self::new(self.horizontal_start.saturating_sub(amount), self.vertical_start, self.width, self.height)
     }
     /// Returns a new instance of [`View`] with `horizontal_start` increased by specified amount.
     #[must_use]
-    pub fn scroll_right(&self, amount: usize, text: &Rope) -> Self{
+    pub fn scroll_right(&self, amount: usize, text: &Rope) -> Self{ //TODO: return error if results in same state
         assert!(amount > 0);
 
         // TODO: cache longest as a field in [`View`] struct to eliminate having to calculate this on each call
@@ -74,7 +74,7 @@ impl View{
     }
     /// Returns a new instance of [`View`] with `vertical_start` decreased by specified amount.
     #[must_use]
-    pub fn scroll_up(&self, amount: usize) -> View{
+    pub fn scroll_up(&self, amount: usize) -> View{ //TODO: return error if results in same state
         assert!(amount > 0);
         Self::new(self.horizontal_start, self.vertical_start.saturating_sub(amount), self.width, self.height)
     }
@@ -126,7 +126,7 @@ impl View{
 
     /// Returns an instance of [`View`] vertically centered around specified cursor.
     #[must_use]
-    pub fn center_vertically_around_cursor(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> Self{
+    pub fn center_vertically_around_cursor(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> Self{  //TODO: return error if results in same state
         assert!(selection.cursor(semantics) <= text.len_chars());    //ensure selection is valid
         assert!(text.len_lines() > 0);  //ensure text is not empty
         

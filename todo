@@ -17,8 +17,7 @@
     [x] cursor left at line start moves to previous line end if available
     [x] cursor right at line end moves to next line start if available
     [x] make cursor maintain horizontal position or go to line end when moving up/down
-    [ ] if extend_to_line_end called, and selection end is on a greater line, set cursor over newline. otherwise, set cursor over last character
-    [ ] when selection is extended and cursor moves, collapse selection cursors. + test
+    [x] if extend_to_line_end called, and selection end is on a greater line, set cursor over newline. otherwise, set cursor over last character
 [x] set up client-server with editing functionality
     [x] insert
     [x] remove
@@ -33,13 +32,8 @@
     [ ] is multi-selection stuff related to find/replace selections?
     [x] delete selected text(delete, backspace, insert)
     [ ] combine overlapping selections. prob needs to be checked at each extend selection fn
-
-
-
-// not in a specific order
-[ ] make movements/edits that result in the same state return an error. this allows the front end application to decide whether to display a warning message, giving visual feedback
 [x] define cursor semantic enum(bar/block)
     [ ] handle all document functionality using different cursor semantics
 
-[ ] have client pass client view in ServerAction::OpenFile
-[ ] have ServerAction::OpenFile return a client id
+always ensure:
+    make movements/edits that result in the same state return an error. this allows the front end application to decide whether to display a warning message, giving visual feedback

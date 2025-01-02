@@ -61,6 +61,72 @@ pub fn first_non_whitespace_character_offset(line: RopeSlice) -> usize{
     0
 }
 
+fn is_word_char(char: char) -> bool{
+    if char.is_alphabetic() || char.is_numeric()/* || char == '_'*/{
+        return true;
+    }
+
+    false
+}
+
+/// Returns the index of the next word boundary
+/// ```
+/// # use ropey::Rope;
+/// # use edit_core::text_util;
+/// 
+/// let text = Rope::from("fn idk(){/*something*/}");
+/// assert_eq!(2, text_util::next_word_boundary(0, &text));
+/// assert_eq!(6, text_util::next_word_boundary(2, &text));
+/// assert_eq!(7, text_util::next_word_boundary(6, &text));
+/// assert_eq!(8, text_util::next_word_boundary(7, &text));
+/// assert_eq!(9, text_util::next_word_boundary(8, &text));
+/// assert_eq!(10, text_util::next_word_boundary(9, &text));
+/// //assert_eq!(11, text_util::next_word_boundary(10, &text));
+/// ```
+pub fn next_word_boundary(current_position: usize, text: &Rope) -> usize{
+    let mut index = current_position.saturating_add(1);
+
+    while index < text.len_chars() && is_word_char(text.char(index)){
+        index += 1;
+    }
+
+    if index < text.len_chars(){
+        index
+    }else{
+        text.len_chars()
+    }
+
+    /* possible improvement?...
+    if current_char is alphanumeric, skip to next non alphanumeric
+    if current_char is (), {}, [], <>, :, etc. skip to next non brace
+    */
+}
+/// Returns the index of the previous word boundary
+/// ```
+/// # use ropey::Rope;
+/// # use edit_core::text_util;
+/// 
+/// let text = Rope::from("fn idk(){/*something*/}");
+/// assert_eq!(22, text_util::previous_word_boundary(23, &text));
+/// assert_eq!(21, text_util::previous_word_boundary(22, &text));
+/// assert_eq!(20, text_util::previous_word_boundary(21, &text));
+/// assert_eq!(11, text_util::previous_word_boundary(20, &text));
+/// ```
+pub fn previous_word_boundary(current_position: usize, text: &Rope) -> usize{   //not working correctly on first word
+    let mut index = current_position.saturating_sub(1);
+
+    while index > 0 && is_word_char(text.char(index)){
+        index -= 1;
+    }
+
+    if index > 0{
+        index
+    }else{
+        0
+    }
+
+}
+
 /// Returns true if slice contains only spaces.
 /// #Example
 /// ```
