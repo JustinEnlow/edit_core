@@ -287,9 +287,10 @@ impl Selection{
     /// Returns a new instance of [`Selection`] with cursor moved right to the nearest word boundary.
     pub fn move_right_word_boundary(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
         if self.cursor(semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
+        
         let goal_index = text_util::next_word_boundary(self.cursor(semantics), text);
         let offset = goal_index.saturating_sub(self.cursor(semantics));
-        //self.move_horizontally(offset, text, Movement::Move, Direction::Forward, semantics)
+        
         match semantics{
             CursorSemantics::Bar => {
                 self.move_horizontally(offset, text, Movement::Move, Direction::Forward, semantics)
@@ -311,18 +312,19 @@ impl Selection{
         self.move_horizontally(1, text, Movement::Move, Direction::Backward, semantics)
     }
 
-    //TODO: still not working correctly on first word.
+    /// Returns a new instance of [`Selection`] with cursor moved left to the nearest word boundary.
     pub fn move_left_word_boundary(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
         if self.cursor(semantics) == 0{return Err(SelectionError::ResultsInSameState);}
+        
         let goal_index = text_util::previous_word_boundary(self.cursor(semantics), text);
         let offset = self.cursor(semantics).saturating_sub(goal_index);
-        //self.move_horizontally(offset, text, Movement::Move, Direction::Backward, semantics)
+        
         match semantics{
             CursorSemantics::Bar => {
                 self.move_horizontally(offset, text, Movement::Move, Direction::Backward, semantics)
             }
             CursorSemantics::Block => {
-                if offset.saturating_sub(1) > 0{
+                if offset.saturating_sub(1) > 0 && goal_index != 0{
                     self.move_horizontally(offset.saturating_sub(1), text, Movement::Move, Direction::Backward, semantics)
                 }else{
                     self.move_horizontally(offset, text, Movement::Move, Direction::Backward, semantics)
