@@ -81,36 +81,46 @@ fn is_whitespace(char: char) -> bool{
     char == ' ' || char == '\t' || char == '\n'
 }
 
-/* possible improvement to word boundary fns?...
-    if current_char is (), {}, [], <>, :, etc. skip to next non brace
-*/
-
 /// Returns the index of the next word boundary
 /// ```
 /// # use ropey::Rope;
 /// # use edit_core::text_util;
 /// 
 /// let text = Rope::from("fn idk(){/*something*/}");
-/// assert_eq!(2, text_util::next_word_boundary(0, &text));
-/// assert_eq!(6, text_util::next_word_boundary(2, &text));
-/// assert_eq!(7, text_util::next_word_boundary(6, &text)); //why is this assert failing?...
+/// assert_eq!(2, text_util::next_word_boundary(0, &text));   //|f n   i d k ( ) { / * s o m e t h i n g * / }  // f n|  i d k ( ) { / * s o m e t h i n g * / }
+/// assert_eq!(6, text_util::next_word_boundary(2, &text));   // f n|  i d k ( ) { / * s o m e t h i n g * / }  // f n   i d k|( ) { / * s o m e t h i n g * / }
+/// assert_eq!(7, text_util::next_word_boundary(6, &text));   // f n   i d k|( ) { / * s o m e t h i n g * / }  // f n   i d k (|) { / * s o m e t h i n g * / }
+/// assert_eq!(8, text_util::next_word_boundary(7, &text));   // f n   i d k (|) { / * s o m e t h i n g * / }  // f n   i d k ( )|{ / * s o m e t h i n g * / }
+/// assert_eq!(9, text_util::next_word_boundary(8, &text));   // f n   i d k ( )|{ / * s o m e t h i n g * / }  // f n   i d k ( ) {|/ * s o m e t h i n g * / }
+/// assert_eq!(10, text_util::next_word_boundary(9, &text));  // f n   i d k ( ) {|/ * s o m e t h i n g * / }  // f n   i d k ( ) { /|* s o m e t h i n g * / }
+/// assert_eq!(11, text_util::next_word_boundary(10, &text)); // f n   i d k ( ) { /|* s o m e t h i n g * / }  // f n   i d k ( ) { / *|s o m e t h i n g * / }
+/// assert_eq!(20, text_util::next_word_boundary(11, &text)); // f n   i d k ( ) { / *|s o m e t h i n g * / }  // f n   i d k ( ) { / * s o m e t h i n g|* / }
+/// assert_eq!(21, text_util::next_word_boundary(20, &text)); // f n   i d k ( ) { / * s o m e t h i n g|* / }  // f n   i d k ( ) { / * s o m e t h i n g *|/ }
+/// assert_eq!(22, text_util::next_word_boundary(21, &text)); // f n   i d k ( ) { / * s o m e t h i n g *|/ }  // f n   i d k ( ) { / * s o m e t h i n g * /|}
+/// assert_eq!(23, text_util::next_word_boundary(22, &text)); // f n   i d k ( ) { / * s o m e t h i n g * /|}  // f n   i d k ( ) { / * s o m e t h i n g * / }|
+/// 
+/// let text = Rope::from("idk ");
+/// assert_eq!(4, text_util::next_word_boundary(3, &text));
+/// let text = Rope::from("idk\t");
+/// assert_eq!(4, text_util::next_word_boundary(3, &text));
+/// let text = Rope::from("idk\n");
+/// assert_eq!(4, text_util::next_word_boundary(3, &text));
+/// let text = Rope::from("idk\t ");
+/// assert_eq!(5, text_util::next_word_boundary(3, &text));
 /// ```
 pub fn next_word_boundary(current_position: usize, text: &Rope) -> usize{   //should this be Option<usize>?
     // if current_position == text.len_chars(){return None;}
     
-    //let mut index = current_position.saturating_add(1);
-    let mut index = next_grapheme_index(current_position, text);
+    let mut index = current_position;
 
     // Skip any leading whitespace
-    while index > 0 && is_whitespace(text.char(index)){
-        //index += 1;
+    while index < text.len_chars() && is_whitespace(text.char(index)){
         index = next_grapheme_index(index, text);
     }
 
     // Skip to end of word chars, if any
     let mut found_word_char = false;
     while index < text.len_chars() && is_word_char(text.char(index)){
-        //index += 1;
         index = next_grapheme_index(index, text);
         found_word_char = true;
     }
@@ -118,7 +128,6 @@ pub fn next_word_boundary(current_position: usize, text: &Rope) -> usize{   //sh
     // if no word chars, set index after next single non word char
     if !found_word_char{
         if index < text.len_chars() && !is_word_char(text.char(index)) && !is_whitespace(text.char(index)){
-            //index += 1;
             index = next_grapheme_index(index, text);
         }
     }
@@ -129,38 +138,54 @@ pub fn next_word_boundary(current_position: usize, text: &Rope) -> usize{   //sh
         text.len_chars()
     }
 }
+
 /// Returns the index of the previous word boundary
 /// ```
 /// # use ropey::Rope;
 /// # use edit_core::text_util;
 /// 
 /// let text = Rope::from("fn idk(){/*something*/}");
-/// assert_eq!(22, text_util::previous_word_boundary(23, &text));   //why is this assert failing?...
+/// assert_eq!(22, text_util::previous_word_boundary(23, &text)); // f n   i d k ( ) { / * s o m e t h i n g * / }|  // f n   i d k ( ) { / * s o m e t h i n g * /|}
+/// assert_eq!(21, text_util::previous_word_boundary(22, &text)); // f n   i d k ( ) { / * s o m e t h i n g * /|}   // f n   i d k ( ) { / * s o m e t h i n g *|/ }
+/// assert_eq!(20, text_util::previous_word_boundary(21, &text)); // f n   i d k ( ) { / * s o m e t h i n g *|/ }   // f n   i d k ( ) { / * s o m e t h i n g|* / }
+/// assert_eq!(11, text_util::previous_word_boundary(20, &text)); // f n   i d k ( ) { / * s o m e t h i n g|* / }   // f n   i d k ( ) { / *|s o m e t h i n g * / }
+/// assert_eq!(10, text_util::previous_word_boundary(11, &text)); // f n   i d k ( ) { / *|s o m e t h i n g * / }   // f n   i d k ( ) { /|* s o m e t h i n g * / }
+/// assert_eq!(9, text_util::previous_word_boundary(10, &text));  // f n   i d k ( ) { /|* s o m e t h i n g * / }   // f n   i d k ( ) {|/ * s o m e t h i n g * / }
+/// assert_eq!(8, text_util::previous_word_boundary(9, &text));   // f n   i d k ( ) {|/ * s o m e t h i n g * / }   // f n   i d k ( )|{ / * s o m e t h i n g * / }
+/// assert_eq!(7, text_util::previous_word_boundary(8, &text));   // f n   i d k ( )|{ / * s o m e t h i n g * / }   // f n   i d k (|) { / * s o m e t h i n g * / }
+/// assert_eq!(6, text_util::previous_word_boundary(7, &text));   // f n   i d k (|) { / * s o m e t h i n g * / }   // f n   i d k|( ) { / * s o m e t h i n g * / }
+/// assert_eq!(3, text_util::previous_word_boundary(6, &text));   // f n   i d k|( ) { / * s o m e t h i n g * / }   // f n  |i d k ( ) { / * s o m e t h i n g * / }
+/// assert_eq!(0, text_util::previous_word_boundary(3, &text));   // f n  |i d k ( ) { / * s o m e t h i n g * / }   //|f n   i d k ( ) { / * s o m e t h i n g * / }
+/// 
+/// let text = Rope::from(" idk");
+/// assert_eq!(0, text_util::previous_word_boundary(1, &text));
+/// let text = Rope::from("\tidk");
+/// assert_eq!(0, text_util::previous_word_boundary(1, &text));
+/// let text = Rope::from("\nidk");
+/// assert_eq!(0, text_util::previous_word_boundary(1, &text));
 /// ```
 pub fn previous_word_boundary(current_position: usize, text: &Rope) -> usize{   //should this be Option<usize>?
     // if current_position == 0{return None;}
     
-    //let mut index = current_position.saturating_sub(1);
-    let mut index = previous_grapheme_index(current_position, text);
+    let mut index = current_position;
 
     // Skip any trailing whitespace
-    while index > 0 && is_whitespace(text.char(index)){
-        //index -= 1;
+    while index > 0 && is_whitespace(text.char(previous_grapheme_index(index, text))){
         index = previous_grapheme_index(index, text);
     }
 
     // Skip to start of word chars, if any
     let mut found_word_char = false;
-    while index > 0 && is_word_char(text.char(index)){
-        //index -= 1;
+    while index > 0 && is_word_char(text.char(previous_grapheme_index(index, text))){
         index = previous_grapheme_index(index, text);
         found_word_char = true;
     }
 
     // if no word chars, set index before next single non word char
-    if !found_word_char{
-        if index > 0 && !is_word_char(text.char(index)) && !is_whitespace(text.char(index)){
-            //index -= 1;
+    if !found_word_char{    //&& !found_whitespace
+        if index > 0
+        && !is_word_char(text.char(previous_grapheme_index(index, text))) 
+        && !is_whitespace(text.char(previous_grapheme_index(index, text))){
             index = previous_grapheme_index(index, text);
         }
     }
@@ -170,7 +195,6 @@ pub fn previous_word_boundary(current_position: usize, text: &Rope) -> usize{   
     }else{
         0
     }
-
 }
 
 /// Returns true if slice contains only spaces.

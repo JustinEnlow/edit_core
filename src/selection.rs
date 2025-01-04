@@ -302,18 +302,16 @@ impl Selection{
     pub fn move_right_word_boundary(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
         if self.cursor(semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
         
-        let goal_index = text_util::next_word_boundary(self.cursor(semantics), text);
-        let offset = goal_index.saturating_sub(self.cursor(semantics));
-        
+        let goal_index = text_util::next_word_boundary(self.head(), text);
         match semantics{
             CursorSemantics::Bar => {
-                self.move_horizontally(offset, text, Movement::Move, Direction::Forward, semantics)
+                self.put_cursor(goal_index, text, Movement::Move, semantics, true)
             }
             CursorSemantics::Block => {
-                if offset.saturating_sub(1) > 0{
-                    self.move_horizontally(offset.saturating_sub(1), text, Movement::Move, Direction::Forward, semantics)
+                if goal_index == text.len_chars(){
+                    self.put_cursor(goal_index, text, Movement::Move, semantics, true)
                 }else{
-                    self.move_horizontally(offset, text, Movement::Move, Direction::Forward, semantics)
+                    self.put_cursor(text_util::previous_grapheme_index(goal_index, text), text, Movement::Move, semantics, true)
                 }
             }
         }
@@ -331,20 +329,7 @@ impl Selection{
         if self.cursor(semantics) == 0{return Err(SelectionError::ResultsInSameState);}
         
         let goal_index = text_util::previous_word_boundary(self.cursor(semantics), text);
-        let offset = self.cursor(semantics).saturating_sub(goal_index);
-        
-        match semantics{
-            CursorSemantics::Bar => {
-                self.move_horizontally(offset, text, Movement::Move, Direction::Backward, semantics)
-            }
-            CursorSemantics::Block => {
-                if offset.saturating_sub(1) > 0 && goal_index != 0{
-                    self.move_horizontally(offset.saturating_sub(1), text, Movement::Move, Direction::Backward, semantics)
-                }else{
-                    self.move_horizontally(offset, text, Movement::Move, Direction::Backward, semantics)
-                }
-            }
-        }
+        self.put_cursor(goal_index, text, Movement::Move, semantics, true)
     }
 
     /// Returns a new instance of [`Selection`] with cursor moved up.
