@@ -214,7 +214,7 @@ impl Selection{
     /// Errors if `amount` < 1, or calculated new position is invalid.
     #[must_use]
     pub fn move_vertically(&self, amount: usize, text: &Rope, movement: Movement, direction: Direction, semantics: CursorSemantics) -> Result<Self, SelectionError>{
-        if amount < 1{return Err(SelectionError::InvalidInput);}
+        if amount < 1{return Err(SelectionError::InvalidInput);}    // really this should be SelectionError::ResultsInSameState
         
         let mut selection = self.clone();
         
@@ -247,11 +247,25 @@ impl Selection{
     /// Errors if `amount` < 1, or calculated new position is invalid.
     #[must_use]
     pub fn move_horizontally(&self, amount: usize, text: &Rope, movement: Movement, direction: Direction, semantics: CursorSemantics) -> Result<Self, SelectionError>{
-        if amount < 1{return Err(SelectionError::InvalidInput);}
+        if amount < 1{return Err(SelectionError::InvalidInput);}    // really this should be SelectionError::ResultsInSameState
         
         let new_position = match direction{
-            Direction::Forward => self.cursor(semantics).saturating_add(amount).min(text.len_chars()),    //ensures this does not move past text end
-            Direction::Backward => self.cursor(semantics).saturating_sub(amount)
+            //Direction::Forward => self.cursor(semantics).saturating_add(amount).min(text.len_chars()),    //ensures this does not move past text end
+            Direction::Forward => {
+                let mut index = self.cursor(semantics);
+                for _ in 0..amount{
+                    index = text_util::next_grapheme_index(index, text);
+                }
+                index.min(text.len_chars()) //ensures this does not move past text end
+            }
+            //Direction::Backward => self.cursor(semantics).saturating_sub(amount)
+            Direction::Backward => {
+                let mut index = self.cursor(semantics);
+                for _ in 0..amount{
+                    index = text_util::previous_grapheme_index(index, text);
+                }
+                index
+            }
         };
         self.put_cursor(new_position, text, movement, semantics, true)
     }

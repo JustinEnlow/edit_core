@@ -9,8 +9,10 @@ use ropey::Rope;
 use crate::text_util;
 use std::cmp::Ordering;
 
+// should these consts be set in the frontend app, and passed in to functions that require them?
+
 // tab keypress inserts the number of spaces specified in TAB_WIDTH into the focused document
-pub const TAB_WIDTH: usize = 4; //should this be language dependant? on-the-fly configurable?
+pub const TAB_WIDTH: usize = 4; //should this be language dependant? on-the-fly configurable?   //TODO: consider what to do with files where the tab width already in use is different than this setting
 // whether to use hard or soft tabs
 pub const USE_HARD_TAB: bool = false;
 // whether to use full file path or just file name
@@ -29,7 +31,7 @@ pub enum DocumentError{
 pub struct Document{
     text: Rope,
     file_path: Option<PathBuf>,
-    modified: bool,
+    //modified: bool,
     selections: Selections, //Hashmap<ClientID, Selections>
     client_view: View,      //Hashmap<ClientID, View>
     undo_stack: Vec<ChangeSet>,
@@ -86,7 +88,7 @@ impl Document{
         Self{
             text: text.clone(),
             file_path,
-            modified: false,
+            //modified: false,
             selections,
             client_view: View::default(),
             undo_stack: Vec::new(),
@@ -149,7 +151,7 @@ impl Document{
         if let Some(path) = &self.file_path{ // does nothing if path is None    //maybe return Err(()) instead?
             self.text.write_to(BufWriter::new(fs::File::create(path)?))?;
             
-            self.modified = false;
+            //self.modified = false;
             self.last_saved_text = self.text.clone();
         }
         
