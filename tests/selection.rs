@@ -30,17 +30,19 @@ fn is_extended_block_semantics(){
 
 #[test]
 fn direction_bar_semantics(){
-    assert_eq!(Selection::new(0, 0).direction(CursorSemantics::Bar), Direction::Forward);
-    assert_eq!(Selection::new(0, 1).direction(CursorSemantics::Bar), Direction::Forward);
-    assert_eq!(Selection::new(1, 0).direction(CursorSemantics::Bar), Direction::Backward);
+    let text = Rope::from("idk");
+    assert_eq!(Selection::new(0, 0).direction(&text, CursorSemantics::Bar), Direction::Forward);
+    assert_eq!(Selection::new(0, 1).direction(&text, CursorSemantics::Bar), Direction::Forward);
+    assert_eq!(Selection::new(1, 0).direction(&text, CursorSemantics::Bar), Direction::Backward);
 }
 
 #[test]
 fn direction_block_semantics(){
+    let text = Rope::from("idk");
     //assert_eq!(Selection::new(0, 0).direction(CursorSemantics::Block), Direction::Backward);    //state shouldn't be possible with block cursor semantics, so this failure is fine.
-    assert_eq!(Selection::new(0, 1).direction(CursorSemantics::Block), Direction::Forward);
-    assert_eq!(Selection::new(1, 0).direction(CursorSemantics::Block), Direction::Backward);
-    assert_eq!(Selection::new(1, 1).direction(CursorSemantics::Block), Direction::Backward); //state shouldn't be possible with block cursor semantics, but the result is still valid.
+    assert_eq!(Selection::new(0, 1).direction(&text, CursorSemantics::Block), Direction::Forward);
+    assert_eq!(Selection::new(1, 0).direction(&text, CursorSemantics::Block), Direction::Backward);
+    assert_eq!(Selection::new(1, 1).direction(&text, CursorSemantics::Block), Direction::Backward); //state shouldn't be possible with block cursor semantics, but the result is still valid.
 }
 
 //#[test]
@@ -217,11 +219,11 @@ fn merge_disconnected(){
 
 #[test]
 fn cursor(){
-    //let text = Rope::from("idk\nsome\nshit\n");
-    assert_eq!(Selection::new(0, 0).cursor(CursorSemantics::Bar), 0);   //|>idk\nsome\nshit\n
-    assert_eq!(Selection::new(1, 2).cursor(CursorSemantics::Block), 1); //i|:d>k\nsome\nshit\n
-    assert_eq!(Selection::new(2, 1).cursor(CursorSemantics::Block), 1); //i:<d|k\nsome\nshit\n
-    assert_eq!(Selection::new(2, 2).cursor(CursorSemantics::Block), 1); //i:d|>k\nsome\nshit\n  //though this state should be impossible with block cursor semantics
+    let text = Rope::from("idk\nsome\nshit\n");
+    assert_eq!(Selection::new(0, 0).cursor(&text, CursorSemantics::Bar), 0);   //|>idk\nsome\nshit\n
+    assert_eq!(Selection::new(1, 2).cursor(&text, CursorSemantics::Block), 1); //i|:d>k\nsome\nshit\n
+    assert_eq!(Selection::new(2, 1).cursor(&text, CursorSemantics::Block), 1); //i:<d|k\nsome\nshit\n
+    assert_eq!(Selection::new(2, 2).cursor(&text, CursorSemantics::Block), 1); //i:d|>k\nsome\nshit\n  //though this state should be impossible with block cursor semantics
 }
 
 #[test]

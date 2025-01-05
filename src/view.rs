@@ -82,7 +82,7 @@ impl View{
     /// is outside [`View`] boundaries, [`View`] should be scrolled.
     #[must_use]
     pub fn should_scroll(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> bool{
-        assert!(selection.cursor(semantics) <= text.len_chars());
+        assert!(selection.cursor(text, semantics) <= text.len_chars());
 
         let cursor = selection.selection_to_selection2d(text, semantics);
         let cursor_y = cursor.head().y();
@@ -99,7 +99,7 @@ impl View{
     /// Can follow any specified selection, not just primary selection.
     #[must_use]
     pub fn scroll_following_cursor(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> Self{
-        assert!(selection.cursor(semantics) <= text.len_chars());
+        assert!(selection.cursor(text, semantics) <= text.len_chars());
 
         let cursor = selection.selection_to_selection2d(text, semantics);
         let cursor_y = cursor.head().y();
@@ -127,10 +127,10 @@ impl View{
     /// Returns an instance of [`View`] vertically centered around specified cursor.
     #[must_use]
     pub fn center_vertically_around_cursor(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> Self{  //TODO: return error if results in same state
-        assert!(selection.cursor(semantics) <= text.len_chars());    //ensure selection is valid
+        assert!(selection.cursor(text, semantics) <= text.len_chars());    //ensure selection is valid
         assert!(text.len_lines() > 0);  //ensure text is not empty
         
-        let current_line = text.char_to_line(selection.cursor(semantics));
+        let current_line = text.char_to_line(selection.cursor(text, semantics));
         let half_view_height = self.height / 2;
 
         // Calculate the new vertical start position

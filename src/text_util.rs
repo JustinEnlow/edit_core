@@ -237,7 +237,7 @@ pub fn slice_is_all_spaces(slice: RopeSlice) -> bool{
 /// assert!(distance == 3);
 /// ```
 pub fn distance_to_next_multiple_of_tab_width(selection: Selection, text: &Rope, semantics: CursorSemantics) -> usize{
-    let next_tab_distance = offset_from_line_start(selection.cursor(semantics), text) % TAB_WIDTH;
+    let next_tab_distance = offset_from_line_start(selection.cursor(text, semantics), text) % TAB_WIDTH;
     //if offset_from_line_start(selection.cursor(semantics), text) % TAB_WIDTH != 0{
     if next_tab_distance != 0{
         //TAB_WIDTH.saturating_sub(offset_from_line_start(selection.cursor(semantics), text) % TAB_WIDTH)

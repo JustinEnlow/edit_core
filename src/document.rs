@@ -174,7 +174,7 @@ impl Document{
     // TODO: test. should test rope is edited correctly and selection is moved correctly, not necessarily the returned change. behavior, not impl
     fn apply_insert(doc_text: &mut Rope, string: &str, selection: &mut Selection, semantics: CursorSemantics) -> Change{    //TODO: Error if string is empty
         let old_selection = selection.clone();
-        doc_text.insert(selection.cursor(semantics), string);
+        doc_text.insert(selection.cursor(doc_text, semantics), string);
         for _ in 0..string.len(){
             //*selection = selection.move_right(doc_text, semantics);
             if let Ok(new_selection) = selection.move_right(doc_text, semantics){
@@ -190,19 +190,19 @@ impl Document{
         let original_text = doc_text.clone();
 
         use std::cmp::Ordering;
-        let (start, end, new_cursor) = match selection.cursor(semantics).cmp(&selection.anchor()){
-            Ordering::Less => {(selection.head(), selection.anchor(), selection.cursor(semantics))}
+        let (start, end, new_cursor) = match selection.cursor(doc_text, semantics).cmp(&selection.anchor()){
+            Ordering::Less => {(selection.head(), selection.anchor(), selection.cursor(doc_text, semantics))}
             Ordering::Greater => {
                 match semantics{
                     CursorSemantics::Bar => {(selection.anchor(), selection.head(), selection.anchor())}
                     CursorSemantics::Block => {
-                        if selection.cursor(semantics) == doc_text.len_chars(){(selection.anchor(), selection.cursor(semantics), selection.anchor())}
+                        if selection.cursor(doc_text, semantics) == doc_text.len_chars(){(selection.anchor(), selection.cursor(doc_text, semantics), selection.anchor())}
                         else{(selection.anchor(), selection.head(), selection.anchor())}
                     }
                 }
             }
             Ordering::Equal => {
-                if selection.cursor(semantics) == doc_text.len_chars(){ //do nothing    //or preferrably return error   //could have condition check in calling fn
+                if selection.cursor(doc_text, semantics) == doc_text.len_chars(){ //do nothing    //or preferrably return error   //could have condition check in calling fn
                     return Change::new(Operation::Delete, old_selection, selection.clone(), Operation::Insert{inserted_text: "".to_string()});
                 }else{
                     match semantics{
@@ -391,7 +391,7 @@ impl Document{
         // if any selection errors, don't allow deletion for any other...
         for i in 0..self.selections.count(){
             let selection = self.selections.nth_mut(i);
-            if !selection.is_extended(semantics) && selection.cursor(semantics) >= self.text.len_chars(){return Err(DocumentError::SelectionAtDocBounds);}
+            if !selection.is_extended(semantics) && selection.cursor(&self.text, semantics) >= self.text.len_chars(){return Err(DocumentError::SelectionAtDocBounds);}
         }
 
         for i in 0..self.selections.count(){
@@ -426,7 +426,7 @@ impl Document{
         // if any selection errors, don't allow deletion for any other...
         for i in 0..self.selections.count(){
             let selection = self.selections.nth_mut(i);
-            if !selection.is_extended(semantics) && selection.cursor(semantics) == 0{return Err(DocumentError::SelectionAtDocBounds);}
+            if !selection.is_extended(semantics) && selection.cursor(&self.text, semantics) == 0{return Err(DocumentError::SelectionAtDocBounds);}
         }
 
         for i in 0..self.selections.count(){
@@ -438,8 +438,8 @@ impl Document{
                 }
                 changes.push(change);
             }else{
-                let offset_from_line_start = text_util::offset_from_line_start(selection.cursor(semantics), &self.text);
-                let line = self.text.line(self.text.char_to_line(selection.cursor(semantics)));
+                let offset_from_line_start = text_util::offset_from_line_start(selection.cursor(&self.text, semantics), &self.text);
+                let line = self.text.line(self.text.char_to_line(selection.cursor(&self.text, semantics)));
                 let is_deletable_soft_tab = !USE_HARD_TAB && offset_from_line_start >= TAB_WIDTH
                 // handles case where user adds a space after a tab, and wants to delete only the space
                 && offset_from_line_start % TAB_WIDTH == 0
