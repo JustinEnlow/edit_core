@@ -9,43 +9,51 @@ fn scroll_down(){
     
     // scrolls when vertical space remaining in text
     let view = View::new(0, 0, 2, 2);
-    assert_eq!(View::new(0, 1, 2, 2), view.scroll_down(1, &text));
-    assert_eq!(String::from("so\nsh\n"), view.scroll_down(1, &text).text(&text));
+    assert_eq!(View::new(0, 1, 2, 2), view.scroll_down(1, &text).unwrap());
+    assert_eq!(String::from("so\nsh\n"), view.scroll_down(1, &text).unwrap().text(&text));
     
-    // scrolling saturates at limits of text
+    //errors if already scrolled all the way down
     let view = View::new(0, 2, 2, 2);
-    assert_eq!(View::new(0, 2, 2, 2), view.scroll_down(1, &text));
-    assert_eq!(String::from("sh\n\n"), view.scroll_down(1, &text).text(&text));
+    assert!(view.scroll_down(1, &text).is_err());
+
+    //errors if amount is 0
+    assert!(view.scroll_down(0, &text).is_err());
 }
 
 #[test]
 fn scroll_left(){
     let text = Rope::from("idk\nsome\nshit\n");
     
-    // scrolling saturates at limits of text
-    let view = View::new(0, 0, 2, 2);
-    assert_eq!(View::new(0, 0, 2, 2), view.scroll_left(1));
-    assert_eq!(String::from("id\nso\n"), view.scroll_left(1).text(&text));
-    
     // scrolls when horizontal space remaining in text
     let view = View::new(2, 0, 2, 2);
-    assert_eq!(View::new(1, 0, 2, 2), view.scroll_left(1));
-    assert_eq!(String::from("dk\nom\n"), view.scroll_left(1).text(&text));
+    assert_eq!(View::new(1, 0, 2, 2), view.scroll_left(1).unwrap());
+    assert_eq!(String::from("dk\nom\n"), view.scroll_left(1).unwrap().text(&text));
+
+    //errors if already scrolled all the way left
+    let view = View::new(0, 0, 2, 2);
+    assert!(view.scroll_left(1).is_err());
+
+    //errors if amount is 0
+    assert!(view.scroll_left(0).is_err());
 }
 
 #[test]
 fn scroll_right(){
     let text = Rope::from("idk\nsome\nshit\n");
-    
-    // scrolling saturates at limits of text
-    let view = View::new(2, 0, 2, 2);
-    assert_eq!(View::new(2, 0, 2, 2), view.scroll_right(1, &text));
-    assert_eq!(String::from("k\nme\n"), view.scroll_right(1, &text).text(&text));
-    
+
     // scrolls when horizontal space remaining in text
     let view = View::new(0, 0, 2, 2);
-    assert_eq!(View::new(1, 0, 2, 2), view.scroll_right(1, &text));
-    assert_eq!(String::from("dk\nom\n"), view.scroll_right(1, &text).text(&text));
+    assert_eq!(View::new(1, 0, 2, 2), view.scroll_right(1, &text).unwrap());
+    assert_eq!(String::from("dk\nom\n"), view.scroll_right(1, &text).unwrap().text(&text));
+    
+    //errors if already scrolled all the way right
+    let view = View::new(2, 0, 2, 2);
+    assert!(view.scroll_right(1, &text).is_err());
+
+    //errors if amount is 0
+    assert!(view.scroll_right(0, &text).is_err());
+    
+    
 }
 
 #[test]
@@ -54,13 +62,15 @@ fn scroll_up(){
     
     // scrolls when vertical space remaining in text
     let view = View::new(0, 2, 2, 2);
-    assert_eq!(View::new(0, 1, 2, 2), view.scroll_up(1));
-    assert_eq!(String::from("so\nsh\n"), view.scroll_up(1).text(&text));
+    assert_eq!(View::new(0, 1, 2, 2), view.scroll_up(1).unwrap());
+    assert_eq!(String::from("so\nsh\n"), view.scroll_up(1).unwrap().text(&text));
     
-    // scrolling saturates at limits of text
+    //errors if already scrolled all the way up
     let view = View::new(0, 0, 2, 2);
-    assert_eq!(View::new(0, 0, 2, 2), view.scroll_up(1));
-    assert_eq!(String::from("id\nso\n"), view.scroll_up(1).text(&text));
+    assert!(view.scroll_up(1).is_err());
+
+    //errors if amount is 0
+    assert!(view.scroll_up(0).is_err());
 }
 
 #[test]

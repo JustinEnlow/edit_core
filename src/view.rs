@@ -4,6 +4,11 @@ use crate::Position;
 
 
 
+#[derive(Debug, PartialEq)]
+pub enum ViewError{
+    ResultsInSameState,
+    InvalidInput,
+}
 /// The dimensions of the area a client has for displaying a document
 /// origin is top left
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -33,29 +38,33 @@ impl View{
 
     /// Returns a new instance of [`View`] with `vertical_start` increased by specified amount.
     #[must_use]
-    pub fn scroll_down(&self, amount: usize, text: &Rope) -> Self{  //TODO: return error if results in same state
-        assert!(amount > 0);
+    pub fn scroll_down(&self, amount: usize, text: &Rope) -> Result<Self, ViewError>{
         assert!(text.len_lines() > 0);
+
+        if amount == 0{return Err(ViewError::InvalidInput);}
+
+        let max_scrollable_position = text.len_lines().saturating_sub(self.height);
+        if self.vertical_start == max_scrollable_position{return Err(ViewError::ResultsInSameState);}
         
         let new_vertical_start = self.vertical_start.saturating_add(amount);
-        let max_scrollable_position = text.len_lines().saturating_sub(self.height);
 
         if new_vertical_start <= max_scrollable_position{
-            Self::new(self.horizontal_start, new_vertical_start, self.width, self.height)
+            Ok(Self::new(self.horizontal_start, new_vertical_start, self.width, self.height))
         }else{
-            Self::new(self.horizontal_start, max_scrollable_position, self.width, self.height)
+            Ok(Self::new(self.horizontal_start, max_scrollable_position, self.width, self.height))
         }
     }
     /// Returns a new instance of [`View`] with `horizontal_start` decreased by specified amount.
     #[must_use]
-    pub fn scroll_left(&self, amount: usize) -> Self{   //TODO: return error if results in same state
-        assert!(amount > 0);
-        Self::new(self.horizontal_start.saturating_sub(amount), self.vertical_start, self.width, self.height)
+    pub fn scroll_left(&self, amount: usize) -> Result<Self, ViewError>{
+        if amount == 0{return Err(ViewError::InvalidInput);}
+        if self.horizontal_start == 0{return Err(ViewError::ResultsInSameState);}
+        Ok(Self::new(self.horizontal_start.saturating_sub(amount), self.vertical_start, self.width, self.height))
     }
     /// Returns a new instance of [`View`] with `horizontal_start` increased by specified amount.
     #[must_use]
-    pub fn scroll_right(&self, amount: usize, text: &Rope) -> Self{ //TODO: return error if results in same state
-        assert!(amount > 0);
+    pub fn scroll_right(&self, amount: usize, text: &Rope) -> Result<Self, ViewError>{
+        if amount == 0{return Err(ViewError::InvalidInput);}
 
         // TODO: cache longest as a field in [`View`] struct to eliminate having to calculate this on each call
         // Calculate the longest line width in a single pass
@@ -67,16 +76,18 @@ impl View{
         let new_horizontal_start = self.horizontal_start.saturating_add(amount);
 
         if new_horizontal_start + self.width <= longest{
-            Self::new(new_horizontal_start, self.vertical_start, self.width, self.height)
+            Ok(Self::new(new_horizontal_start, self.vertical_start, self.width, self.height))
         }else{
-            self.clone()
+            //Ok(self.clone())
+            Err(ViewError::ResultsInSameState)
         }
     }
     /// Returns a new instance of [`View`] with `vertical_start` decreased by specified amount.
     #[must_use]
-    pub fn scroll_up(&self, amount: usize) -> View{ //TODO: return error if results in same state
-        assert!(amount > 0);
-        Self::new(self.horizontal_start, self.vertical_start.saturating_sub(amount), self.width, self.height)
+    pub fn scroll_up(&self, amount: usize) -> Result<View, ViewError>{
+        if amount == 0{return Err(ViewError::InvalidInput);}
+        if self.vertical_start == 0{return Err(ViewError::ResultsInSameState);}
+        Ok(Self::new(self.horizontal_start, self.vertical_start.saturating_sub(amount), self.width, self.height))
     }
     /// Returns a `bool` indicating whether the [`View`] should be scrolled or not. If `head` of primary [`Selection2d`]
     /// is outside [`View`] boundaries, [`View`] should be scrolled.
