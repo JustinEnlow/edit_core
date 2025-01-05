@@ -11,8 +11,8 @@ use crate::{
 ///     start = [
 ///     end = ]
 ///     anchor = |
-///     head = < or >, depending on direction
-///     virtual head = :, if block cursor semantics
+///     head = < or >, depending on selection direction
+///     cursor(left hand side) = :, if block cursor semantics
 /// 
 /// ```
 /// # use ropey::Rope;
@@ -73,7 +73,7 @@ pub enum SelectionError{        //or should each fallible fn have its own fn spe
 /// a cursor is a selection with an anchor/head difference of 0 or 1(depending on cursor semantics)
 /// Should ensure head/anchor are always within text bounds
 #[derive(PartialEq, Clone, Debug)]
-pub struct Selection{
+pub struct Selection{   //should anchor and head be pulled out into their own structure? struct Range{anchor: usize, head: usize} or maybe Range{start: usize, end: usize}
     anchor: usize,  // the stationary portion of a selection.
     head: usize,    // the mobile portion of a selection. this is the portion a user can move to extend selection
     stored_line_position: Option<usize>,    // the offset from the start of the line self.head is on
@@ -116,6 +116,12 @@ impl Selection{
             CursorSemantics::Bar => self.end().saturating_sub(self.start()) > 0,
             CursorSemantics::Block => self.end().saturating_sub(self.start()) > 1  //if selection is greater than one grapheme //currently uses char count though...
         }
+
+        //i think something like below code will be needed for UTF-8 support, because a single grapheme can be comprised of multiple chars
+        //match semantics{  //this seems to cause shitloads of problems with existing code for some reason...
+        //    CursorSemantics::Bar => self.start() != self.end(),
+        //    CursorSemantics::Block => text_util::next_grapheme_index(self.start(), text) != self.end()
+        //}
     }
 
     // TODO: impl tests
@@ -193,6 +199,7 @@ impl Selection{
             CursorSemantics::Bar => self.head,
             CursorSemantics::Block => {
                 if self.head >= self.anchor{self.head.saturating_sub(1)}
+                //TODO: if self.head >= self.anchor{text_util::previous_grapheme_index(self.head, text)}
                 else{self.head}
             }
         }
@@ -214,7 +221,8 @@ impl Selection{
             (CursorSemantics::Bar, Movement::Extend) => selection.head = to,
             (CursorSemantics::Block, Movement::Move) => {
                 selection.anchor = to;
-                selection.head = to.saturating_add(1).min(text.len_chars().saturating_add(1));   //allowing one more char past text.len_chars() for block cursor
+                //selection.head = to.saturating_add(1).min(text.len_chars().saturating_add(1));   //allowing one more char past text.len_chars() for block cursor
+                selection.head = text_util::next_grapheme_index(to, text).min(text.len_chars().saturating_add(1));  //allowing one more char past text.len_chars() for block cursor
             }
             (CursorSemantics::Block, Movement::Extend) => {
                 let new_anchor = if self.head >= self.anchor && to < self.anchor{   //if direction forward and to < self.anchor
@@ -222,20 +230,24 @@ impl Selection{
                         if char_at_cursor == '\n'{
                             self.anchor
                         }else{
-                            self.anchor.saturating_add(1).min(text.len_chars())
+                            //self.anchor.saturating_add(1).min(text.len_chars())
+                            text_util::next_grapheme_index(self.anchor, text).min(text.len_chars())
                         }
                     }else{
-                        self.anchor.saturating_add(1).min(text.len_chars())
+                        //self.anchor.saturating_add(1).min(text.len_chars())
+                        text_util::next_grapheme_index(self.anchor, text).min(text.len_chars())
                     }
                 }else if self.head < self.anchor && to >= self.anchor{  //if direction backward and to >= self.anchor
-                    self.anchor.saturating_sub(1)
-                }else{
+                    //self.anchor.saturating_sub(1)
+                    text_util::previous_grapheme_index(self.anchor, text)
+                }else{  //direction forward and to >= self.anchor || if direction backward and to < self.anchor
                     self.anchor
                 };
 
                 if new_anchor <= to{
                     selection.anchor = new_anchor;
-                    selection.head = to.saturating_add(1).min(text.len_chars().saturating_add(1))    //allowing one more char past text.len_chars() for block cursor
+                    //selection.head = to.saturating_add(1).min(text.len_chars().saturating_add(1))    //allowing one more char past text.len_chars() for block cursor
+                    selection.head = text_util::next_grapheme_index(to, text).min(text.len_chars().saturating_add(1));  //allowing one more char past text.len_chars() for block cursor
                 }else{
                     selection.anchor = new_anchor;
                     selection.head = to;
@@ -255,7 +267,7 @@ impl Selection{
     /// Returns a new instance of [`Selection`] with the cursor moved vertically by specified amount.
     /// Errors if `amount` < 1, or calculated new position is invalid.
     #[must_use]
-    pub fn move_vertically(&self, amount: usize, text: &Rope, movement: Movement, direction: Direction, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+    pub fn move_vertically(&self, amount: usize, text: &Rope, movement: Movement, direction: Direction, semantics: CursorSemantics) -> Result<Self, SelectionError>{    //TODO: error if current_line + amount > text.len_lines, or if current_line < amount when moving backward
         if amount < 1{return Err(SelectionError::InvalidInput);}    // really this should be SelectionError::ResultsInSameState
         
         let mut selection = self.clone();
@@ -395,7 +407,7 @@ impl Selection{
         let line = text.line(line_number);
         let line_width = text_util::line_width(line, false);
         let line_start = text.line_to_char(line_number);
-        let line_end = line_start.saturating_add(line_width);
+        let line_end = line_start.saturating_add(line_width);   //nth_next_grapheme_index(line_start, line_width, text)?
 
         if self.cursor(semantics) == line_end{return Err(SelectionError::ResultsInSameState);}
         self.put_cursor(line_end, text, Movement::Move, semantics, true)
@@ -407,7 +419,7 @@ impl Selection{
         let line_number = text.char_to_line(self.cursor(semantics));
         let line_start = text.line_to_char(line_number);
         let text_start_offset = text_util::first_non_whitespace_character_offset(text.line(line_number));
-        let text_start = line_start.saturating_add(text_start_offset);
+        let text_start = line_start.saturating_add(text_start_offset);  //nth_next_grapheme_index(line_start, text_start_offset, text)?
 
         //if text_start == line_start && self.cursor(semantics) == line_start{return Err(());}    //would result in same state    //TODO: test
         if self.cursor(semantics) == text_start{self.move_line_start(text, semantics)}
@@ -430,7 +442,7 @@ impl Selection{
         let line_number = text.char_to_line(self.cursor(semantics));
         let line_start = text.line_to_char(line_number);
         let text_start_offset = text_util::first_non_whitespace_character_offset(text.line(line_number));
-        let text_start = line_start.saturating_add(text_start_offset);
+        let text_start = line_start.saturating_add(text_start_offset);  //nth_next_grapheme_index(line_start, text_start_offset, text)?
 
         if self.cursor(semantics) == text_start{return Err(SelectionError::ResultsInSameState);}    //TODO: test
         self.put_cursor(text_start, text, Movement::Move, semantics, true)
@@ -526,7 +538,7 @@ impl Selection{
         let line = text.line(line_number);
         let line_width = text_util::line_width(line, false);    //doesn't include newline
         let line_start = text.line_to_char(line_number);
-        let line_end = line_start.saturating_add(line_width);   //index at end of line text, not including newline
+        let line_end = line_start.saturating_add(line_width);   //index at end of line text, not including newline  //nth_next_grapheme_index(line_start, line_width, text)?
 
         match semantics{
             CursorSemantics::Bar => {
@@ -534,14 +546,16 @@ impl Selection{
                 self.put_cursor(line_end, text, Movement::Extend, semantics, true)
             }
             CursorSemantics::Block => {
-                if self.cursor(semantics) == line_end.saturating_sub(1)
+                //if self.cursor(semantics) == line_end.saturating_sub(1)
+                if self.cursor(semantics) == text_util::previous_grapheme_index(line_end, text)
                 || self.cursor(semantics) == line_end{return Err(SelectionError::ResultsInSameState);}
                 let start_line = text.char_to_line(self.start());
                 let end_line = text.char_to_line(self.end());
                 if self.cursor(semantics) == self.start() && end_line > start_line{
                     self.put_cursor(line_end, text, Movement::Extend, semantics, true)  //put cursor over newline, if extending from a line below
                 }else{
-                    self.put_cursor(line_end.saturating_sub(1), text, Movement::Extend, semantics, true)
+                    //self.put_cursor(line_end.saturating_sub(1), text, Movement::Extend, semantics, true)
+                    self.put_cursor(text_util::previous_grapheme_index(line_end, text), text, Movement::Extend, semantics, true)
                 }
                 
             }
@@ -554,7 +568,7 @@ impl Selection{
         let line_number = text.char_to_line(self.cursor(semantics));
         let line_start = text.line_to_char(line_number);
         let text_start_offset = text_util::first_non_whitespace_character_offset(text.line(line_number));
-        let text_start = line_start.saturating_add(text_start_offset);
+        let text_start = line_start.saturating_add(text_start_offset);  //nth_next_grapheme_index(line_start, text_start_offset, text)?
 
         //if text_start == line_start && self.cursor(semantics) == line_start{return Err(());}    //would result in same state
         if self.cursor(semantics) == text_start{self.extend_line_start(text, semantics)}
@@ -577,7 +591,7 @@ impl Selection{
         let line_number = text.char_to_line(self.cursor(semantics));
         let line_start = text.line_to_char(line_number);
         let text_start_offset = text_util::first_non_whitespace_character_offset(text.line(line_number));
-        let text_start = line_start.saturating_add(text_start_offset);
+        let text_start = line_start.saturating_add(text_start_offset);  //nth_next_grapheme_index(line_start, text_start_offset, text)?
 
         if self.cursor(semantics) == text_start{return Err(SelectionError::ResultsInSameState);}
         self.put_cursor(text_start, text, Movement::Extend, semantics, true)
@@ -1029,6 +1043,27 @@ impl Selections{
             CursorSemantics::Bar => {Ok(self.push(Selection::new(start, end), false))}
             CursorSemantics::Block => {Ok(self.push(Selection::new(start, end.saturating_add(1)), false))}
         }
+    }
+
+    pub fn remove_primary_selection(&self) -> Result<Self, SelectionsError>{
+        assert!(self.count() >= 1);
+        
+        if self.count() < 2{return Err(SelectionsError::SingleSelection);}
+        
+        let mut new_selections = Vec::new();
+        for selection in &self.selections{
+            if selection != self.primary(){
+                new_selections.push(selection.clone());
+            }
+        }
+        //keep the new primary selection relatively close by
+        let new_primary_index = if self.primary_selection_index > 0{
+            self.primary_selection_index.saturating_sub(1)
+        }else{
+            self.primary_selection_index
+        };
+
+        Ok(Self{selections: new_selections, primary_selection_index: new_primary_index})
     }
 
     // should these be made purely functional?
