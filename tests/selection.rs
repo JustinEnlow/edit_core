@@ -28,20 +28,20 @@ fn is_extended_block_semantics(){
     assert_eq!(Selection::new(2, 0).is_extended(CursorSemantics::Block), true);
 }
 
-//#[test]
-//fn direction_bar_semantics(){
-//    assert_eq!(Selection::new(0, 0).direction(CursorSemantics::Bar), Direction::Forward);
-//    assert_eq!(Selection::new(0, 1).direction(CursorSemantics::Bar), Direction::Forward);
-//    assert_eq!(Selection::new(1, 0).direction(CursorSemantics::Bar), Direction::Backward);
-//}
-//
-//#[test]
-//fn direction_block_semantics(){
-//    //assert_eq!(Selection::new(0, 0).direction(CursorSemantics::Block), Direction::Backward);    //state shouldn't be possible with block cursor semantics, so this failure is fine.
-//    assert_eq!(Selection::new(0, 1).direction(CursorSemantics::Block), Direction::Forward);
-//    assert_eq!(Selection::new(1, 0).direction(CursorSemantics::Block), Direction::Backward);
-//    assert_eq!(Selection::new(1, 1).direction(CursorSemantics::Block), Direction::Backward); //state shouldn't be possible with block cursor semantics, but the result is still valid.
-//}
+#[test]
+fn direction_bar_semantics(){
+    assert_eq!(Selection::new(0, 0).direction(CursorSemantics::Bar), Direction::Forward);
+    assert_eq!(Selection::new(0, 1).direction(CursorSemantics::Bar), Direction::Forward);
+    assert_eq!(Selection::new(1, 0).direction(CursorSemantics::Bar), Direction::Backward);
+}
+
+#[test]
+fn direction_block_semantics(){
+    //assert_eq!(Selection::new(0, 0).direction(CursorSemantics::Block), Direction::Backward);    //state shouldn't be possible with block cursor semantics, so this failure is fine.
+    assert_eq!(Selection::new(0, 1).direction(CursorSemantics::Block), Direction::Forward);
+    assert_eq!(Selection::new(1, 0).direction(CursorSemantics::Block), Direction::Backward);
+    assert_eq!(Selection::new(1, 1).direction(CursorSemantics::Block), Direction::Backward); //state shouldn't be possible with block cursor semantics, but the result is still valid.
+}
 
 //#[test]
 //fn set_direction_bar_semantics(){

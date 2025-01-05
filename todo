@@ -19,6 +19,7 @@
     [x] make cursor maintain horizontal position or go to line end when moving up/down
     [x] if extend_to_line_end called, and selection end is on a greater line, set cursor over newline. otherwise, set cursor over last character
     [ ] make movement functions use next/previous_grapheme_index from text_util, instead of manually sat_sub/sat_adding. this should make transition to UTF-8 support easier...
+    [x] move/extend to word boundaries
 [x] set up client-server with editing functionality
     [x] insert
     [x] remove

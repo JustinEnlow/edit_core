@@ -6,7 +6,49 @@ use crate::{
 
 
 
-#[derive(Clone, Copy, Debug)]
+/// Returns a string for debugging selections over a text.
+/// key:
+///     start = [
+///     end = ]
+///     anchor = |
+///     head = < or >, depending on direction
+///     virtual head = :, if block cursor semantics
+/// 
+/// ```
+/// # use ropey::Rope;
+/// # use edit_core::selection::{Selection, CursorSemantics};
+/// 
+/// let text = Rope::from("idk some shit");
+/// let selection = Selection::new(0, 5);
+/// assert_eq!("[|idk :s>]ome shit".to_string(), edit_core::selection::debug_selection(&selection, &text, CursorSemantics::Block));
+/// assert_eq!("[|idk s>]ome shit".to_string(), edit_core::selection::debug_selection(&selection, &text, CursorSemantics::Bar));
+/// let selection = Selection::new(5, 0);
+/// assert_eq!("[:<idk s|]ome shit".to_string(), edit_core::selection::debug_selection(&selection, &text, CursorSemantics::Block));
+/// assert_eq!("[<idk s|]ome shit".to_string(), edit_core::selection::debug_selection(&selection, &text, CursorSemantics::Bar));
+/// let text = Rope::from("idk some shit\n");
+/// assert_eq!("[:<idk s|]ome shit\n".to_string(), edit_core::selection::debug_selection(&selection, &text, CursorSemantics::Block));
+/// let text = Rope::from("idk some shit\t");
+/// assert_eq!("[:<idk s|]ome shit\t".to_string(), edit_core::selection::debug_selection(&selection, &text, CursorSemantics::Block));
+/// ```
+pub fn debug_selection(selection: &Selection, text: &Rope, semantics: CursorSemantics) -> String{   //should this be a method? selection.debug()?
+    let mut debug_string = String::new();
+    for (i, char) in text.chars().enumerate(){
+        if i == selection.start(){debug_string.push('[');}
+        if i == selection.anchor(){debug_string.push('|');}
+        if i == selection.cursor(semantics) && semantics == CursorSemantics::Block{debug_string.push(':');}
+        if i == selection.head() && selection.direction(semantics) == Direction::Forward{debug_string.push('>');}
+        if i == selection.head() && selection.direction(semantics) == Direction::Backward{debug_string.push('<');}
+        if i == selection.end(){debug_string.push(']');}
+        if char == '\n'{debug_string.push_str("\n");}
+        else if char == '\t'{debug_string.push_str("\t");}
+        else{
+            debug_string.push(char);
+        }
+    }
+    debug_string
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum CursorSemantics{
     Bar,    //difference between anchor and head is 0
     Block   //difference between anchor and head is 1 grapheme
@@ -82,14 +124,14 @@ impl Selection{
         text.char_to_line(self.anchor) != text.char_to_line(self.cursor(semantics))
     }
 
-    ///// Returns the direction of [`Selection`].
-    //#[must_use]
-    //pub fn direction(&self, semantics: CursorSemantics) -> Direction{
-    //    //assert!(self.cursor(semantics) <= text.len_chars());  we would need a & to text
-    //    //assert!(self.anchor <= text.len_chars());
-    //    if self.cursor(semantics) < self.anchor{Direction::Backward}
-    //    else{Direction::Forward}
-    //}
+    /// Returns the direction of [`Selection`].
+    #[must_use]
+    pub fn direction(&self, semantics: CursorSemantics) -> Direction{
+        //assert!(self.cursor(semantics) <= text.len_chars());  we would need a & to text
+        //assert!(self.anchor <= text.len_chars());
+        if self.cursor(semantics) < self.anchor{Direction::Backward}
+        else{Direction::Forward}
+    }
 
     ///// Sets [`Selection`] direction to specified direction.
     //#[must_use]
@@ -429,11 +471,38 @@ impl Selection{
         self.move_horizontally(1, text, Movement::Extend, Direction::Forward, semantics)
     }
 
+    /// Returns a new instance of [`Selection`] with cursor extended right to the nearest word boundary.
+    pub fn extend_right_word_boundary(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        if self.cursor(semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
+        
+        let goal_index = text_util::next_word_boundary(self.head(), text);
+        match semantics{
+            CursorSemantics::Bar => {
+                self.put_cursor(goal_index, text, Movement::Extend, semantics, true)
+            }
+            CursorSemantics::Block => {
+                if goal_index == text.len_chars(){
+                    self.put_cursor(goal_index, text, Movement::Extend, semantics, true)
+                }else{
+                    self.put_cursor(text_util::previous_grapheme_index(goal_index, text), text, Movement::Extend, semantics, true)
+                }
+            }
+        }
+    }
+
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended to the left.
     #[must_use]
     pub fn extend_left(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
         if self.cursor(semantics) == 0{return Err(SelectionError::ResultsInSameState);}
         self.move_horizontally(1, text, Movement::Extend, Direction::Backward, semantics)
+    }
+
+    /// Returns a new instance of [`Selection`] with cursor extended left to the nearest word boundary.
+    pub fn extend_left_word_boundary(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        if self.cursor(semantics) == 0{return Err(SelectionError::ResultsInSameState);}
+        
+        let goal_index = text_util::previous_word_boundary(self.cursor(semantics), text);
+        self.put_cursor(goal_index, text, Movement::Extend, semantics, true)
     }
 
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended up.
