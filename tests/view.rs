@@ -124,20 +124,34 @@ fn center_vertically_around_cursor(){
     let text = Rope::from("idk\nsome\nshit\nand\nsomething\nelse\n");   //len 33
     let view = View::new(0, 0, 1, 1);
     
+    //works when past half the view in text
     let selection = Selection::new(14, 14);
-    assert_eq!(View::new(0, 3, 1, 1), view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Bar));
+    assert_eq!(View::new(0, 3, 1, 1), view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Bar).unwrap());
     let selection = Selection::new(14, 15);
-    assert_eq!(View::new(0, 3, 1, 1), view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Block));
+    assert_eq!(View::new(0, 3, 1, 1), view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Block).unwrap());
     
+    // old tests
+        //let selection = Selection::new(0, 0);
+        //assert_eq!(view, view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Bar));
+        //let selection = Selection::new(0, 1);
+        //assert_eq!(view, view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Block));
+        //
+        //let selection = Selection::new(33, 33);
+        //assert_eq!(View::new(0, 6, 1, 1), view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Bar));
+        //let selection = Selection::new(33, 34);
+        //assert_eq!(View::new(0, 6, 1, 1), view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Block));
+
+    //errors near doc start
     let selection = Selection::new(0, 0);
-    assert_eq!(view, view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Bar));
+    assert!(view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Bar).is_err());
     let selection = Selection::new(0, 1);
-    assert_eq!(view, view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Block));
-    
+    assert!(view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Block).is_err());
+
+    //errors near doc end
     let selection = Selection::new(33, 33);
-    assert_eq!(View::new(0, 6, 1, 1), view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Bar));
+    assert!(view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Bar).is_err());
     let selection = Selection::new(33, 34);
-    assert_eq!(View::new(0, 6, 1, 1), view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Block));
+    assert!(view.center_vertically_around_cursor(&selection, &text, CursorSemantics::Block).is_err());
 }
 
 #[test]

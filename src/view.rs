@@ -137,21 +137,23 @@ impl View{
 
     /// Returns an instance of [`View`] vertically centered around specified cursor.
     #[must_use]
-    pub fn center_vertically_around_cursor(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> Self{  //TODO: return error if results in same state
+    pub fn center_vertically_around_cursor(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> Result<Self, ViewError>{  //TODO: return error if results in same state
         assert!(selection.cursor(text, semantics) <= text.len_chars());    //ensure selection is valid
         assert!(text.len_lines() > 0);  //ensure text is not empty
         
         let current_line = text.char_to_line(selection.cursor(text, semantics));
         let half_view_height = self.height / 2;
 
+        if current_line <= half_view_height || current_line >= text.len_lines().saturating_sub(self.height){return Err(ViewError::ResultsInSameState);}  //should self.height be half_view_height?
+
         // Calculate the new vertical start position
         let new_vertical_start = if current_line > half_view_height{
             current_line.saturating_sub(half_view_height)
         }else{
             0
-        }.min(text.len_lines().saturating_sub(self.height));
+        }.min(text.len_lines().saturating_sub(self.height));    //should self.height be half_view_height?
 
-        Self::new(self.horizontal_start, new_vertical_start, self.width, self.height)
+        Ok(Self::new(self.horizontal_start, new_vertical_start, self.width, self.height))
     }
 
     /// Returns a `String` containing the text that can be contained within [`View`] boundaries.
