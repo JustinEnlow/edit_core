@@ -137,7 +137,7 @@ impl View{
 
     /// Returns an instance of [`View`] vertically centered around specified cursor.
     #[must_use]
-    pub fn center_vertically_around_cursor(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> Result<Self, ViewError>{  //TODO: return error if results in same state
+    pub fn center_vertically_around_cursor(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> Result<Self, ViewError>{
         assert!(selection.cursor(text, semantics) <= text.len_chars());    //ensure selection is valid
         assert!(text.len_lines() > 0);  //ensure text is not empty
         

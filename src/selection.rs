@@ -351,6 +351,12 @@ impl Selection{
         if self.cursor(text, semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
         self.move_horizontally(1, text, Movement::Move, Direction::Forward, semantics)
     }
+    /// Returns a new instance of [`Selection`] with the [`Selection`] extended to the right.
+    #[must_use]
+    pub fn extend_right(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        if self.cursor(text, semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
+        self.move_horizontally(1, text, Movement::Extend, Direction::Forward, semantics)
+    }
 
     /// Returns a new instance of [`Selection`] with cursor moved right to the nearest word boundary.
     pub fn move_right_word_boundary(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
@@ -370,119 +376,6 @@ impl Selection{
             }
         }
     }
-
-    /// Returns a new instance of [`Selection`] with cursor moved left.
-    #[must_use]
-    pub fn move_left(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
-        if self.cursor(text, semantics) == 0{return Err(SelectionError::ResultsInSameState);}
-        self.move_horizontally(1, text, Movement::Move, Direction::Backward, semantics)
-    }
-
-    /// Returns a new instance of [`Selection`] with cursor moved left to the nearest word boundary.
-    pub fn move_left_word_boundary(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
-        if self.cursor(text, semantics) == 0{return Err(SelectionError::ResultsInSameState);}
-        
-        let goal_index = text_util::previous_word_boundary(self.cursor(text, semantics), text);
-        self.put_cursor(goal_index, text, Movement::Move, semantics, true)
-    }
-
-    /// Returns a new instance of [`Selection`] with cursor moved up.
-    #[must_use]
-    pub fn move_up(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
-        if text.char_to_line(self.cursor(text, semantics)) == 0{return Err(SelectionError::ResultsInSameState);}
-        self.move_vertically(1, text, Movement::Move, Direction::Backward, semantics)
-    }
-
-    /// Returns a new instance of [`Selection`] with cursor moved down.
-    #[must_use]
-    pub fn move_down(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
-        if text.char_to_line(self.cursor(text, semantics)) == text.len_lines().saturating_sub(1){return Err(SelectionError::ResultsInSameState);}
-        self.move_vertically(1, text, Movement::Move, Direction::Forward, semantics)
-    }
-
-    /// Returns a new instance of [`Selection`] with cursor moved to line end.
-    #[must_use]
-    pub fn move_line_text_end(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
-        let line_number = text.char_to_line(self.cursor(text, semantics));
-        let line = text.line(line_number);
-        let line_width = text_util::line_width(line, false);
-        let line_start = text.line_to_char(line_number);
-        let line_end = line_start.saturating_add(line_width);   //nth_next_grapheme_index(line_start, line_width, text)?
-
-        if self.cursor(text, semantics) == line_end{return Err(SelectionError::ResultsInSameState);}
-        self.put_cursor(line_end, text, Movement::Move, semantics, true)
-    }
-
-    /// Returns a new instance of [`Selection`] with cursor moved to absolute start of line, or start of line text, depending on current cursor position.
-    #[must_use]
-    pub fn move_home(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
-        let line_number = text.char_to_line(self.cursor(text, semantics));
-        let line_start = text.line_to_char(line_number);
-        let text_start_offset = text_util::first_non_whitespace_character_offset(text.line(line_number));
-        let text_start = line_start.saturating_add(text_start_offset);  //nth_next_grapheme_index(line_start, text_start_offset, text)?
-
-        //if text_start == line_start && self.cursor(semantics) == line_start{return Err(());}    //would result in same state    //TODO: test
-        if self.cursor(text, semantics) == text_start{self.move_line_start(text, semantics)}
-        else{self.move_line_text_start(text, semantics)}
-    }
-    
-    /// Returns a new instance of [`Selection`] with the cursor moved to the start of the current line.
-    #[must_use]
-    pub fn move_line_start(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
-        let line_number = text.char_to_line(self.cursor(text, semantics));
-        let line_start = text.line_to_char(line_number);
-
-        if self.cursor(text, semantics) == line_start{return Err(SelectionError::ResultsInSameState);}    //TODO: test
-        self.put_cursor(line_start, text, Movement::Move, semantics, true)
-    }
-    
-    /// Returns a new instance of [`Selection`] with the cursor moved to the start of the text on the current line.
-    #[must_use]
-    pub fn move_line_text_start(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
-        let line_number = text.char_to_line(self.cursor(text, semantics));
-        let line_start = text.line_to_char(line_number);
-        let text_start_offset = text_util::first_non_whitespace_character_offset(text.line(line_number));
-        let text_start = line_start.saturating_add(text_start_offset);  //nth_next_grapheme_index(line_start, text_start_offset, text)?
-
-        if self.cursor(text, semantics) == text_start{return Err(SelectionError::ResultsInSameState);}    //TODO: test
-        self.put_cursor(text_start, text, Movement::Move, semantics, true)
-    }
-
-    /// Returns a new instance of [`Selection`] with the cursor moved up by the height of `client_view`.
-    #[must_use]
-    pub fn move_page_up(&self, text: &Rope, client_view: &View, semantics: CursorSemantics) -> Result<Self, SelectionError>{
-        if text.char_to_line(self.cursor(text, semantics)) == 0{return Err(SelectionError::ResultsInSameState);}
-        self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Move, Direction::Backward, semantics)
-    }
-
-    /// Returns a new instance of [`Selection`] with the cursor moved down by the height of `client_view`.
-    #[must_use]
-    pub fn move_page_down(&self, text: &Rope, client_view: &View, semantics: CursorSemantics) -> Result<Self, SelectionError>{
-        if text.char_to_line(self.cursor(text, semantics)) == text.len_lines().saturating_sub(1){return Err(SelectionError::ResultsInSameState);}
-        self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Move, Direction::Forward, semantics)
-    }
-
-    /// Returns a new instance of [`Selection`] with the cursor moved to the start of the document.
-    #[must_use]
-    pub fn move_doc_start(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
-        if self.cursor(text, semantics) == 0{return Err(SelectionError::ResultsInSameState);}
-        self.put_cursor(0, text, Movement::Move, semantics, true)
-    }
-
-    /// Returns a new instance of [`Selection`] with the cursor moved to the end of the document.
-    #[must_use]
-    pub fn move_doc_end(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
-        if self.cursor(text, semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
-        self.put_cursor(text.len_chars(), text, Movement::Move, semantics, true)
-    }
-
-    /// Returns a new instance of [`Selection`] with the [`Selection`] extended to the right.
-    #[must_use]
-    pub fn extend_right(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
-        if self.cursor(text, semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
-        self.move_horizontally(1, text, Movement::Extend, Direction::Forward, semantics)
-    }
-
     /// Returns a new instance of [`Selection`] with cursor extended right to the nearest word boundary.
     pub fn extend_right_word_boundary(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
         if self.cursor(text, semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
@@ -502,6 +395,12 @@ impl Selection{
         }
     }
 
+    /// Returns a new instance of [`Selection`] with cursor moved left.
+    #[must_use]
+    pub fn move_left(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        if self.cursor(text, semantics) == 0{return Err(SelectionError::ResultsInSameState);}
+        self.move_horizontally(1, text, Movement::Move, Direction::Backward, semantics)
+    }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended to the left.
     #[must_use]
     pub fn extend_left(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
@@ -509,6 +408,13 @@ impl Selection{
         self.move_horizontally(1, text, Movement::Extend, Direction::Backward, semantics)
     }
 
+    /// Returns a new instance of [`Selection`] with cursor moved left to the nearest word boundary.
+    pub fn move_left_word_boundary(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        if self.cursor(text, semantics) == 0{return Err(SelectionError::ResultsInSameState);}
+        
+        let goal_index = text_util::previous_word_boundary(self.cursor(text, semantics), text);
+        self.put_cursor(goal_index, text, Movement::Move, semantics, true)
+    }
     /// Returns a new instance of [`Selection`] with cursor extended left to the nearest word boundary.
     pub fn extend_left_word_boundary(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
         if self.cursor(text, semantics) == 0{return Err(SelectionError::ResultsInSameState);}
@@ -517,6 +423,12 @@ impl Selection{
         self.put_cursor(goal_index, text, Movement::Extend, semantics, true)
     }
 
+    /// Returns a new instance of [`Selection`] with cursor moved up.
+    #[must_use]
+    pub fn move_up(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        if text.char_to_line(self.cursor(text, semantics)) == 0{return Err(SelectionError::ResultsInSameState);}
+        self.move_vertically(1, text, Movement::Move, Direction::Backward, semantics)
+    }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended up.
     #[must_use]
     pub fn extend_up(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
@@ -524,6 +436,12 @@ impl Selection{
         self.move_vertically(1, text, Movement::Extend, Direction::Backward, semantics)
     }
 
+    /// Returns a new instance of [`Selection`] with cursor moved down.
+    #[must_use]
+    pub fn move_down(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        if text.char_to_line(self.cursor(text, semantics)) == text.len_lines().saturating_sub(1){return Err(SelectionError::ResultsInSameState);}
+        self.move_vertically(1, text, Movement::Move, Direction::Forward, semantics)
+    }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended down.
     #[must_use]
     pub fn extend_down(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
@@ -531,6 +449,18 @@ impl Selection{
         self.move_vertically(1, text, Movement::Extend, Direction::Forward, semantics)
     }
 
+    /// Returns a new instance of [`Selection`] with cursor moved to line end.
+    #[must_use]
+    pub fn move_line_text_end(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        let line_number = text.char_to_line(self.cursor(text, semantics));
+        let line = text.line(line_number);
+        let line_width = text_util::line_width(line, false);
+        let line_start = text.line_to_char(line_number);
+        let line_end = line_start.saturating_add(line_width);   //nth_next_grapheme_index(line_start, line_width, text)?
+
+        if self.cursor(text, semantics) == line_end{return Err(SelectionError::ResultsInSameState);}
+        self.put_cursor(line_end, text, Movement::Move, semantics, true)
+    }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended to the end of the current line.
     #[must_use]
     pub fn extend_line_text_end(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
@@ -562,6 +492,18 @@ impl Selection{
         }
     }
 
+    /// Returns a new instance of [`Selection`] with cursor moved to absolute start of line, or start of line text, depending on current cursor position.
+    #[must_use]
+    pub fn move_home(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        let line_number = text.char_to_line(self.cursor(text, semantics));
+        let line_start = text.line_to_char(line_number);
+        let text_start_offset = text_util::first_non_whitespace_character_offset(text.line(line_number));
+        let text_start = line_start.saturating_add(text_start_offset);  //nth_next_grapheme_index(line_start, text_start_offset, text)?
+
+        //if text_start == line_start && self.cursor(semantics) == line_start{return Err(());}    //would result in same state    //TODO: test
+        if self.cursor(text, semantics) == text_start{self.move_line_start(text, semantics)}
+        else{self.move_line_text_start(text, semantics)}
+    }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended to absolute start of line, or line text start, depending on [`Selection`] `head` position.
     #[must_use]
     pub fn extend_home(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
@@ -575,6 +517,15 @@ impl Selection{
         else{self.extend_line_text_start(text, semantics)}
     }
     
+    /// Returns a new instance of [`Selection`] with the cursor moved to the start of the current line.
+    #[must_use]
+    pub fn move_line_start(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        let line_number = text.char_to_line(self.cursor(text, semantics));
+        let line_start = text.line_to_char(line_number);
+
+        if self.cursor(text, semantics) == line_start{return Err(SelectionError::ResultsInSameState);}    //TODO: test
+        self.put_cursor(line_start, text, Movement::Move, semantics, true)
+    }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended to the start of the current line.
     #[must_use]
     pub fn extend_line_start(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
@@ -585,6 +536,17 @@ impl Selection{
         self.put_cursor(line_start, text, Movement::Extend, semantics, true)
     }
     
+    /// Returns a new instance of [`Selection`] with the cursor moved to the start of the text on the current line.
+    #[must_use]
+    pub fn move_line_text_start(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        let line_number = text.char_to_line(self.cursor(text, semantics));
+        let line_start = text.line_to_char(line_number);
+        let text_start_offset = text_util::first_non_whitespace_character_offset(text.line(line_number));
+        let text_start = line_start.saturating_add(text_start_offset);  //nth_next_grapheme_index(line_start, text_start_offset, text)?
+
+        if self.cursor(text, semantics) == text_start{return Err(SelectionError::ResultsInSameState);}    //TODO: test
+        self.put_cursor(text_start, text, Movement::Move, semantics, true)
+    }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended to the start of the text on the current line.
     #[must_use]
     pub fn extend_line_text_start(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
@@ -596,35 +558,59 @@ impl Selection{
         if self.cursor(text, semantics) == text_start{return Err(SelectionError::ResultsInSameState);}
         self.put_cursor(text_start, text, Movement::Extend, semantics, true)
     }
-    
+
+    /// Returns a new instance of [`Selection`] with the cursor moved up by the height of `client_view`.
+    #[must_use]
+    pub fn move_page_up(&self, text: &Rope, client_view: &View, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        if text.char_to_line(self.cursor(text, semantics)) == 0{return Err(SelectionError::ResultsInSameState);}
+        self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Move, Direction::Backward, semantics)
+    }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended up by the height of `client_view`.
     #[must_use]
     pub fn extend_page_up(&self, text: &Rope, client_view: &View, semantics: CursorSemantics) -> Result<Self, SelectionError>{
         if text.char_to_line(self.cursor(text, semantics)) == 0{return Err(SelectionError::ResultsInSameState);}
         self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Extend, Direction::Backward, semantics)
     }
-    
+
+    /// Returns a new instance of [`Selection`] with the cursor moved down by the height of `client_view`.
+    #[must_use]
+    pub fn move_page_down(&self, text: &Rope, client_view: &View, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        if text.char_to_line(self.cursor(text, semantics)) == text.len_lines().saturating_sub(1){return Err(SelectionError::ResultsInSameState);}
+        self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Move, Direction::Forward, semantics)
+    }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended down by the height of `client_view`.
     #[must_use]
     pub fn extend_page_down(&self, text: &Rope, client_view: &View, semantics: CursorSemantics) -> Result<Self, SelectionError>{
         if text.char_to_line(self.cursor(text, semantics)) == text.len_lines().saturating_sub(1){return Err(SelectionError::ResultsInSameState);}
         self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Extend, Direction::Forward, semantics)
     }
-    
+
+    /// Returns a new instance of [`Selection`] with the cursor moved to the start of the document.
+    #[must_use]
+    pub fn move_doc_start(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        if self.cursor(text, semantics) == 0{return Err(SelectionError::ResultsInSameState);}
+        self.put_cursor(0, text, Movement::Move, semantics, true)
+    }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended to doc start.
     #[must_use]
     pub fn extend_doc_start(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
         if self.cursor(text, semantics) == 0{return Err(SelectionError::ResultsInSameState);}
         self.put_cursor(0, text, Movement::Extend, semantics, true)
     }
-    
+
+    /// Returns a new instance of [`Selection`] with the cursor moved to the end of the document.
+    #[must_use]
+    pub fn move_doc_end(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        if self.cursor(text, semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
+        self.put_cursor(text.len_chars(), text, Movement::Move, semantics, true)
+    }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended to doc end.
     #[must_use]
     pub fn extend_doc_end(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
         if self.cursor(text, semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
         self.put_cursor(text.len_chars(), text, Movement::Extend, semantics, true)
     }
-
+    
     /// Returns a new instance of [`Selection`] with [`Selection`] extended to encompass all text.
     #[must_use]
     pub fn select_all(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
@@ -899,7 +885,7 @@ impl Selections{
     }
 
     /// Merges overlapping [`Selection`]s.
-    pub fn merge_overlapping(&mut self, text: &Rope) -> Self{
+    pub fn merge_overlapping(&self, text: &Rope) -> Self{
         if self.count() < 2{return self.clone();}   //should this error instead?...
 
         let mut primary = self.primary().clone();
