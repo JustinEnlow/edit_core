@@ -182,13 +182,37 @@ impl Selection{
     /// contained, or disconnected entirely.
     /// resultant selection should be guaranteed to be within text bounds 
     /// because this uses previously initialized selections.
-    #[must_use]
-    pub fn merge(&self, other: &Selection, text: &Rope) -> Selection{
-        let anchor = self.start().min(other.start());
-        let head = self.end().max(other.end());
-        let stored_line_position = text_util::offset_from_line_start(head, text);   //self.cursor instead of head?
-        
-        Selection{anchor, head, stored_line_position: Some(stored_line_position)}
+    // note: merges need to have a stored line position, so that movements after merge work correctly
+    #[must_use] //TODO: maybe error if Direction of self and other are mismatched...    though i can't think of how this case would occur with normal text editing...
+    pub fn merge(&self, other: &Selection, text: &Rope, semantics: CursorSemantics) -> Result<Selection, ()>{   //TODO: figure out how to handle merge with cursor semantics    //resultant Selection should be the Direction of self
+        //let anchor = self.start().min(other.start());
+        //let head = self.end().max(other.end());
+        //let stored_line_position = text_util::offset_from_line_start(head, text);   //self.cursor instead of head?
+        //
+        //Selection{anchor, head, stored_line_position: Some(stored_line_position)}
+
+        if self.direction(text, semantics) != other.direction(text, semantics){return Err(());} //cannot merge selections with differing directions
+        match self.direction(text, semantics){
+            Direction::Forward => {
+                let anchor = self.start().min(other.start());
+                let head = self.end().max(other.end());
+                let cursor = match semantics{
+                    CursorSemantics::Bar => {head}
+                    CursorSemantics::Block => {text_util::previous_grapheme_index(head, text)}
+                };
+                let stored_line_position = text_util::offset_from_line_start(cursor, text);
+
+                Ok(Selection{anchor, head, stored_line_position: Some(stored_line_position)})
+            }
+            Direction::Backward => {
+                //self (1, 0)   other (1, 0)
+                let anchor = self.end().max(other.end());   //self.end() = 1, other.end() = 1
+                let head = self.start().min(other.start()); //self.start() = 0, other.start() = 0
+                let stored_line_position = text_util::offset_from_line_start(head, text);   //= 0
+
+                Ok(Selection{anchor, head, stored_line_position: Some(stored_line_position)})   //Selection{1, 0, 0}
+            }
+        }
     }
     
     /// Returns the char index of [`Selection`] cursor.
@@ -763,7 +787,7 @@ impl Selections{
 
         // selections.grapheme_align();
         selections = selections.sort();
-        selections = selections.merge_overlapping(text);
+        //selections = selections.merge_overlapping(text);  //TODO: fix this to use new merge_overlapping fn
 
         assert!(selections.count() > 0);
         selections
@@ -885,14 +909,17 @@ impl Selections{
     }
 
     /// Merges overlapping [`Selection`]s.
-    pub fn merge_overlapping(&self, text: &Rope) -> Self{
-        if self.count() < 2{return self.clone();}   //should this error instead?...
+    pub fn merge_overlapping(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, ()>{
+        if self.count() < 2{return Err(());}//{return self.clone();}   //should this error instead?...
 
         let mut primary = self.primary().clone();
         let mut new_selections = self.selections.clone();
         new_selections.dedup_by(|current_selection, prev_selection|{
                 if prev_selection.overlaps(current_selection){
-                    let merged_selection = current_selection.merge(prev_selection, text);
+                    let merged_selection = match current_selection.merge(prev_selection, text, semantics){
+                        Ok(val) => val,
+                        Err(_) => {return false;}
+                    };
 
                     // Update primary selection to track index in next code block // Only clone if necessary
                     if prev_selection == &primary || current_selection == &primary{
@@ -912,10 +939,10 @@ impl Selections{
 
         assert!(self.count() > 0);
 
-        Self{
+        Ok(Self{
             selections: new_selections,
             primary_selection_index,
-        }
+        })
     }
 
     /// Removes all [`Selection`]s except [`Selection`] at `primary_selection_index`.
