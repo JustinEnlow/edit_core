@@ -185,7 +185,7 @@ impl Selection{
     /// because this uses previously initialized selections.
     // note: merges need to have a stored line position, so that movements after merge work correctly
     #[must_use] //TODO: maybe error if Direction of self and other are mismatched...    though i can't think of how this case would occur with normal text editing...
-    pub fn merge(&self, other: &Selection, text: &Rope, semantics: CursorSemantics) -> Result<Selection, ()>{   //TODO: figure out how to handle merge with cursor semantics    //resultant Selection should be the Direction of self
+    pub fn merge(&self, other: &Selection, text: &Rope, semantics: CursorSemantics) -> Result<Selection, ()>{   //resultant Selection should be the Direction of self
         //let anchor = self.start().min(other.start());
         //let head = self.end().max(other.end());
         //let stored_line_position = text_util::offset_from_line_start(head, text);   //self.cursor instead of head?
@@ -222,8 +222,7 @@ impl Selection{
         match semantics{
             CursorSemantics::Bar => self.head,
             CursorSemantics::Block => {
-                //if self.head >= self.anchor{self.head.saturating_sub(1)}
-                /*TODO: */if self.head >= self.anchor{text_util::previous_grapheme_index(self.head, text)}
+                if self.head >= self.anchor{text_util::previous_grapheme_index(self.head, text)}
                 else{self.head}
             }
         }

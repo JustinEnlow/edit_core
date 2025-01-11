@@ -1,41 +1,15 @@
-// do full doctests or unit tests for each item before moving on to the next
-
-[x] set up client-server connections
-[x] set up client-server to pass plain text messages
-[x] set up client-server to pass serialized messages back and forth
-// client-server as doc viewer at this point will send buffer with all lines in specified view area, not a diff/just the changes
-[x] set up client-server as document viewer with no scrolling or view size changes
-[x] set up client-server as document viewer with changeable view size
-[x] set up client-server as document viewer with scrolling detached from cursor position
-[x] set up client-server as document viewer with scrolling attached to cursor position
-    [x] move/extend selection right
-    [x] move/extend selection left
-    [x] move/extend selection up
-    [x] move/extend selection down
-    [x] restrict cursor to line start/end
-    [x] restrict cursor to document start/end
-    [x] cursor left at line start moves to previous line end if available
-    [x] cursor right at line end moves to next line start if available
-    [x] make cursor maintain horizontal position or go to line end when moving up/down
-    [x] if extend_to_line_end called, and selection end is on a greater line, set cursor over newline. otherwise, set cursor over last character
-    [ ] make movement functions use next/previous_grapheme_index from text_util, instead of manually sat_sub/sat_adding. this should make transition to UTF-8 support easier...
-    [x] move/extend to word boundaries
-[x] set up client-server with editing functionality
-    [x] insert
-    [x] remove
-    [ ] figure out how to handle proper tabs, instead of inserting spaces
-[x] set up client-server to save documents
-[x] set up client-server to handle multiple client connections
-[ ] handle multiple selections(should selections be attached to a document, or a client instance of said document?)
-    [x] make Selection struct containing head and anchor components
-    [x] make Vec<Selection> for holding data for multiple selections
-    [ ] ensure selection(s) are sorted by position in reference text
-    [x] create functions to add selection above/below
-    [ ] is multi-selection stuff related to find/replace selections?
-    [x] delete selected text(delete, backspace, insert)
-    [ ] combine overlapping selections. prob needs to be checked at each extend selection fn
-[x] define cursor semantic enum(bar/block)
-    [ ] handle all document functionality using different cursor semantics
-
 always ensure:
+    full doctests or unit tests for each item before moving on to the next
     make movements/edits that result in the same state return an error. this allows the front end application to decide whether to display a warning message, giving visual feedback
+
+
+
+Document:
+    [ ] determine what to do when current file tab width is different than desired tab width, if we do anything at all
+        - hard tabs shouldn't change anything we do, but soft tabs might
+    [ ] handle auto-indent on newline insertion
+
+Selection:
+    [ ] make sure extend functions do not extend past doc end. this is ok for movement functions because new characters need to be added to the document
+    [ ] add fn to move current line / selected lines up one line
+    [ ] add fn to move current line / selected lines down one line
