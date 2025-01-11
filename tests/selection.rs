@@ -1053,6 +1053,8 @@ fn merge_overlapping_selections(){
     assert_eq!(expected_selections, selections.merge_overlapping(&text, CursorSemantics::Bar).unwrap());
 
     assert_eq!(Selections::new(vec![Selection::with_stored_line_position(0, 1, 0)], 0, &text), Selections::new(vec![Selection::new(0, 1), Selection::new(0, 1)], 0, &text).merge_overlapping(&text, CursorSemantics::Block).unwrap());
+    assert_eq!(Selections::new(vec![Selection::with_stored_line_position(14, 0, 0)], 0, &text), Selections::new(vec![Selection::new(1, 0), Selection::new(14, 0)], 0, &text).merge_overlapping(&text, CursorSemantics::Block).unwrap());
+    assert_eq!(Selections::new(vec![Selection::with_stored_line_position(0, 14, 4)], 0, &text), Selections::new(vec![Selection::new(0, 1), Selection::new(0, 14)], 0, &text).merge_overlapping(&text, CursorSemantics::Block).unwrap());
 }
 
 #[test]

@@ -150,7 +150,6 @@ impl Document{
     pub fn save(&mut self) -> Result<(), Box<dyn Error>>{
         if let Some(path) = &self.file_path{ // does nothing if path is None    //maybe return Err(()) instead?
             self.text.write_to(BufWriter::new(fs::File::create(path)?))?;
-            
             //self.modified = false;
             self.last_saved_text = self.text.clone();
         }

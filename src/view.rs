@@ -142,9 +142,13 @@ impl View{
         assert!(text.len_lines() > 0);  //ensure text is not empty
         
         let current_line = text.char_to_line(selection.cursor(text, semantics));
-        let half_view_height = self.height / 2;
+        //let view_is_even_numbered = self.height % 2 == 0;
+        let half_view_height = self.height / 2; //current impl will be biased towards the bottom of the view, if view is even numbered
 
-        if current_line <= half_view_height || current_line >= text.len_lines().saturating_sub(self.height){return Err(ViewError::ResultsInSameState);}  //should self.height be half_view_height?
+        //TODO: consider how even numbered view heights should be handled...
+        // maybe < half_view_height.saturating_sub(1)
+        if current_line <= half_view_height{return Err(ViewError::ResultsInSameState);} //maybe return error cursor before doc_start + half the view height
+        if current_line >= text.len_lines().saturating_sub(half_view_height){return Err(ViewError::ResultsInSameState);}    //maybe return error cursor after doc_end - half the view height
 
         // Calculate the new vertical start position
         let new_vertical_start = if current_line > half_view_height{
@@ -152,6 +156,10 @@ impl View{
         }else{
             0
         }.min(text.len_lines().saturating_sub(self.height));    //should self.height be half_view_height?
+
+        // if view_is_even_numbered && (current_line == new_vertical_start || current_line == new_vertical_start.saturating_sub(1)){return Err(ViewError::ResultsInSameState);}
+        if current_line == new_vertical_start{return Err(ViewError::ResultsInSameState);}   //maybe return error already centered   //TODO: and test
+        //
 
         Ok(Self::new(self.horizontal_start, new_vertical_start, self.width, self.height))
     }

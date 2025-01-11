@@ -4,7 +4,8 @@ use crate::{
     text_util, view::View, Position
 };
 
-
+//TODO: extension fns should not extend to 1 past doc end, because there are no selectable graphemes there.
+// this is ok for movement fns, because the cursor needs to be able to move there to insert new graphemes.
 
 /// Returns a string for debugging selections over a text.
 /// key:
@@ -30,7 +31,7 @@ use crate::{
 /// let text = Rope::from("idk some shit\t");
 /// assert_eq!("[:<idk s|]ome shit\t".to_string(), edit_core::selection::debug_selection(&selection, &text, CursorSemantics::Block));
 /// ```
-pub fn debug_selection(selection: &Selection, text: &Rope, semantics: CursorSemantics) -> String{   //should this be a method? selection.debug()?
+pub fn debug_selection(selection: &Selection, text: &Rope, semantics: CursorSemantics) -> String{   //should this be a method? selection.debug()?   //should this include stored_line_position?
     let mut debug_string = String::new();
     for (i, char) in text.chars().enumerate(){
         if i == selection.start(){debug_string.push('[');}
@@ -205,12 +206,11 @@ impl Selection{
                 Ok(Selection{anchor, head, stored_line_position: Some(stored_line_position)})
             }
             Direction::Backward => {
-                //self (1, 0)   other (1, 0)
-                let anchor = self.end().max(other.end());   //self.end() = 1, other.end() = 1
-                let head = self.start().min(other.start()); //self.start() = 0, other.start() = 0
-                let stored_line_position = text_util::offset_from_line_start(head, text);   //= 0
+                let anchor = self.end().max(other.end());
+                let head = self.start().min(other.start());
+                let stored_line_position = text_util::offset_from_line_start(head, text);
 
-                Ok(Selection{anchor, head, stored_line_position: Some(stored_line_position)})   //Selection{1, 0, 0}
+                Ok(Selection{anchor, head, stored_line_position: Some(stored_line_position)})
             }
         }
     }
