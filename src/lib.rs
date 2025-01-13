@@ -1,3 +1,8 @@
+// prevent linter warnings for these scenarios  //this should prob be set up in its own clippy.toml config file in the crate root
+#![allow(clippy::collapsible_else_if)]
+#![allow(clippy::len_without_is_empty)]
+#![allow(clippy::assign_op_pattern)]    //allow x = x + y, instead of x += y
+
 //use std::path::PathBuf;
 
 
@@ -12,7 +17,7 @@ pub mod history;
 
 
 
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone/*, Copy*/)]
 pub struct Position{
     x: usize,
     y: usize,

@@ -119,6 +119,7 @@ fn scroll_following_cursor(){
     assert_eq!(String::from("e\nt\n"), view.scroll_following_cursor(&selection, &text, CursorSemantics::Block).text(&text));
 }
 
+// TODO: make separate tests for a view with odd number of lines, and a view with even number of lines. ensure behavior is as expected
 #[test]
 fn center_vertically_around_cursor(){
     let text = Rope::from("idk\nsome\nshit\nand\nsomething\nelse\n");   //len 33

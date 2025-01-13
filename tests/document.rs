@@ -20,7 +20,7 @@ fn insert_single_char_with_multi_selection(){
         
     let semantics = CursorSemantics::Block;
     let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(0, 1), Selection::new(5, 6)], 0, &text));
-    doc.insert_string("x", semantics);
+    let _ = doc.insert_string("x", semantics);
     assert_eq!("xsome\nxshit\n", doc.text());
     assert_eq!(&Selections::new(vec![Selection::with_stored_line_position(1, 2, 1), Selection::with_stored_line_position(7, 8, 1)], 0, &text), doc.selections());
     assert!(doc.is_modified());
@@ -35,7 +35,7 @@ fn insert_single_char_with_multi_selection(){
 
     let semantics = CursorSemantics::Bar;
     let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(0, 0), Selection::new(5, 5)], 0, &text));
-    doc.insert_string("x", semantics);
+    let _ = doc.insert_string("x", semantics);
     assert_eq!("xsome\nxshit\n", doc.text());
     assert_eq!(&Selections::new(vec![Selection::with_stored_line_position(1, 1, 1), Selection::with_stored_line_position(7, 7, 1)], 0, &text), doc.selections());
     assert!(doc.is_modified());
@@ -55,7 +55,7 @@ fn insert_single_char_with_multi_selection(){
 
         let semantics = CursorSemantics::Block;
         let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(0, 1), Selection::new(5, 6)], 0, &text));
-        doc.insert_string("idk\n", semantics);
+        let _ = doc.insert_string("idk\n", semantics);
         assert_eq!("idk\nsome\nidk\nshit\n", doc.text());
         assert_eq!(&Selections::new(vec![Selection::with_stored_line_position(4, 5, 0), Selection::with_stored_line_position(13, 14, 0)], 0, &text), doc.selections());
         assert!(doc.is_modified());
@@ -70,7 +70,7 @@ fn insert_single_char_with_multi_selection(){
 
         let semantics = CursorSemantics::Bar;
         let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(0, 0), Selection::new(5, 5)], 0, &text));
-        doc.insert_string("idk\n", semantics);
+        let _ = doc.insert_string("idk\n", semantics);
         assert_eq!("idk\nsome\nidk\nshit\n", doc.text());
         assert_eq!(&Selections::new(vec![Selection::with_stored_line_position(4, 4, 0), Selection::with_stored_line_position(13, 13, 0)], 0, &text), doc.selections());
         assert!(doc.is_modified());
@@ -90,7 +90,7 @@ fn insert_single_char_with_multi_selection(){
 
         let semantics = CursorSemantics::Block;
         let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(0, 1), Selection::new(9, 10)], 0, &text));
-        doc.delete(semantics);
+        let _ = doc.delete(semantics);
         assert_eq!("dk\nsome\nhit\n", doc.text());
         assert_eq!(&Selections::new(vec![Selection::with_stored_line_position(0, 1, 0), Selection::with_stored_line_position(8, 9, 0)], 0, &text), doc.selections());
         assert!(doc.is_modified());
@@ -105,7 +105,7 @@ fn insert_single_char_with_multi_selection(){
 
         let semantics = CursorSemantics::Bar;
         let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(0, 0), Selection::new(9, 9)], 0, &text));
-        doc.delete(semantics);
+        let _ = doc.delete(semantics);
         assert_eq!("dk\nsome\nhit\n", doc.text());
         assert_eq!(&Selections::new(vec![Selection::with_stored_line_position(0, 0, 0), Selection::with_stored_line_position(8, 8, 0)], 0, &text), doc.selections());
         assert!(doc.is_modified());
@@ -125,7 +125,7 @@ fn insert_single_char_with_multi_selection(){
 
         let semantics = CursorSemantics::Block;
         let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(0, 3), Selection::new(9, 12)], 0, &text));
-        doc.delete(semantics);
+        let _ = doc.delete(semantics);
         assert_eq!("\nsome\nt\n", doc.text());
         assert_eq!(&Selections::new(vec![Selection::with_stored_line_position(0, 1, 0), Selection::with_stored_line_position(6, 7, 0)], 0, &text), doc.selections());
         assert!(doc.is_modified());
@@ -140,7 +140,7 @@ fn insert_single_char_with_multi_selection(){
 
         let semantics = CursorSemantics::Bar;
         let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(0, 3), Selection::new(9, 12)], 0, &text));
-        doc.delete(semantics);
+        let _ = doc.delete(semantics);
         assert_eq!("\nsome\nt\n", doc.text());
         assert_eq!(&Selections::new(vec![Selection::with_stored_line_position(0, 0, 0), Selection::with_stored_line_position(6, 6, 0)], 0, &text), doc.selections());
         assert!(doc.is_modified());
@@ -160,7 +160,7 @@ fn insert_single_char_with_multi_selection(){
 
         let semantics = CursorSemantics::Block;
         let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(1, 2), Selection::new(10, 11)], 0, &text));
-        doc.backspace(semantics);
+        let _ = doc.backspace(semantics);
         assert_eq!("dk\nsome\nhit\n", doc.text());
         assert_eq!(&Selections::new(vec![Selection::with_stored_line_position(0, 1, 0), Selection::with_stored_line_position(8, 9, 0)], 0, &text), doc.selections());
         assert!(doc.is_modified());
@@ -175,7 +175,7 @@ fn insert_single_char_with_multi_selection(){
 
         let semantics = CursorSemantics::Bar;
         let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(1, 1), Selection::new(10, 10)], 0, &text));
-        doc.backspace(semantics);
+        let _ = doc.backspace(semantics);
         assert_eq!("dk\nsome\nhit\n", doc.text());
         assert_eq!(&Selections::new(vec![Selection::with_stored_line_position(0, 0, 0), Selection::with_stored_line_position(8, 8, 0)], 0, &text), doc.selections());
         assert!(doc.is_modified());
@@ -195,7 +195,7 @@ fn insert_single_char_with_multi_selection(){
 
         let semantics = CursorSemantics::Block;
         let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(0, 3), Selection::new(9, 12)], 0, &text));
-        doc.backspace(semantics);
+        let _ = doc.backspace(semantics);
         assert_eq!("\nsome\nt\n", doc.text());
         assert_eq!(&Selections::new(vec![Selection::with_stored_line_position(0, 1, 0), Selection::with_stored_line_position(6, 7, 0)], 0, &text), doc.selections());
         assert!(doc.is_modified());
@@ -210,7 +210,7 @@ fn insert_single_char_with_multi_selection(){
 
         let semantics = CursorSemantics::Bar;
         let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(0, 3), Selection::new(9, 12)], 0, &text));
-        doc.backspace(semantics);
+        let _ = doc.backspace(semantics);
         assert_eq!("\nsome\nt\n", doc.text());
         assert_eq!(&Selections::new(vec![Selection::with_stored_line_position(0, 0, 0), Selection::with_stored_line_position(6, 6, 0)], 0, &text), doc.selections());
         assert!(doc.is_modified());
@@ -231,7 +231,7 @@ fn insert_single_char_with_multi_selection(){
 
         let semantics = CursorSemantics::Block;
         let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(0, 3), Selection::new(9, 12)], 0, &text));
-        doc.insert_string("wut", semantics);
+        let _ = doc.insert_string("wut", semantics);
         assert_eq!("wut\nsome\nwutt\n", doc.text());
         assert_eq!(&Selections::new(vec![Selection::with_stored_line_position(3, 4, 3), Selection::with_stored_line_position(12, 13, 3)], 0, &text), doc.selections());
         assert!(doc.is_modified());
@@ -246,7 +246,7 @@ fn insert_single_char_with_multi_selection(){
 
         let semantics = CursorSemantics::Bar;
         let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(0, 3), Selection::new(9, 12)], 0, &text));
-        doc.insert_string("wut", semantics);
+        let _ = doc.insert_string("wut", semantics);
         assert_eq!("wut\nsome\nwutt\n", doc.text());
         assert_eq!(&Selections::new(vec![Selection::with_stored_line_position(3, 3, 3), Selection::with_stored_line_position(12, 12, 3)], 0, &text), doc.selections());
         assert!(doc.is_modified());
@@ -267,7 +267,7 @@ fn insert_single_char_with_multi_selection(){
 
         let semantics = CursorSemantics::Block;
         let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(0, 3), Selection::new(9, 12)], 0, &text));
-        doc.insert_string("shit", semantics);
+        let _ = doc.insert_string("shit", semantics);
         assert_eq!("shit\nsome\nshitt\n", doc.text());
         assert_eq!(&Selections::new(vec![Selection::with_stored_line_position(4, 5, 4), Selection::with_stored_line_position(14, 15, 4)], 0, &text), doc.selections());
         assert!(doc.is_modified());
@@ -282,7 +282,7 @@ fn insert_single_char_with_multi_selection(){
 
         let semantics = CursorSemantics::Bar;
         let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(0, 3), Selection::new(9, 12)], 0, &text));
-        doc.insert_string("shit", semantics);
+        let _ = doc.insert_string("shit", semantics);
         assert_eq!("shit\nsome\nshitt\n", doc.text());
         assert_eq!(&Selections::new(vec![Selection::with_stored_line_position(4, 4, 4), Selection::with_stored_line_position(14, 14, 4)], 0, &text), doc.selections());
         assert!(doc.is_modified());
@@ -303,7 +303,7 @@ fn insert_single_char_with_multi_selection(){
 
         let semantics = CursorSemantics::Block;
         let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(0, 3), Selection::new(9, 12)], 0, &text));
-        doc.insert_string("x", semantics);
+        let _ = doc.insert_string("x", semantics);
         assert_eq!("x\nsome\nxt\n", doc.text());
         assert_eq!(&Selections::new(vec![Selection::with_stored_line_position(1, 2, 1), Selection::with_stored_line_position(8, 9, 1)], 0, &text), doc.selections());
         assert!(doc.is_modified());
@@ -336,14 +336,14 @@ fn insert_single_char_with_multi_selection(){
         
         let semantics = CursorSemantics::Block;
         let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(0, 1), Selection::new(5, 6)], 0, &text));
-        doc.insert_string("x", semantics);
+        let _ = doc.insert_string("x", semantics);
         assert_eq!("xsome\nxshit\n", doc.text());
         assert_eq!(&Selections::new(vec![Selection::with_stored_line_position(1, 2, 1), Selection::with_stored_line_position(7, 8, 1)], 0, &text), doc.selections());
         assert!(doc.is_modified());
 
         let semantics = CursorSemantics::Bar;
         let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![Selection::new(0, 0), Selection::new(5, 5)], 0, &text));
-        doc.insert_string("x", semantics);
+        let _ = doc.insert_string("x", semantics);
         assert_eq!("xsome\nxshit\n", doc.text());
         assert_eq!(&Selections::new(vec![Selection::with_stored_line_position(1, 1, 1), Selection::with_stored_line_position(7, 7, 1)], 0, &text), doc.selections());
         assert!(doc.is_modified());
@@ -397,7 +397,7 @@ fn insert_single_char_with_multi_selection(){
     fn backspace_test(name: &str, selection: Selection, expected: Rope, semantics: CursorSemantics) -> bool{
         let text = Rope::from("idk\nsome\nshit\n");
         let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![selection], 0, &text));
-        doc.backspace(semantics);
+        let _ = doc.backspace(semantics);
         println!("{:#?}\n{:#?}\nexpected: {:#?}\ngot: {:#?}\n", name, semantics, expected, doc.text().clone());
         doc.text().clone() == expected
     }
@@ -443,7 +443,7 @@ fn insert_single_char_with_multi_selection(){
         let semantics = CursorSemantics::Block; //test Bar too
         let selection = Selection::new(TAB_WIDTH, match semantics{CursorSemantics::Bar => TAB_WIDTH, CursorSemantics::Block => TAB_WIDTH.saturating_add(1)});
         let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![selection], 0, &text));
-        doc.backspace(semantics);
+        let _ = doc.backspace(semantics);
         assert!(doc.text().clone() == Rope::from("idk\nsome\nshit\n"));
         assert!(doc.selections().primary().clone() == Selection::with_stored_line_position(0, match semantics{CursorSemantics::Bar => 0, CursorSemantics::Block => 1}, 0));
     }
@@ -519,7 +519,7 @@ fn insert_single_char_with_multi_selection(){
     fn paste_test(selection: Selection, string: &str, expected: Rope, expected_selection: Selection, semantics: CursorSemantics) -> bool{
         let text = Rope::from("idk\nsome\nshit\n");
         let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![selection], 0, &text)).with_clipboard(string.to_string());
-        doc.paste(semantics);
+        let _ = doc.paste(semantics);
         println!("expected: {:#?}\ngot: {:#?}\nexpected_position: {:#?}\ngot: {:#?}\n", expected, doc.text().clone(), expected_selection, doc.selections().primary().clone());
         doc.text().clone() == expected && doc.selections().primary().clone() == expected_selection
     }

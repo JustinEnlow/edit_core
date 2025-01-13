@@ -37,7 +37,6 @@ impl View{
     }
 
     /// Returns a new instance of [`View`] with `vertical_start` increased by specified amount.
-    #[must_use]
     pub fn scroll_down(&self, amount: usize, text: &Rope) -> Result<Self, ViewError>{
         assert!(text.len_lines() > 0);
 
@@ -55,14 +54,12 @@ impl View{
         }
     }
     /// Returns a new instance of [`View`] with `horizontal_start` decreased by specified amount.
-    #[must_use]
     pub fn scroll_left(&self, amount: usize) -> Result<Self, ViewError>{
         if amount == 0{return Err(ViewError::InvalidInput);}
         if self.horizontal_start == 0{return Err(ViewError::ResultsInSameState);}
         Ok(Self::new(self.horizontal_start.saturating_sub(amount), self.vertical_start, self.width, self.height))
     }
     /// Returns a new instance of [`View`] with `horizontal_start` increased by specified amount.
-    #[must_use]
     pub fn scroll_right(&self, amount: usize, text: &Rope) -> Result<Self, ViewError>{
         if amount == 0{return Err(ViewError::InvalidInput);}
 
@@ -83,7 +80,6 @@ impl View{
         }
     }
     /// Returns a new instance of [`View`] with `vertical_start` decreased by specified amount.
-    #[must_use]
     pub fn scroll_up(&self, amount: usize) -> Result<View, ViewError>{
         if amount == 0{return Err(ViewError::InvalidInput);}
         if self.vertical_start == 0{return Err(ViewError::ResultsInSameState);}
@@ -91,7 +87,6 @@ impl View{
     }
     /// Returns a `bool` indicating whether the [`View`] should be scrolled or not. If `head` of primary [`Selection2d`]
     /// is outside [`View`] boundaries, [`View`] should be scrolled.
-    #[must_use]
     pub fn should_scroll(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> bool{
         assert!(selection.cursor(text, semantics) <= text.len_chars());
 
@@ -108,7 +103,6 @@ impl View{
     /// Returns a new instance of [`View`] with `horizontal_start` and/or `vertical_start` shifted to keep `head` of
     /// [`Selection`] in [`View`].
     /// Can follow any specified selection, not just primary selection.
-    #[must_use]
     pub fn scroll_following_cursor(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> Self{
         assert!(selection.cursor(text, semantics) <= text.len_chars());
 
@@ -136,7 +130,6 @@ impl View{
     }
 
     /// Returns an instance of [`View`] vertically centered around specified cursor.
-    #[must_use]
     pub fn center_vertically_around_cursor(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> Result<Self, ViewError>{
         assert!(selection.cursor(text, semantics) <= text.len_chars());    //ensure selection is valid
         assert!(text.len_lines() > 0);  //ensure text is not empty

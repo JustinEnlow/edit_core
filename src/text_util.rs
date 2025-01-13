@@ -126,10 +126,18 @@ pub fn next_word_boundary(current_position: usize, text: &Rope) -> usize{   //sh
     }
 
     // if no word chars, set index after next single non word char
-    if !found_word_char{
-        if index < text.len_chars() && !is_word_char(text.char(index)) && !is_whitespace(text.char(index)){
-            index = next_grapheme_index(index, text);
-        }
+    //if !found_word_char{
+    //    if index < text.len_chars() 
+    //    && !is_word_char(text.char(index)) 
+    //    && !is_whitespace(text.char(index)){
+    //        index = next_grapheme_index(index, text);
+    //    }
+    //}
+    if !found_word_char
+    && index < text.len_chars()
+    && !is_word_char(text.char(index))
+    && !is_whitespace(text.char(index)){
+        index = next_grapheme_index(index, text);
     }
 
     if index < text.len_chars(){
@@ -265,6 +273,7 @@ pub fn offset_from_line_start(point: usize, text: &Rope) -> usize{
 }
 
 /// Returns the start index of the first matching pattern inside a text if one exists, or None
+// AI gen code. verify behavior and clarify code intent at some later point.
 pub fn naive_search(text: &str, pattern: &str) -> Option<usize> {
     let text_len = text.len();
     let pattern_len = pattern.len();
@@ -273,15 +282,17 @@ pub fn naive_search(text: &str, pattern: &str) -> Option<usize> {
         return None;
     }
 
-    for i in 0..=text_len - pattern_len {
-        if &text[i..i + pattern_len] == pattern {
-            return Some(i); // return the index where pattern starts
-        }
-    }
-
-    None // if pattern is not found
+    //for i in 0..=text_len - pattern_len {
+    //    if &text[i..i + pattern_len] == pattern {
+    //        return Some(i); // return the index where pattern starts
+    //    }
+    //}
+//
+    //None // if pattern is not found
+    (0..=text_len - pattern_len).find(|&i| &text[i..i + pattern_len] == pattern)    //clippy suggestion
 }
 
+// AI gen code. verify behavior and clarify code intent at some later point.
 fn build_lps(pattern: &str) -> Vec<usize> {
     let m = pattern.len();
     let mut lps = vec![0; m]; // Longest prefix suffix array
@@ -290,14 +301,14 @@ fn build_lps(pattern: &str) -> Vec<usize> {
 
     // Loop to fill the lps array
     while i < m {
-        if pattern.as_bytes()[i] == pattern.as_bytes()[length] {
+        if pattern.as_bytes()[i] == pattern.as_bytes()[length]{
             length += 1;
             lps[i] = length;
             i += 1;
-        } else {
-            if length != 0 {
+        }else{
+            if length != 0{
                 length = lps[length - 1];
-            } else {
+            }else{
                 lps[i] = 0;
                 i += 1;
             }
@@ -307,6 +318,7 @@ fn build_lps(pattern: &str) -> Vec<usize> {
     lps
 }
 
+// AI gen code. verify behavior and clarify code intent at some later point.
 pub fn kmp_search(text: &str, pattern: &str) -> Option<usize> {
     let n = text.len();
     let m = pattern.len();

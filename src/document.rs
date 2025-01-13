@@ -119,7 +119,6 @@ impl Document{
     /// let doc = Document::new(CursorSemantics::Bar).with_text(text.clone());
     /// assert_eq!(doc.len(), 4);
     /// ```
-    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize{
         self.text.len_lines()
     }
@@ -223,7 +222,6 @@ impl Document{
     }
 
     /// Undoes the most recent change made to the document, restoring the previous state.
-    #[allow(clippy::result_unit_err)]
     pub fn undo(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{    //should this be a HistoryError instead?...
         // Check if there is something to undo
         if let Some(change_set) = self.undo_stack.pop(){
@@ -272,7 +270,6 @@ impl Document{
 
     /// Redoes the most recent Undo made to the document, restoring the previous state.
     /// Make sure to clear the redo stack in every edit fn. new actions invalidate the redo history
-    #[allow(clippy::result_unit_err)]
     pub fn redo(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{    //should this be HistoryError instead?...
         // Check if there is something to redo
         if let Some(change_set) = self.redo_stack.pop(){
@@ -417,7 +414,6 @@ impl Document{
     /// - at start of line, appends current line to end of previous line
     /// - removes previous soft tab, if TAB_WIDTH spaces are before cursor
     /// - deletes selection if selection extended
-    #[allow(clippy::collapsible_else_if)]
     pub fn backspace(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
         let selections_before_changes = self.selections.clone();
         let mut changes = Vec::new();
@@ -474,7 +470,6 @@ impl Document{
     /// Cut single selection.
     /// Copies text to clipboard and removes selected text from document.
     /// Ensure single selection when calling this function.
-    #[allow(clippy::result_unit_err)]
     pub fn cut(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
         if self.selections.count() > 1{return Err(DocumentError::SelectionsError(SelectionsError::MultipleSelections));}
 
@@ -486,7 +481,6 @@ impl Document{
 
     /// Copy single selection to clipboard.
     /// Ensure single selection when calling this function.
-    #[allow(clippy::result_unit_err)]
     pub fn copy(&mut self) -> Result<(), DocumentError>{
         if self.selections.count() > 1{return Err(DocumentError::SelectionsError(SelectionsError::MultipleSelections));}
         

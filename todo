@@ -8,6 +8,7 @@ Document:
     [ ] determine what to do when current file tab width is different than desired tab width, if we do anything at all
         - hard tabs shouldn't change anything we do, but soft tabs might
     [ ] handle auto-indent on newline insertion
+    [ ] pipe commands to shell and insert result into document
 
 Selection:
     [ ] make sure extend functions do not extend past doc end. this is ok for movement functions because new characters need to be added to the document
