@@ -71,6 +71,7 @@ pub enum SelectionError{        //or should each fallible fn have its own fn spe
     ResultsInSameState,
     NoOverlap,
     InvalidInput,   //as in put_cursor  //to > text.len_chars()
+    DirectionMismatch
 }
 /// 1 dimensional representation of a single selection(between anchor and head) within a text rope.
 /// a cursor is a selection with an anchor/head difference of 0 or 1(depending on cursor semantics)
@@ -95,9 +96,21 @@ impl Selection{
     }
     
     /// Returns the char index of [`Selection`] anchor.
+    /// ```
+    /// # use edit_core::selection::Selection;
+    /// assert_eq!(0, Selection::new(0, 0).anchor());
+    /// assert_eq!(0, Selection::new(0, 1).anchor());
+    /// assert_eq!(1, Selection::new(1, 0).anchor());
+    /// ```
     pub fn anchor(&self) -> usize{self.anchor}
     
     /// Returns the char index of [`Selection`] head.
+    /// ```
+    /// # use edit_core::selection::Selection;
+    /// assert_eq!(0, Selection::new(0, 0).head());
+    /// assert_eq!(1, Selection::new(0, 1).head());
+    /// assert_eq!(0, Selection::new(1, 0).head());
+    /// ```
     pub fn head(&self) -> usize{self.head}
 
     /// Returns the char index of the start of the [`Selection`] from left to right.
@@ -121,8 +134,17 @@ impl Selection{
         //}
     }
 
-    // TODO: impl tests
     /// Returns a bool indicating whether the selection spans multiple lines.
+    /// ```
+    /// # use ropey::Rope;
+    /// # use edit_core::selection::{Selection, CursorSemantics};
+    /// 
+    /// let text = Rope::from("idk\nsome\nshit\n");
+    /// assert_eq!(true, Selection::new(0, 5).spans_multiple_lines(&text, CursorSemantics::Bar));
+    /// assert_eq!(true, Selection::new(0, 5).spans_multiple_lines(&text, CursorSemantics::Block));
+    /// assert_eq!(false, Selection::new(0, 3).spans_multiple_lines(&text, CursorSemantics::Bar));
+    /// assert_eq!(false, Selection::new(0, 4).spans_multiple_lines(&text, CursorSemantics::Block));
+    /// ```
     pub fn spans_multiple_lines(&self, text: &Rope, semantics: CursorSemantics) -> bool{
         text.char_to_line(self.anchor) != text.char_to_line(self.cursor(text, semantics))
     }
@@ -177,14 +199,14 @@ impl Selection{
     /// because this uses previously initialized selections.
     // note: merges need to have a stored line position, so that movements after merge work correctly
     //TODO: maybe error if Direction of self and other are mismatched...    though i can't think of how this case would occur with normal text editing...
-    pub fn merge(&self, other: &Selection, text: &Rope, semantics: CursorSemantics) -> Result<Selection, ()>{   //resultant Selection should be the Direction of self
+    pub fn merge(&self, other: &Selection, text: &Rope, semantics: CursorSemantics) -> Result<Selection, SelectionError>{   //resultant Selection should be the Direction of self
         //let anchor = self.start().min(other.start());
         //let head = self.end().max(other.end());
         //let stored_line_position = text_util::offset_from_line_start(head, text);   //self.cursor instead of head?
         //
         //Selection{anchor, head, stored_line_position: Some(stored_line_position)}
 
-        if self.direction(text, semantics) != other.direction(text, semantics){return Err(());} //cannot merge selections with differing directions
+        if self.direction(text, semantics) != other.direction(text, semantics){return Err(SelectionError::DirectionMismatch);} //cannot merge selections with differing directions
         match self.direction(text, semantics){
             Direction::Forward => {
                 let anchor = self.start().min(other.start());
@@ -607,9 +629,12 @@ impl Selection{
     //TODO: make pub fn select_line //should this include newline at end of line? //should this include indentation at start of line? //vscode includes both, as does kakoune
     //TODO: make pub fn select_inside   //for bracket pairs and the like
     //TODO: make pub fn select_until    //extend selection until provided character is selected (should have one for forwards and one for backwards)
+    //TODO: make pub fn align_selected_text_vertically //maybe this belongs in document.rs, since it would have to be an edit...
+    //TODO: make pub fn rotate_selected_text   //maybe this belongs in document.rs, since it would have to be an edit...
 
-    // should this be made purely functional?
-    pub fn shift_and_extend(&mut self, amount: usize, text: &Rope, semantics: CursorSemantics){ //-> Result<(), SelectionError>{    //should this pass up possible errors from move/extend calls?
+    //TODO: should this be made purely functional?
+    //TODO: should this pass up possible errors from move/extend calls?
+    pub fn shift_and_extend(&mut self, amount: usize, text: &Rope, semantics: CursorSemantics){ //-> Result<(), SelectionError>{
         for _ in 0..amount{
             if let Ok(new_selection) = self.move_left(text, semantics){
                 *self = new_selection;
@@ -875,29 +900,27 @@ impl Selections{
     }
 
     /// Merges overlapping [`Selection`]s.
-    pub fn merge_overlapping(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, ()>{
-        if self.count() < 2{return Err(());}//{return self.clone();}   //should this error instead?...
+    pub fn merge_overlapping(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionsError>{
+        if self.count() < 2{return Err(SelectionsError::SingleSelection);}
 
         let mut primary = self.primary().clone();
         let mut new_selections = self.selections.clone();
         new_selections.dedup_by(|current_selection, prev_selection|{
-                if prev_selection.overlaps(current_selection){
-                    let merged_selection = match current_selection.merge(prev_selection, text, semantics){
-                        Ok(val) => val,
-                        Err(_) => {return false;}
-                    };
+            if prev_selection.overlaps(current_selection){
+                let merged_selection = match current_selection.merge(prev_selection, text, semantics){
+                    Ok(val) => val,
+                    Err(_) => {return false;}
+                };
 
-                    // Update primary selection to track index in next code block // Only clone if necessary
-                    if prev_selection == &primary || current_selection == &primary{
-                        primary = merged_selection.clone();
-                    }
-            
-                    *prev_selection = merged_selection;
-                    true
-                }else{
-                    false
+                // Update primary selection to track index in next code block // Only clone if necessary
+                if prev_selection == &primary || current_selection == &primary{
+                    primary = merged_selection.clone();
                 }
-            });
+
+                *prev_selection = merged_selection;
+                true
+            }else{false}
+        });
 
         let primary_selection_index = new_selections.iter()
             .position(|selection| selection == &primary)
