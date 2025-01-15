@@ -1028,15 +1028,14 @@ impl Selections{
             }
         }
         else if self.primary().is_extended(semantics){
-            let line_width = text_util::line_width(line_text, false);    //not sure if this should be true of false. check here if things start failing with selection extension
-            //(line_start.saturating_add(start_offset), line_start.saturating_add(end_offset.min(line_width)))
-            (line_start.saturating_add(start_offset).min(line_width), line_start.saturating_add(end_offset.min(line_width)))
+            let line_width = text_util::line_width(line_text, false);
+            // fails when primary selection past line_above_text end, because anchor and head are being set to same position in block semantics. should put new selection over newline...
+            (line_start.saturating_add(start_offset.min(line_width)), line_start.saturating_add(end_offset.min(line_width)))    //this is setting anchor and head to same in block semantics, but when we handle block semantics, backward selections start to fail
         }else{  //not extended
             let line_width = text_util::line_width(line_text, false);
             match semantics{    //ensure adding the offsets doesn't make this go past line width
-                CursorSemantics::Bar => (line_start.saturating_add(start_offset).min(line_width), line_start.saturating_add(start_offset).min(line_width)),
-                //CursorSemantics::Block => (line_start.saturating_add(start_offset), text_util::next_grapheme_index(line_start.saturating_add(start_offset), text))
-                CursorSemantics::Block => (line_start.saturating_add(start_offset).min(line_width), text_util::next_grapheme_index(line_start.saturating_add(start_offset).min(line_width), text))
+                CursorSemantics::Bar => (line_start.saturating_add(start_offset.min(line_width)), line_start.saturating_add(start_offset.min(line_width))),
+                CursorSemantics::Block => (line_start.saturating_add(start_offset.min(line_width)), text_util::next_grapheme_index(line_start.saturating_add(start_offset.min(line_width)), text))
             }
         };
 
