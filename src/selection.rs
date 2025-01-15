@@ -1027,7 +1027,7 @@ impl Selections{
                 CursorSemantics::Block => (line_start, text_util::next_grapheme_index(line_start, text))
             }
         }
-        else if self.primary().is_extended(semantics){
+        else if self.primary().is_extended(semantics) && start_offset < text_util::line_width(line_text, false){  //&& primary selections start offset <= line_width
             let line_width = text_util::line_width(line_text, false);
             // fails when primary selection past line_above_text end, because anchor and head are being set to same position in block semantics. should put new selection over newline...
             (line_start.saturating_add(start_offset.min(line_width)), line_start.saturating_add(end_offset.min(line_width)))    //this is setting anchor and head to same in block semantics, but when we handle block semantics, backward selections start to fail
