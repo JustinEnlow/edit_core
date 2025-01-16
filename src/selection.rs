@@ -173,8 +173,11 @@ impl Selection{
     /// //assert_eq!(true, Selection::new(14, 15).spans_multiple_lines(&text, CursorSemantics::Block)); // i d k \n s o m e \n s h i t \n|: >
     /// ```
     pub fn spans_multiple_lines(&self, text: &Rope, semantics: CursorSemantics) -> bool{
+        if self.end() > text.len_chars(){return false;} //this used to handle cursor at end of file. no selection should be able to extend there...
+
         let start_line = text.char_to_line(self.start());
         let end_line = text.char_to_line(self.end());
+        
         // if selection not extended, should always be false
         if !self.is_extended(semantics){return false;}
         // if selection extended on same line, should always be false
@@ -425,7 +428,7 @@ impl Selection{
         self.move_horizontally(1, text, Movement::Move, Direction::Forward, semantics)
     }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended to the right.
-    pub fn extend_right(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+    pub fn extend_right(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{    //TODO: ensure this can't extend past doc text end
         if self.cursor(text, semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
         self.move_horizontally(1, text, Movement::Extend, Direction::Forward, semantics)
     }
@@ -449,7 +452,7 @@ impl Selection{
         }
     }
     /// Returns a new instance of [`Selection`] with cursor extended right to the nearest word boundary.
-    pub fn extend_right_word_boundary(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+    pub fn extend_right_word_boundary(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{  //TODO: ensure this can't extend past doc text end
         if self.cursor(text, semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
         
         let goal_index = text_util::next_word_boundary(self.head(), text);
@@ -510,7 +513,7 @@ impl Selection{
         self.move_vertically(1, text, Movement::Move, Direction::Forward, semantics)
     }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended down.
-    pub fn extend_down(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+    pub fn extend_down(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{ //TODO: ensure this can't extend past doc text end
         if text.char_to_line(self.cursor(text, semantics)) == text.len_lines().saturating_sub(1){return Err(SelectionError::ResultsInSameState);}
         self.move_vertically(1, text, Movement::Extend, Direction::Forward, semantics)
     }
@@ -527,7 +530,7 @@ impl Selection{
         self.put_cursor(line_end, text, Movement::Move, semantics, true)
     }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended to the end of the current line.
-    pub fn extend_line_text_end(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+    pub fn extend_line_text_end(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{    //TODO: ensure this can't extend past doc text end
         let line_number = text.char_to_line(self.cursor(text, semantics));
         let line = text.line(line_number);
         let line_width = text_util::line_width(line, false);    //doesn't include newline
@@ -634,7 +637,7 @@ impl Selection{
         self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Move, Direction::Forward, semantics)
     }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended down by the height of `client_view`.
-    pub fn extend_page_down(&self, text: &Rope, client_view: &View, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+    pub fn extend_page_down(&self, text: &Rope, client_view: &View, semantics: CursorSemantics) -> Result<Self, SelectionError>{    //TODO: ensure this can't extend past doc text end
         if text.char_to_line(self.cursor(text, semantics)) == text.len_lines().saturating_sub(1){return Err(SelectionError::ResultsInSameState);}
         self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Extend, Direction::Forward, semantics)
     }
@@ -656,13 +659,13 @@ impl Selection{
         self.put_cursor(text.len_chars(), text, Movement::Move, semantics, true)
     }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended to doc end.
-    pub fn extend_doc_end(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+    pub fn extend_doc_end(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{  //TODO: ensure this can't extend past doc text end
         if self.cursor(text, semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
         self.put_cursor(text.len_chars(), text, Movement::Extend, semantics, true)
     }
     
     /// Returns a new instance of [`Selection`] with [`Selection`] extended to encompass all text.
-    pub fn select_all(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+    pub fn select_all(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{  //TODO: ensure this can't extend past doc text end
         if self.start() == 0 && (self.end() == text.len_chars() || self.end() == text.len_chars().saturating_add(1)){return Err(SelectionError::ResultsInSameState);}
         let selection = self.put_cursor(0, text, Movement::Move, semantics, true)?;
         selection.put_cursor(text.len_chars(), text, Movement::Extend, semantics, true)
@@ -1004,19 +1007,16 @@ impl Selections{
     //}
 
     /// Adds a new [`Selection`] directly above the top-most [`Selection`], with the same start and end offsets from line start, if possible.
-    // TODO: make new selection's head/anchor ordering match current selection's
-    // TODO: test/make sure newlines are being handled correctly
-    // TODO: test/make sure end of file is handled correctly    //when selection exteded at end of file "[}\n]", we are still being allowed to extend selection up... this is prob more logic spans_multiple_lines fn needs to check
-    pub fn add_selection_above(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionsError>{ //TODO: define possible errors
+    pub fn add_selection_above(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionsError>{
         assert!(self.count() > 0);  //ensure at least one selection in selections
-        // should error if any selection spans multiple lines. //callee can determine appropriate response behavior in this case        //vscode behavior is to extend topmost selection up one line if any selection spans multiple lines
-        //TODO re-enable this check, when spans_multiple_lines fn fixed
-        for selection in self.selections.iter(){
-            if selection.spans_multiple_lines(text, semantics){return Err(SelectionsError::SpansMultipleLines);}    //need to work on this, i think this is triggering when a non extended block cursor is over a newline char
-        }
+
         let top_selection = self.first();
         let top_selection_line = text.char_to_line(top_selection.start());
         if top_selection_line == 0{return Err(SelectionsError::CannotAddSelectionAbove);}
+        // should error if any selection spans multiple lines. //callee can determine appropriate response behavior in this case        //vscode behavior is to extend topmost selection up one line if any selection spans multiple lines
+        for selection in self.selections.iter(){
+            if selection.spans_multiple_lines(text, semantics){return Err(SelectionsError::SpansMultipleLines);}
+        }
 
         // using primary selection here, because that is the selection we want our added selection to emulate, if possible with the available text
         let start_offset = text_util::offset_from_line_start(self.primary().start(), text);
@@ -1032,10 +1032,8 @@ impl Selections{
                 CursorSemantics::Block => (line_start, text_util::next_grapheme_index(line_start, text))
             }
         }
-        else if self.primary().is_extended(semantics){    //also ensure if line_width(including_newline?) < selection end, added selection needs to encompass newline as well
-            //if start_offset < text_util::line_width(line_text, false){  //should line width include newline?
+        else if self.primary().is_extended(semantics){
             if start_offset < line_width{   //should we exclusively handle start_offset < line_width && end_offset < line_width as well?
-                //(line_start.saturating_add(start_offset.min(line_width_including_newline)), line_start.saturating_add(end_offset.min(line_width_including_newline)))
                 (line_start.saturating_add(start_offset), line_start.saturating_add(end_offset.min(line_width_including_newline))) //start offset already verified within line text bounds
             }
             else{
@@ -1043,7 +1041,6 @@ impl Selections{
                 match semantics{    //ensure adding the offsets doesn't make this go past line width
                     CursorSemantics::Bar => (line_start.saturating_add(start_offset.min(line_width)), line_start.saturating_add(start_offset.min(line_width))),
                     CursorSemantics::Block => (line_start.saturating_add(start_offset.min(line_width)), text_util::next_grapheme_index(line_start.saturating_add(start_offset.min(line_width)), text))
-                    //CursorSemantics::Block => (line_start.saturating_add(start_offset.min(line_width)), line_start.saturating_add(start_offset.min(line_width_including_newline)))    //working when selection start is greater than text end, but not when equal to(using block cursor)
                 }
             }
         }
@@ -1058,47 +1055,58 @@ impl Selections{
             Direction::Forward => Ok(self.push_front(Selection::new(start, end), false)),
             Direction::Backward => Ok(self.push_front(Selection::new(end, start), false))
         }
-        //
     }
 
-    // TODO: selection added below at text end is not rendering on last line
+    // TODO: selection added below at text end is not rendering on last line(this is a frontend issue though)
     /// Adds a new [`Selection`] directly below bottom-most [`Selection`], with the same start and end offsets from line start, if possible.
-    // TODO: make new selection's head/anchor ordering match current selection's
-    // TODO: test/make sure newlines are being handled correctly
-    // TODO: test/make sure end of file is handled correctly
     pub fn add_selection_below(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionsError>{
         assert!(self.count() > 0);  //ensure at least one selection in selections
+
+        let bottom_selection = self.last();
+        let bottom_selection_line = text.char_to_line(bottom_selection.start());
+        //bottom_selection_line must be zero based, and text.len_lines() one based...   //TODO: verify
+        if bottom_selection_line >= text.len_lines().saturating_sub(1){return Err(SelectionsError::CannotAddSelectionBelow);}
         // should error if any selection spans multiple lines. //callee can determine appropriate response behavior in this case        //vscode behavior is to extend topmost selection down one line if any selection spans multiple lines
         for selection in self.selections.iter(){
             if selection.spans_multiple_lines(text, semantics){return Err(SelectionsError::SpansMultipleLines);}
         }
-        let bottom_selection = self.last();
-        let bottom_selection_line = text.char_to_line(bottom_selection.anchor);
-        if bottom_selection_line >= text.len_lines().saturating_sub(1){ //bottom_selection_line must be zero based, and text.len_lines() one based...   //TODO: verify
-            return Err(SelectionsError::CannotAddSelectionBelow);
-        }
-        
-        let anchor_offset = text_util::offset_from_line_start(self.primary().anchor, text);
-        let head_offset = text_util::offset_from_line_start(self.primary().cursor(text, semantics), text);
 
+        // using primary selection here, because that is the selection we want our added selection to emulate, if possible with the available text
+        let start_offset = text_util::offset_from_line_start(self.primary().start(), text);
+        let end_offset = start_offset.saturating_add(self.primary().end().saturating_sub(self.primary().start()));  //start_offset + (end char index - start char index)
         let line_below = bottom_selection_line.saturating_add(1);
         let line_start = text.line_to_char(line_below);
-
-        let line_text = text.line(line_below).to_string();
-        let (start, end) = if line_text.is_empty() || line_text == "\n"{
-            (line_start, line_start)
+        let line_text = text.line(line_below);
+        let line_width = text_util::line_width(line_text, false);
+        let line_width_including_newline = text_util::line_width(line_text, true);
+        let (start, end) = if line_text.to_string().is_empty() || line_text.to_string() == "\n"{    //should be impossible for the text in the line above first selection to be empty. is_empty() check is redundant here...
+            match semantics{
+                CursorSemantics::Bar => (line_start, line_start),
+                CursorSemantics::Block => (line_start, text_util::next_grapheme_index(line_start, text))
+            }
         }
-        else if !self.primary().is_extended(semantics){
-            (line_start.saturating_add(anchor_offset), line_start.saturating_add(anchor_offset))
+        else if self.primary().is_extended(semantics){
+            if start_offset < line_width{   //should we exclusively handle start_offset < line_width && end_offset < line_width as well?
+                (line_start.saturating_add(start_offset), line_start.saturating_add(end_offset.min(line_width_including_newline))) //start offset already verified within line text bounds
+            }
+            else{
+                // currently same as non extended. this might change...
+                match semantics{    //ensure adding the offsets doesn't make this go past line width
+                    CursorSemantics::Bar => (line_start.saturating_add(start_offset.min(line_width)), line_start.saturating_add(start_offset.min(line_width))),
+                    CursorSemantics::Block => (line_start.saturating_add(start_offset.min(line_width)), text_util::next_grapheme_index(line_start.saturating_add(start_offset.min(line_width)), text))
+                }
+            }
         }
-        else{
-            let line_width = text_util::line_width(text.line(line_below), false);
-            (line_start.saturating_add(anchor_offset), line_start.saturating_add(head_offset.min(line_width)))
+        else{  //not extended
+            match semantics{    //ensure adding the offsets doesn't make this go past line width
+                CursorSemantics::Bar => (line_start.saturating_add(start_offset.min(line_width)), line_start.saturating_add(start_offset.min(line_width))),
+                CursorSemantics::Block => (line_start.saturating_add(start_offset.min(line_width)), text_util::next_grapheme_index(line_start.saturating_add(start_offset.min(line_width)), text))
+            }
         };
 
-        match semantics{
-            CursorSemantics::Bar => {Ok(self.push(Selection::new(start, end), false))}
-            CursorSemantics::Block => {Ok(self.push(Selection::new(start, end.saturating_add(1)), false))}
+        match self.primary().direction(text, semantics){
+            Direction::Forward => Ok(self.push(Selection::new(start, end), false)),
+            Direction::Backward => Ok(self.push(Selection::new(end, start), false))
         }
     }
 

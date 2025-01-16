@@ -9,6 +9,7 @@ Document:
         - hard tabs shouldn't change anything we do, but soft tabs might
     [ ] handle auto-indent on newline insertion
     [ ] pipe commands to shell and insert result into document
+    [ ] figure out how to handle read-only or permission restricted files...
 
 Selection:
     [ ] make sure extend functions do not extend past doc end. this is ok for movement functions because new characters need to be added to the document

@@ -1376,7 +1376,7 @@ fn clear_non_primary_selections_errors_if_only_one_selection(){
                     let text = Rope::from("idk\nsomething\nelse\n");
                     assert!(Selections::new(vec![Selection::new(3, 1)], 0, &text).add_selection_above(&text, CursorSemantics::Block).is_err());
                 }
-    // should error if any selection is multiline   TODO: re-enable these tests when spans_multiple_lines fn fixed
+    // should error if any selection is multiline
             //bar
                 //selection direction Forward
                 #[test] fn add_forward_selection_above_should_error_when_any_selection_is_multi_line_bar_semantics(){
@@ -1400,133 +1400,392 @@ fn clear_non_primary_selections_errors_if_only_one_selection(){
                     assert!(Selections::new(vec![Selection::new(15, 4)], 0, &text).add_selection_above(&text, CursorSemantics::Block).is_err());
                 }
 
-//#[test]
-//fn add_selection_above_with_newline_bar_semantics(){
-//    let text = Rope::from("\n\nidk\n");
-//    let selections = Selections::new(vec![Selection::new(1, 1)], 0, &text);
-//    assert_eq!(
-//        Ok(Selections::new(vec![Selection::new(0, 0), Selection::new(1, 1)], 1, &text)),
-//        selections.add_selection_above(&text, CursorSemantics::Bar)
-//    );
-//}
-//#[test]
-//fn add_selection_above_with_newline_block_semantics(){
-//    let text = Rope::from("\n\nidk\n");
-//    let selections = Selections::new(vec![Selection::new(1, 2)], 0, &text);
-//    assert_eq!(
-//        Ok(Selections::new(vec![Selection::new(0, 1), Selection::new(1, 2)], 1, &text)),
-//        selections.add_selection_above(&text, CursorSemantics::Block)
-//    );
-//}
-//// TODO: add selection above with empty line
-//#[test]
-//fn add_selection_above_with_selection_extension_across_lines_of_multiple_widths_bar_semantics(){
-//    let text = Rope::from("idk\ni\nidk\n");
-//    let mut selections = Selections::new(vec![Selection::new(6, 9)], 0, &text);
-//    selections = selections.add_selection_above(&text, CursorSemantics::Bar).unwrap();
-//    assert_eq!(Selections::new(vec![Selection::new(4, 5), Selection::new(6, 9)], 1, &text), selections);
-//    selections = selections.add_selection_above(&text, CursorSemantics::Bar).unwrap();
-//    assert_eq!(Selections::new(vec![Selection::new(0, 3), Selection::new(4, 5), Selection::new(6, 9)], 2, &text), selections);
-//}
-//#[test]
-//fn add_selection_above_with_selection_extension_across_lines_of_multiple_widths_block_semantics(){
-//    let text = Rope::from("idk\ni\nidk\n");
-//    let mut selections = Selections::new(vec![Selection::new(6, 9)], 0, &text);
-//    selections = selections.add_selection_above(&text, CursorSemantics::Block).unwrap();
-//    assert_eq!(Selections::new(vec![Selection::new(4, 6), Selection::new(6, 9)], 1, &text), selections);
-//    selections = selections.add_selection_above(&text, CursorSemantics::Block).unwrap();
-//    assert_eq!(Selections::new(vec![Selection::new(0, 3), Selection::new(4, 6), Selection::new(6, 9)], 2, &text), selections);
-//}
 
 
-
-#[test]
-fn add_selection_below_with_no_selection_extension_bar_semantics(){
-    let text = Rope::from("idk\nsome\nshit\n");
-    let selections = Selections::new(vec![Selection::new(4, 4)], 0, &text);
-    assert_eq!(
-        Ok(Selections::new(vec![Selection::new(4, 4), Selection::new(9, 9)], 0, &text)),
-        selections.add_selection_below(&text, CursorSemantics::Bar)
-    );
-}
-#[test]
-fn add_selection_below_with_no_selection_extension_block_semantics(){
-    let text = Rope::from("idk\nsome\nshit\n");
-    let selections = Selections::new(vec![Selection::new(4, 5)], 0, &text);
-    assert_eq!(
-        Ok(Selections::new(vec![Selection::new(4, 5), Selection::new(9, 10)], 0, &text)),
-        selections.add_selection_below(&text, CursorSemantics::Block)
-    );
-}
-#[test]
-fn add_selection_below_with_selection_extension_bar_semantics(){
-    let text = Rope::from("idk\nsome\nshit\n");
-    let selections = Selections::new(vec![Selection::new(5, 7)], 0, &text);
-    assert_eq!(
-        Ok(Selections::new(vec![Selection::new(5, 7), Selection::new(10, 12)], 0, &text)),
-        selections.add_selection_below(&text, CursorSemantics::Bar)
-    );
-}
-#[test]
-fn add_selection_below_with_selection_extension_block_semantics(){
-    let text = Rope::from("idk\nsome\nshit\n");
-    let selections = Selections::new(vec![Selection::new(5, 7)], 0, &text);
-    assert_eq!(
-        Ok(Selections::new(vec![Selection::new(5, 7), Selection::new(10, 12)], 0, &text)),
-        selections.add_selection_below(&text, CursorSemantics::Block)
-    );
-}
-#[test]
-fn add_selection_below_with_newline_bar_semantics(){
-    let text = Rope::from("\n\nidk\n");
-    let selections = Selections::new(vec![Selection::new(1, 1)], 0, &text);
-    assert_eq!(
-        Ok(Selections::new(vec![Selection::new(1, 1), Selection::new(2, 2)], 0, &text)),
-        selections.add_selection_below(&text, CursorSemantics::Bar)
-    );
-}
-#[test]
-fn add_selection_below_with_newline_block_semantics(){
-    let text = Rope::from("\n\nidk\n");
-    let selections = Selections::new(vec![Selection::new(1, 2)], 0, &text);
-    assert_eq!(
-        Ok(Selections::new(vec![Selection::new(1, 2), Selection::new(2, 3)], 0, &text)),
-        selections.add_selection_below(&text, CursorSemantics::Block)
-    );
-}
-//// TODO: add selection below with empty line
-#[test]
-fn add_selection_below_with_selection_extension_across_lines_of_multiple_widths_bar_semantics(){
-    let text = Rope::from("idk\ni\nidk\n");
-    let mut selections = Selections::new(vec![Selection::new(0, 3)], 0, &text);
-    selections = selections.add_selection_below(&text, CursorSemantics::Bar).unwrap();
-    assert_eq!(Selections::new(vec![Selection::new(0, 3), Selection::new(4, 5)], 0, &text), selections);
-    selections = selections.add_selection_below(&text, CursorSemantics::Bar).unwrap();
-    assert_eq!(Selections::new(vec![Selection::new(0, 3), Selection::new(4, 5), Selection::new(6, 9)], 0, &text), selections);
-}
-#[test]
-fn add_selection_below_with_selection_extension_across_lines_of_multiple_widths_block_semantics(){
-    let text = Rope::from("idk\ni\nidk\n");
-    let mut selections = Selections::new(vec![Selection::new(0, 3)], 0, &text);
-    selections = selections.add_selection_below(&text, CursorSemantics::Block).unwrap();
-    assert_eq!(Selections::new(vec![Selection::new(0, 3), Selection::new(4, 6)], 0, &text), selections);
-    selections = selections.add_selection_below(&text, CursorSemantics::Block).unwrap();
-    assert_eq!(Selections::new(vec![Selection::new(0, 3), Selection::new(4, 6), Selection::new(6, 9)], 0, &text), selections);
-}
-//#[test]
-//fn add_selection_below_should_error_when_selection_on_last_line(){
-//    let text = Rope::from("idk\nsome\nshit\n");
-//    let selections = Selections::new(vec![Selection::new(14, 14)], 0, &text);
-//    assert!(selections.add_selection_below(&text, CursorSemantics::Bar).is_err());
-//    let selections = Selections::new(vec![Selection::new(14, 15)], 0, &text);
-//    assert!(selections.add_selection_below(&text, CursorSemantics::Block).is_err());
-//}
-#[test]
-fn add_selection_below_should_error_when_any_selection_is_multi_line(){ //may not require this later...
-    let text = Rope::from("idk\nsome\nshit\n");
-    let selections = Selections::new(vec![Selection::new(4, 10)], 0, &text);
-    assert!(selections.add_selection_below(&text, CursorSemantics::Bar).is_err());
-    assert!(selections.add_selection_below(&text, CursorSemantics::Block).is_err());
-}
+// add selection below
+// 0    4          13    17
+//"idk\nsomething\nelse\n"
+//idk
+//something
+//else
+//
+    // within lines of same len or more
+        // non extended
+            //bar
+            #[test] fn add_selection_below_with_no_selection_extension_bar_semantics(){
+                let text = Rope::from("idk\nsomething\nelse\n");
+                assert_eq!(
+                    Ok(Selections::new(vec![Selection::new(0, 0), Selection::new(4, 4)], 0, &text)),
+                    Selections::new(vec![Selection::new(0, 0)], 0, &text).add_selection_below(&text, CursorSemantics::Bar)
+                );
+            }
+            //block
+                //selection direction Forward
+                #[test] fn add_forward_selection_below_with_no_selection_extension_block_semantics(){
+                    let text = Rope::from("idk\nsomething\nelse\n");
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(0, 1), Selection::new(4, 5)], 0, &text)),
+                        Selections::new(vec![Selection::new(0, 1)], 0, &text).add_selection_below(&text, CursorSemantics::Block)
+                    );
+                }
+                //selection direction Bacward
+                #[test] fn add_backward_selection_below_with_no_selection_extension_block_semantics(){
+                    let text = Rope::from("idk\nsomething\nelse\n");
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(1, 0), Selection::new(5, 4)], 0, &text)),
+                        Selections::new(vec![Selection::new(1, 0)], 0, &text).add_selection_below(&text, CursorSemantics::Block)
+                    );
+                }
+        // extended
+            //bar
+                //selection direction Forward
+                #[test] fn add_forward_selection_below_with_selection_extension_bar_semantics(){
+                    let text = Rope::from("idk\nsomething\nelse\n");
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(1, 3), Selection::new(5, 7)], 0, &text)),
+                        Selections::new(vec![Selection::new(1, 3)], 0, &text).add_selection_below(&text, CursorSemantics::Bar)
+                    );
+                }
+                //selection direction Bacward
+                #[test] fn add_backward_selection_below_with_selection_extension_bar_semantics(){
+                    let text = Rope::from("idk\nsomething\nelse\n");
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(3, 1), Selection::new(7, 5)], 0, &text)),
+                        Selections::new(vec![Selection::new(3, 1)], 0, &text).add_selection_below(&text, CursorSemantics::Bar)
+                    );
+                }
+            //block
+                //selection direction Forward
+                #[test] fn add_forward_selection_below_with_selection_extension_block_semantics(){
+                    let text = Rope::from("idk\nsomething\nelse\n");
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(1, 3), Selection::new(5, 7)], 0, &text)),
+                        Selections::new(vec![Selection::new(1, 3)], 0, &text).add_selection_below(&text, CursorSemantics::Block)
+                    );
+                }
+                //selection direction Bacward
+                #[test] fn add_backward_selection_below_with_selection_extension_block_semantics(){
+                    let text = Rope::from("idk\nsomething\nelse\n");
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(3, 1), Selection::new(7, 5)], 0, &text)),
+                        Selections::new(vec![Selection::new(3, 1)], 0, &text).add_selection_below(&text, CursorSemantics::Block)
+                    );
+                }
+    // adding to longer line
+        // non extended
+            //bar
+            #[test] fn add_selection_below_to_longer_line_with_no_selection_extension_bar_semantics(){
+                let text = Rope::from("idk\nsomething\nelse\n");    //len 19
+                assert_eq!(
+                    Ok(Selections::new(vec![Selection::new(8, 8), Selection::new(18, 18)], 0, &text)),
+                    Selections::new(vec![Selection::new(8, 8)], 0, &text).add_selection_below(&text, CursorSemantics::Bar)
+                );
+            }
+            //block
+                //selection direction Forward
+                #[test] fn add_forward_selection_below_to_longer_line_with_no_selection_extension_block_semantics(){
+                    let text = Rope::from("idk\nsomething\nelse\n");    //len 19
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(8, 9), Selection::new(18, 19)], 0, &text)),
+                        Selections::new(vec![Selection::new(8, 9)], 0, &text).add_selection_below(&text, CursorSemantics::Block)
+                    );
+                }
+                //selection direction Bacward
+                #[test] fn add_backward_selection_below_to_longer_line_with_no_selection_extension_block_semantics(){
+                    let text = Rope::from("idk\nsomething\nelse\n");    //len 19
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(9, 8), Selection::new(19, 18)], 0, &text)),
+                        Selections::new(vec![Selection::new(9, 8)], 0, &text).add_selection_below(&text, CursorSemantics::Block)
+                    );
+                }
+        // extended
+            //bar
+                //selection direction Forward
+                #[test] fn add_forward_selection_below_to_longer_line_with_selection_extension_bar_semantics(){
+                    let text = Rope::from("idk\nsomething\nelse\n");    //len 19
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(4, 9), Selection::new(14, 19)], 0, &text)),
+                        Selections::new(vec![Selection::new(4, 9)], 0, &text).add_selection_below(&text, CursorSemantics::Bar)
+                    );
+                }
+                //selection direction Bacward
+                #[test] fn add_backward_selection_below_to_longer_line_with_selection_extension_bar_semantics(){
+                    let text = Rope::from("idk\nsomething\nelse\n");    //len 19
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(9, 4), Selection::new(19, 14)], 0, &text)),
+                        Selections::new(vec![Selection::new(9, 4)], 0, &text).add_selection_below(&text, CursorSemantics::Bar)
+                    );
+                }
+            //block
+                //selection direction Forward
+                #[test] fn add_forward_selection_below_to_longer_line_with_selection_extension_block_semantics(){
+                    let text = Rope::from("idk\nsomething\nelse\n");    //len 19
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(4, 9), Selection::new(14, 19)], 0, &text)),
+                        Selections::new(vec![Selection::new(4, 9)], 0, &text).add_selection_below(&text, CursorSemantics::Block)
+                    );
+                }
+                //selection direction Bacward
+                #[test] fn add_backward_selection_below_to_longer_line_with_selection_extension_block_semantics(){
+                    let text = Rope::from("idk\nsomething\nelse\n");    //len 19
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(9, 4), Selection::new(19, 14)], 0, &text)),
+                        Selections::new(vec![Selection::new(9, 4)], 0, &text).add_selection_below(&text, CursorSemantics::Block)
+                    );
+                }
+    // adding to shorter line   //TODO: maybe add another newline at end, to make sure we aren't unintentionally testing any end of file functionality
+        // non extended
+            //bar
+            #[test] fn add_selection_below_to_shorter_line_with_no_selection_extension_bar_semantics(){
+                let text = Rope::from("idk\nsomething\nelse\n");
+                assert_eq!(
+                    Ok(Selections::new(vec![Selection::new(13, 13), Selection::new(18, 18)], 0, &text)),
+                    Selections::new(vec![Selection::new(13, 13)], 0, &text).add_selection_below(&text, CursorSemantics::Bar)
+                );
+            }
+            //block
+                //selection direction Forward
+                #[test] fn add_forward_selection_below_to_shorter_line_with_no_selection_extension_block_semantics(){
+                    let text = Rope::from("idk\nsomething\nelse\n");
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(13, 14), Selection::new(18, 19)], 0, &text)),
+                        Selections::new(vec![Selection::new(13, 14)], 0, &text).add_selection_below(&text, CursorSemantics::Block)
+                    );
+                }
+                //selection direction Backward
+                #[test] fn add_backward_selection_below_to_shorter_line_with_no_selection_extension_block_semantics(){
+                    let text = Rope::from("idk\nsomething\nelse\n");
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(14, 13), Selection::new(19, 18)], 0, &text)),                        // i d k \n s o m e t h i n g \n e l s e<\n|
+                        Selections::new(vec![Selection::new(14, 13)], 0, &text).add_selection_below(&text, CursorSemantics::Block)  // i d k \n s o m e t h i n g<\n|e l s e \n
+                    );
+                }
+        // extended
+            //bar
+                //selection direction Forward
+                #[test] fn add_forward_selection_below_to_shorter_line_with_selection_extension_bar_semantics(){
+                    let text = Rope::from("idk\nsomething\nelse\n");
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(4, 13), Selection::new(14, 19)], 0, &text)),
+                        Selections::new(vec![Selection::new(4, 13)], 0, &text).add_selection_below(&text, CursorSemantics::Bar)
+                    );
+                }
+                //selection direction Bacward
+                #[test] fn add_backward_selection_below_to_shorter_line_with_selection_extension_bar_semantics(){
+                    let text = Rope::from("idk\nsomething\nelse\n");
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(13, 4), Selection::new(19, 14)], 0, &text)),
+                        Selections::new(vec![Selection::new(13, 4)], 0, &text).add_selection_below(&text, CursorSemantics::Bar)
+                    );
+                }
+            //block
+                //selection direction Forward
+                #[test] fn add_forward_selection_below_to_shorter_line_with_selection_extension_block_semantics(){
+                    let text = Rope::from("idk\nsomething\nelse\n");
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(4, 13), Selection::new(14, 19)], 0, &text)),
+                        Selections::new(vec![Selection::new(4, 13)], 0, &text).add_selection_below(&text, CursorSemantics::Block)
+                    );
+                }
+                //selection direction Bacward
+                #[test] fn add_backward_selection_below_to_shorter_line_with_selection_extension_block_semantics(){
+                    let text = Rope::from("idk\nsomething\nelse\n");
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(13, 4), Selection::new(19, 14)], 0, &text)),
+                        Selections::new(vec![Selection::new(13, 4)], 0, &text).add_selection_below(&text, CursorSemantics::Block)
+                    );
+                }
+    // to empty line
+        // non extended
+            //bar
+            #[test] fn add_selection_below_to_empty_line_no_selection_extension_bar_semantics(){
+                let text = Rope::from("idk\n");
+                assert_eq!(
+                    Ok(Selections::new(vec![Selection::new(3, 3), Selection::new(4, 4)], 0, &text)),
+                    Selections::new(vec![Selection::new(3, 3)], 0, &text).add_selection_below(&text, CursorSemantics::Bar)
+                );
+            }
+            //block
+                //selection direction forward
+                #[test] fn add_forward_selection_below_to_empty_line_no_selection_extension_block_semantics(){
+                    let text = Rope::from("idk\n");
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(3, 4), Selection::new(4, 5)], 0, &text)),
+                        Selections::new(vec![Selection::new(3, 4)], 0, &text).add_selection_below(&text, CursorSemantics::Block)
+                    );
+                }
+                //selection direction backward
+                #[test] fn add_backward_selection_below_to_empty_line_no_selection_extension_block_semantics(){
+                    let text = Rope::from("idk\n");
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(4, 3), Selection::new(5, 4)], 0, &text)),
+                        Selections::new(vec![Selection::new(4, 3)], 0, &text).add_selection_below(&text, CursorSemantics::Block)
+                    );
+                }
+        // extended
+            //bar
+                //selection direction forward
+                #[test] fn add_forward_selection_below_to_empty_line_with_selection_extension_bar_semantics(){
+                    let text = Rope::from("idk\n");
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(0, 3), Selection::new(4, 4)], 0, &text)),
+                        Selections::new(vec![Selection::new(0, 3)], 0, &text).add_selection_below(&text, CursorSemantics::Bar)
+                    );
+                }
+                //selection direction backward
+                #[test] fn add_backward_selection_below_to_empty_line_with_selection_extension_bar_semantics(){
+                    let text = Rope::from("idk\n");
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(3, 0), Selection::new(4, 4)], 0, &text)),
+                        Selections::new(vec![Selection::new(3, 0)], 0, &text).add_selection_below(&text, CursorSemantics::Bar)
+                    );
+                }
+            //block
+                //selection direction forward
+                #[test] fn add_forward_selection_below_to_empty_line_with_selection_extension_block_semantics(){
+                    let text = Rope::from("idk\n");
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(0, 3), Selection::new(4, 5)], 0, &text)),
+                        Selections::new(vec![Selection::new(0, 3)], 0, &text).add_selection_below(&text, CursorSemantics::Block)
+                    );
+                }
+                //selection direction backward
+                #[test] fn add_backward_selection_below_to_empty_line_with_selection_extension_block_semantics(){
+                    let text = Rope::from("idk\n");
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(3, 0), Selection::new(5, 4)], 0, &text)),
+                        Selections::new(vec![Selection::new(3, 0)], 0, &text).add_selection_below(&text, CursorSemantics::Block)
+                    );
+                }
+    // to line with only newline char
+        // non extended
+            //bar
+            #[test] fn add_selection_below_to_line_with_newline_no_selection_extension_bar_semantics(){
+                let text = Rope::from("idk\n\n");
+                assert_eq!(
+                    Ok(Selections::new(vec![Selection::new(3, 3), Selection::new(4, 4)], 0, &text)),                        // i d k \n|\n
+                    Selections::new(vec![Selection::new(3, 3)], 0, &text).add_selection_below(&text, CursorSemantics::Bar)  // i d k|\n \n
+                );
+            }
+            //block
+                //selection direction forward
+                #[test] fn add_forward_selection_below_to_line_with_newline_no_selection_extension_block_semantics(){
+                    let text = Rope::from("idk\n\n");
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(3, 4), Selection::new(4, 5)], 0, &text)),                            // i d k \n|\n>
+                        Selections::new(vec![Selection::new(3, 4)], 0, &text).add_selection_below(&text, CursorSemantics::Block)    // i d k|\n>\n
+                    );
+                }
+                //selection direction backward
+                #[test] fn add_backward_selection_below_to_line_with_newline_no_selection_extension_block_semantics(){
+                    let text = Rope::from("idk\n\n");
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(4, 3), Selection::new(5, 4)], 0, &text)),                            // i d k \n<\n|
+                        Selections::new(vec![Selection::new(4, 3)], 0, &text).add_selection_below(&text, CursorSemantics::Block)    // i d k<\n|\n
+                    );
+                }
+        // extended
+            //bar
+                //selection direction forward   //TODO: failing test    //if selection extended, it should encompass the next newline
+                //#[test] fn add_forward_selection_below_to_line_with_newline_with_selection_extension_bar_semantics(){
+                //    let text = Rope::from("idk\n\n");
+                //    assert_eq!(
+                //        Ok(Selections::new(vec![Selection::new(0, 3), Selection::new(4, 5)], 0, &text)),                        // i d k \n|\n>
+                //        Selections::new(vec![Selection::new(0, 3)], 0, &text).add_selection_below(&text, CursorSemantics::Bar)  //|i d k>\n \n
+                //    );
+                //}
+                //selection direction backward  //TODO: failing test    //if selection extended, it should encompass the next newline
+                //#[test] fn add_backward_selection_below_to_line_with_newline_with_selection_extension_bar_semantics(){
+                //    let text = Rope::from("idk\n\n");
+                //    assert_eq!(
+                //        Ok(Selections::new(vec![Selection::new(3, 0), Selection::new(5, 4)], 0, &text)),                        // i d k \n<\n|
+                //        Selections::new(vec![Selection::new(3, 0)], 0, &text).add_selection_below(&text, CursorSemantics::Bar)  //<i d k|\n \n
+                //    );
+                //}
+            //block
+                //selection direction forward
+                #[test] fn add_forward_selection_below_to_line_with_newline_with_selection_extension_block_semantics(){
+                    let text = Rope::from("idk\n\n");
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(0, 3), Selection::new(4, 5)], 0, &text)),                            // i d k \n|\n>
+                        Selections::new(vec![Selection::new(0, 3)], 0, &text).add_selection_below(&text, CursorSemantics::Block)    //|i d k>\n \n
+                    );
+                }
+                //selection direction backward
+                #[test] fn add_backward_selection_below_to_line_with_newline_with_selection_extension_block_semantics(){
+                    let text = Rope::from("idk\n\n");
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(3, 0), Selection::new(5, 4)], 0, &text)),                            // i d k \n<\n|
+                        Selections::new(vec![Selection::new(3, 0)], 0, &text).add_selection_below(&text, CursorSemantics::Block)    //<i d k|\n \n
+                    );
+                }
+    // should error if on bottom line
+        // non extended
+            //bar
+            #[test] fn add_selection_below_should_error_when_selection_on_last_line_bar_semantics(){
+                let text = Rope::from("idk\nsomething\nelse\n");
+                assert!(Selections::new(vec![Selection::new(19, 19)], 0, &text).add_selection_below(&text, CursorSemantics::Bar).is_err());
+            }
+            //block
+                //selection direction Forward
+                #[test] fn add_forward_selection_below_should_error_when_selection_on_last_line_block_semantics(){
+                    let text = Rope::from("idk\nsomething\nelse\n");
+                    assert!(Selections::new(vec![Selection::new(19, 20)], 0, &text).add_selection_below(&text, CursorSemantics::Bar).is_err());
+                }
+                //selection direction Bacward   //added check to ensure last selection's end is not > doc text. should prevent panic
+                #[test] fn add_backward_selection_below_should_error_when_selection_on_last_line_block_semantics(){
+                    // i d k
+                    // s o m e t h i n g
+                    // e l s e
+                    //< |
+                    let text = Rope::from("idk\nsomething\nelse\n");
+                    assert!(Selections::new(vec![Selection::new(20, 19)], 0, &text).add_selection_below(&text, CursorSemantics::Bar).is_err());
+                }
+        // extended
+            //bar
+                //selection direction Forward
+                #[test] fn add_forward_selection_below_should_error_when_extended_selection_on_last_line_bar_semantics(){
+                    let text = Rope::from("idk\nsomething\nelse\nidk");
+                    assert!(Selections::new(vec![Selection::new(19, 22)], 0, &text).add_selection_below(&text, CursorSemantics::Bar).is_err());
+                }
+                //selection direction Bacward
+                #[test] fn add_backward_selection_below_should_error_when_extended_selection_on_last_line_bar_semantics(){
+                    let text = Rope::from("idk\nsomething\nelse\nidk");
+                    assert!(Selections::new(vec![Selection::new(22, 19)], 0, &text).add_selection_below(&text, CursorSemantics::Bar).is_err());
+                }
+            //block
+                //selection direction Forward
+                #[test] fn add_forward_selection_below_should_error_when_extended_selection_on_last_line_block_semantics(){
+                    let text = Rope::from("idk\nsomething\nelse\nidk");
+                    assert!(Selections::new(vec![Selection::new(19, 22)], 0, &text).add_selection_below(&text, CursorSemantics::Block).is_err());
+                }
+                //selection direction Bacward
+                #[test] fn add_backward_selection_below_should_error_when_extended_selection_on_last_line_block_semantics(){
+                    let text = Rope::from("idk\nsomething\nelse\nidk");
+                    assert!(Selections::new(vec![Selection::new(22, 19)], 0, &text).add_selection_below(&text, CursorSemantics::Block).is_err());
+                }
+    // should error if any selection is multiline
+            //bar
+                //selection direction Forward
+                #[test] fn add_forward_selection_below_should_error_when_any_selection_is_multi_line_bar_semantics(){
+                    let text = Rope::from("idk\nsomething\nelse\n");
+                    assert!(Selections::new(vec![Selection::new(4, 15)], 0, &text).add_selection_below(&text, CursorSemantics::Bar).is_err());
+                }
+                //selection direction Bacward
+                #[test] fn add_backward_selection_below_should_error_when_any_selection_is_multi_line_bar_semantics(){
+                    let text = Rope::from("idk\nsomething\nelse\n");
+                    assert!(Selections::new(vec![Selection::new(15, 4)], 0, &text).add_selection_below(&text, CursorSemantics::Bar).is_err());
+                }
+            //block
+                //selection direction Forward
+                #[test] fn add_forward_selection_below_should_error_when_any_selection_is_multi_line_block_semantics(){
+                    let text = Rope::from("idk\nsomething\nelse\n");
+                    assert!(Selections::new(vec![Selection::new(4, 15)], 0, &text).add_selection_below(&text, CursorSemantics::Block).is_err());
+                }
+                //selection direction Bacward
+                #[test] fn add_backward_selection_below_should_error_when_any_selection_is_multi_line_block_semantics(){
+                    let text = Rope::from("idk\nsomething\nelse\n");
+                    assert!(Selections::new(vec![Selection::new(15, 4)], 0, &text).add_selection_below(&text, CursorSemantics::Block).is_err());
+                }
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
