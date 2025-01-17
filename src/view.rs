@@ -283,35 +283,35 @@ impl View{
     }
     
 
-    ///// Returns cursor positions that are within [`View`] boundaries.
-    ///// ```
-    ///// # use ropey::Rope;
-    ///// # use edit_core::selection::{Selection, CursorSemantics, Selections};
-    ///// # use edit_core::view::View;
-    ///// # use edit_core::document::Document;
-    ///// # use edit_core::Position;
-    ///// 
-    ///// fn test(selection: Selection, expected: Vec<Position>, view: View, semantics: CursorSemantics) -> bool{
-    /////     let text = Rope::from("idk\nsome\nshit\n");
-    /////     let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![selection], 0, &text)).with_view(view);
-    /////     println!("expected: {:#?}\ngot: {:#?}\n", expected, doc.view().cursor_positions(&text, &doc.selections(), semantics));
-    /////     doc.view().cursor_positions(&text, &doc.selections(), semantics) == expected
-    ///// }
-    ///// 
-    ///// assert!(test(Selection::new(0, 0), vec![Position::new(0, 0)], View::new(0, 0, 2, 2), CursorSemantics::Bar));
-    ///// assert!(test(Selection::new(0, 1), vec![Position::new(0, 0)], View::new(0, 0, 2, 2), CursorSemantics::Block));
-    ///// assert!(test(Selection::new(0, 0), Vec::new(), View::new(1, 0, 2, 2), CursorSemantics::Bar));
-    ///// assert!(test(Selection::new(0, 1), Vec::new(), View::new(1, 0, 2, 2), CursorSemantics::Block));
-    ///// assert!(test(Selection::new(0, 0), Vec::new(), View::new(1, 1, 2, 2), CursorSemantics::Bar));
-    ///// assert!(test(Selection::new(0, 1), Vec::new(), View::new(1, 1, 2, 2), CursorSemantics::Block));
-    ///// ```
-    //pub fn cursor_positions(&self, text: &Rope, selections: &Selections, semantics: CursorSemantics) -> Vec<Position>{
-    //    selections.iter()
-    //        .filter_map(|cursor|{
-    //            Self::cursor_position(cursor.selection_to_selection2d(text, semantics), self)
-    //        })
-    //        .collect()
-    //}
+    /// Returns cursor positions that are within [`View`] boundaries.
+    /// ```
+    /// # use ropey::Rope;
+    /// # use edit_core::selection::{Selection, CursorSemantics, Selections};
+    /// # use edit_core::view::View;
+    /// # use edit_core::document::Document;
+    /// # use edit_core::Position;
+    /// 
+    /// fn test(selection: Selection, expected: Vec<Position>, view: View, semantics: CursorSemantics) -> bool{
+    ///     let text = Rope::from("idk\nsome\nshit\n");
+    ///     let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![selection], 0, &text)).with_view(view);
+    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, doc.view().cursor_positions(&text, &doc.selections(), semantics));
+    ///     doc.view().cursor_positions(&text, &doc.selections(), semantics) == expected
+    /// }
+    /// 
+    /// assert!(test(Selection::new(0, 0), vec![Position::new(0, 0)], View::new(0, 0, 2, 2), CursorSemantics::Bar));
+    /// assert!(test(Selection::new(0, 1), vec![Position::new(0, 0)], View::new(0, 0, 2, 2), CursorSemantics::Block));
+    /// assert!(test(Selection::new(0, 0), Vec::new(), View::new(1, 0, 2, 2), CursorSemantics::Bar));
+    /// assert!(test(Selection::new(0, 1), Vec::new(), View::new(1, 0, 2, 2), CursorSemantics::Block));
+    /// assert!(test(Selection::new(0, 0), Vec::new(), View::new(1, 1, 2, 2), CursorSemantics::Bar));
+    /// assert!(test(Selection::new(0, 1), Vec::new(), View::new(1, 1, 2, 2), CursorSemantics::Block));
+    /// ```
+    pub fn cursor_positions(&self, text: &Rope, selections: &Selections, semantics: CursorSemantics) -> Vec<Position>{
+        selections.iter()
+            .filter_map(|cursor|{
+                Self::cursor_position(cursor.selection_to_selection2d(text, semantics), self)
+            })
+            .collect()
+    }
     // translates a document cursor position to a client view cursor position. if outside client view, returns None
     fn cursor_position(doc_cursor: Selection2d, client_view: &View) -> Option<Position>{
         let head_x = doc_cursor.head().x();

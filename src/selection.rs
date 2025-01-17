@@ -173,21 +173,19 @@ impl Selection{
     /// //assert_eq!(true, Selection::new(14, 15).spans_multiple_lines(&text, CursorSemantics::Block)); // i d k \n s o m e \n s h i t \n|: >
     /// ```
     pub fn spans_multiple_lines(&self, text: &Rope, semantics: CursorSemantics) -> bool{
-        if self.end() > text.len_chars(){return false;} //this used to handle cursor at end of file. no selection should be able to extend there...
+        // ensure the selection does not exceed the length of the text
+        if self.end() > text.len_chars(){return false;}
 
         let start_line = text.char_to_line(self.start());
         let end_line = text.char_to_line(self.end());
-        
-        // if selection not extended, should always be false
-        if !self.is_extended(semantics){return false;}
-        // if selection extended on same line, should always be false
-        else if end_line.saturating_sub(start_line) == 0{return false;}
-            // if selection extended to doc end and difference between lines is 1, should be true   //this was here to handle cursor past doc end, but we shouldn't be able to extend that far anyways...
-            //else if end_line.saturating_sub(start_line) == 1 && self.end() == text.len_chars(){return true;}
-        // if selection extended to line end and difference between lines is 1, should always be false. selection would be over the newline char
-        else if end_line.saturating_sub(start_line) == 1 && text.line_to_char(end_line) == self.end(){return false;}
-        // anything else should be spanning lines
-        else{return true;}
+
+        // if selection is not extended or is extended on the same line
+        if !self.is_extended(semantics) || start_line == end_line{return false;}
+        // if selection extends to a newline char, but doesn't span multiple lines
+        if end_line.saturating_sub(start_line) == 1 && text.line_to_char(end_line) == self.end(){return false;}
+
+        // all other cases
+        true
     }
 
     /// Returns the direction of [`Selection`].

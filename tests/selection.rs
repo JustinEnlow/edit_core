@@ -1225,7 +1225,7 @@ fn clear_non_primary_selections_errors_if_only_one_selection(){
                         Selections::new(vec![Selection::new(14, 13)], 0, &text).add_selection_above(&text, CursorSemantics::Block)
                     );
                 }
-        // extended //TODO: if line text end < selection start, we need the added selection to encompass the newline as well
+        // extended
             //bar
                 //selection direction Forward
                 #[test] fn add_forward_selection_above_to_shorter_line_with_selection_extension_bar_semantics(){
@@ -1260,7 +1260,7 @@ fn clear_non_primary_selections_errors_if_only_one_selection(){
                         Selections::new(vec![Selection::new(13, 4)], 0, &text).add_selection_above(&text, CursorSemantics::Block)
                     );
                 }
-    // to empty line(can't happen in add selection above. won't have an empty line followed by populated lines) //TODO: make sure to do this on add_selection_below though...
+    // to empty line(can't happen in add selection above. won't have an empty line followed by populated lines)
         // non extended
             //bar
             //block
@@ -1686,22 +1686,22 @@ fn clear_non_primary_selections_errors_if_only_one_selection(){
                 }
         // extended
             //bar
-                //selection direction forward   //TODO: failing test    //if selection extended, it should encompass the next newline
-                //#[test] fn add_forward_selection_below_to_line_with_newline_with_selection_extension_bar_semantics(){
-                //    let text = Rope::from("idk\n\n");
-                //    assert_eq!(
-                //        Ok(Selections::new(vec![Selection::new(0, 3), Selection::new(4, 5)], 0, &text)),                        // i d k \n|\n>
-                //        Selections::new(vec![Selection::new(0, 3)], 0, &text).add_selection_below(&text, CursorSemantics::Bar)  //|i d k>\n \n
-                //    );
-                //}
-                //selection direction backward  //TODO: failing test    //if selection extended, it should encompass the next newline
-                //#[test] fn add_backward_selection_below_to_line_with_newline_with_selection_extension_bar_semantics(){
-                //    let text = Rope::from("idk\n\n");
-                //    assert_eq!(
-                //        Ok(Selections::new(vec![Selection::new(3, 0), Selection::new(5, 4)], 0, &text)),                        // i d k \n<\n|
-                //        Selections::new(vec![Selection::new(3, 0)], 0, &text).add_selection_below(&text, CursorSemantics::Bar)  //<i d k|\n \n
-                //    );
-                //}
+                //selection direction forward
+                #[test] fn add_forward_selection_below_to_line_with_newline_with_selection_extension_bar_semantics(){
+                    let text = Rope::from("idk\n\n");
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(0, 3), Selection::new(4, 4)], 0, &text)),                        // i d k \n|\n
+                        Selections::new(vec![Selection::new(0, 3)], 0, &text).add_selection_below(&text, CursorSemantics::Bar)  //|i d k>\n \n
+                    );
+                }
+                //selection direction backward
+                #[test] fn add_backward_selection_below_to_line_with_newline_with_selection_extension_bar_semantics(){
+                    let text = Rope::from("idk\n\n");
+                    assert_eq!(
+                        Ok(Selections::new(vec![Selection::new(3, 0), Selection::new(4, 4)], 0, &text)),                        // i d k \n|\n
+                        Selections::new(vec![Selection::new(3, 0)], 0, &text).add_selection_below(&text, CursorSemantics::Bar)  //<i d k|\n \n
+                    );
+                }
             //block
                 //selection direction forward
                 #[test] fn add_forward_selection_below_to_line_with_newline_with_selection_extension_block_semantics(){
