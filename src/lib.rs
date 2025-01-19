@@ -10,8 +10,15 @@
 pub mod editor;
 pub mod document;
 pub mod selection;
+#[cfg(test)] mod selection_tests;
+pub mod selection2d;
+#[cfg(test)] mod selection2d_tests;
+pub mod selections;
+#[cfg(test)] mod selections_tests;
 pub mod view;
+#[cfg(test)] mod view_tests;
 pub mod text_util;
+#[cfg(test)] mod text_util_tests;
 pub mod id;
 pub mod history;
 

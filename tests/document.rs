@@ -1,6 +1,7 @@
 use ropey::Rope;
 use edit_core::document::Document;
-use edit_core::selection::{Selection, Selections, CursorSemantics};
+use edit_core::selection::{Selection, CursorSemantics};
+use edit_core::selections::Selections;
 
 /*
 TODO:

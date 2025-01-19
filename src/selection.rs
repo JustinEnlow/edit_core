@@ -1,55 +1,15 @@
 // follow documentation style from https://std-dev-guide.rust-lang.org/development/how-to-write-documentation.html
 use ropey::Rope;
 use crate::{
-    text_util, view::View, Position
+    text_util, view::View, Position, selection2d::Selection2d
 };
+
+
 
 //TODO: extension fns should not extend to 1 past doc end, because there are no selectable graphemes there.
 // this is ok for movement fns, because the cursor needs to be able to move there to insert new graphemes.
 
-/// Returns a string for debugging selections over a text.
-/// key:
-///     start = [
-///     end = ]
-///     anchor = |
-///     head = < or >, depending on selection direction
-///     cursor(left hand side) = :, if block cursor semantics
-/// 
-/// ```
-/// # use ropey::Rope;
-/// # use edit_core::selection::{Selection, CursorSemantics};
-/// 
-/// let text = Rope::from("idk some shit");
-/// let selection = Selection::new(0, 5);
-/// assert_eq!("[|idk :s>]ome shit".to_string(), edit_core::selection::debug_selection(&selection, &text, CursorSemantics::Block));
-/// assert_eq!("[|idk s>]ome shit".to_string(), edit_core::selection::debug_selection(&selection, &text, CursorSemantics::Bar));
-/// let selection = Selection::new(5, 0);
-/// assert_eq!("[:<idk s|]ome shit".to_string(), edit_core::selection::debug_selection(&selection, &text, CursorSemantics::Block));
-/// assert_eq!("[<idk s|]ome shit".to_string(), edit_core::selection::debug_selection(&selection, &text, CursorSemantics::Bar));
-/// let text = Rope::from("idk some shit\n");
-/// assert_eq!("[:<idk s|]ome shit\n".to_string(), edit_core::selection::debug_selection(&selection, &text, CursorSemantics::Block));
-/// let text = Rope::from("idk some shit\t");
-/// assert_eq!("[:<idk s|]ome shit\t".to_string(), edit_core::selection::debug_selection(&selection, &text, CursorSemantics::Block));
-/// ```
-pub fn debug_selection(selection: &Selection, text: &Rope, semantics: CursorSemantics) -> String{   //should this be a method? selection.debug()?   //should this include stored_line_position?
-    let mut debug_string = String::new();
-    for (i, char) in text.chars().enumerate(){
-        if i == selection.start(){debug_string.push('[');}
-        if i == selection.anchor(){debug_string.push('|');}
-        if i == selection.cursor(text, semantics) && semantics == CursorSemantics::Block{debug_string.push(':');}
-        if i == selection.head() && selection.direction(text, semantics) == Direction::Forward{debug_string.push('>');}
-        if i == selection.head() && selection.direction(text, semantics) == Direction::Backward{debug_string.push('<');}
-        if i == selection.end(){debug_string.push(']');}
-        //if char == '\n'{debug_string.push_str("\n");}
-        if char == '\n'{debug_string.push('\n');}
-        //else if char == '\t'{debug_string.push_str("\t");}
-        else if char == '\t'{debug_string.push('\t');}
-        else{
-            debug_string.push(char);
-        }
-    }
-    debug_string
-}
+
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum CursorSemantics{
@@ -94,23 +54,39 @@ impl Selection{
     pub fn new(anchor: usize, head: usize) -> Self{ // could init with cursor semantics: (anchor: usize, cursor: usize, semantics: CursorSemantics)
         Self{anchor, head, stored_line_position: None}
     }
+
+    /// Returns a string for debugging selections over a text.
+    /// key:
+    ///     start = [
+    ///     end = ]
+    ///     anchor = |
+    ///     head = < or >, depending on selection direction
+    ///     cursor(left hand side) = :, if block cursor semantics
+    pub fn debug(&self, text: &Rope, semantics: CursorSemantics) -> String{
+        //TODO: return an actual error, instead of a magic string. although, it is kind of nice to not have to .unwrap() for every call...
+        if semantics == CursorSemantics::Block && self.head == self.anchor{return "Selection head and anchor should not be equal using Block semantics.".to_string()}
+        let mut debug_string = String::new();
+        for index in 0..=text.len_chars().saturating_add(1){ //needed to add 1 to allow debug chars after text len to be pushed
+            if index == self.start(){debug_string.push('[');}
+            if index == self.anchor(){debug_string.push('|');}
+            if index == self.cursor(text, semantics) && semantics == CursorSemantics::Block{debug_string.push(':');}
+            if index == self.head() && self.direction(text, semantics) == Direction::Forward{debug_string.push('>');}
+            if index == self.head() && self.direction(text, semantics) == Direction::Backward{debug_string.push('<');}
+            if index == self.end(){debug_string.push(']');}
+            if let Some(char) = text.get_char(index){
+                if char == '\n'{debug_string.push('\n');}
+                else if char == '\t'{debug_string.push('\t');}
+                else{debug_string.push(char);}
+            }
+        }
+
+        debug_string
+    }
     
     /// Returns the char index of [`Selection`] anchor.
-    /// ```
-    /// # use edit_core::selection::Selection;
-    /// assert_eq!(0, Selection::new(0, 0).anchor());
-    /// assert_eq!(0, Selection::new(0, 1).anchor());
-    /// assert_eq!(1, Selection::new(1, 0).anchor());
-    /// ```
     pub fn anchor(&self) -> usize{self.anchor}
     
     /// Returns the char index of [`Selection`] head.
-    /// ```
-    /// # use edit_core::selection::Selection;
-    /// assert_eq!(0, Selection::new(0, 0).head());
-    /// assert_eq!(1, Selection::new(0, 1).head());
-    /// assert_eq!(0, Selection::new(1, 0).head());
-    /// ```
     pub fn head(&self) -> usize{self.head}
 
     /// Returns the char index of the start of the [`Selection`] from left to right.
@@ -135,43 +111,6 @@ impl Selection{
     }
 
     /// Returns a bool indicating whether the selection spans multiple lines.
-    /// ```
-    /// # use ropey::Rope;
-    /// # use edit_core::selection::{Selection, CursorSemantics};
-    /// 
-    /// let text = Rope::from("idk\nsome\nshit\n"); //len 14        //max bar = 14, max block = 15
-    /// // if selection not extended, should always be false
-    /// assert_eq!(false, Selection::new(14, 14).spans_multiple_lines(&text, CursorSemantics::Bar));    // i d k \n s o m e \n s h i t \n|>
-    /// assert_eq!(false, Selection::new(13, 14).spans_multiple_lines(&text, CursorSemantics::Block));  // i d k \n s o m e \n s h i t|\n>
-    /// assert_eq!(false, Selection::new(14, 13).spans_multiple_lines(&text, CursorSemantics::Block));  // i d k \n s o m e \n s h i t<\n|
-    /// 
-    /// // if selection extended on same line, should always be false
-    /// assert_eq!(false, Selection::new(0, 3).spans_multiple_lines(&text, CursorSemantics::Bar));      //|i d k>\n s o m e \n s h i t \n
-    /// assert_eq!(false, Selection::new(3, 0).spans_multiple_lines(&text, CursorSemantics::Bar));      //<i d k|\n s o m e \n s h i t \n
-    /// assert_eq!(false, Selection::new(0, 3).spans_multiple_lines(&text, CursorSemantics::Block));    //|i d:k>\n s o m e \n s h i t \n
-    /// assert_eq!(false, Selection::new(3, 0).spans_multiple_lines(&text, CursorSemantics::Block));    //<i d k|\n s o m e \n s h i t \n
-    /// 
-    /// // if selection extended to line end and difference between lines is 1, should always be false
-    /// assert_eq!(false, Selection::new(0, 4).spans_multiple_lines(&text, CursorSemantics::Bar));      //|i d k \n>s o m e \n s h i t \n
-    /// assert_eq!(false, Selection::new(4, 0).spans_multiple_lines(&text, CursorSemantics::Bar));      //<i d k \n|s o m e \n s h i t \n
-    /// assert_eq!(false, Selection::new(0, 4).spans_multiple_lines(&text, CursorSemantics::Block));    //|i d k:\n>s o m e \n s h i t \n
-    /// assert_eq!(false, Selection::new(4, 0).spans_multiple_lines(&text, CursorSemantics::Block));    //<i d k \n|s o m e \n s h i t \n
-    /// 
-    /// // if selection extended to doc end and difference between lines is 1, should be true
-    /// //assert_eq!(true, Selection::new(10, 14).spans_multiple_lines(&text, CursorSemantics::Bar));     // i d k \n s o m e \n|s h i t \n>
-    /// //assert_eq!(true, Selection::new(14, 10).spans_multiple_lines(&text, CursorSemantics::Bar));     // i d k \n s o m e \n<s h i t \n|
-    /// //assert_eq!(true, Selection::new(10, 14).spans_multiple_lines(&text, CursorSemantics::Block));   // i d k \n s o m e \n|s h i t:\n>
-    /// //assert_eq!(true, Selection::new(14, 10).spans_multiple_lines(&text, CursorSemantics::Block));   // i d k \n s o m e \n<s h i t \n|
-    /// 
-    /// // all other cases should be true
-    /// assert_eq!(true, Selection::new(0, 5).spans_multiple_lines(&text, CursorSemantics::Bar));       //|i d k \n s>o m e \n s h i t \n
-    /// assert_eq!(true, Selection::new(5, 0).spans_multiple_lines(&text, CursorSemantics::Bar));       //|i d k \n s>o m e \n s h i t \n
-    /// assert_eq!(true, Selection::new(0, 5).spans_multiple_lines(&text, CursorSemantics::Block));     //|i d k \n:s>o m e \n s h i t \n
-    /// assert_eq!(true, Selection::new(5, 0).spans_multiple_lines(&text, CursorSemantics::Block));     //|i d k \n:s>o m e \n s h i t \n
-    /// 
-    /// //selection shouldn't be able to extend past doc end, but cursor can move there
-    /// //assert_eq!(true, Selection::new(14, 15).spans_multiple_lines(&text, CursorSemantics::Block)); // i d k \n s o m e \n s h i t \n|: >
-    /// ```
     pub fn spans_multiple_lines(&self, text: &Rope, semantics: CursorSemantics) -> bool{
         // ensure the selection does not exceed the length of the text
         if self.end() > text.len_chars(){return false;}
@@ -231,21 +170,29 @@ impl Selection{
         }else{Err(SelectionError::NoOverlap)}
     }
 
+    // TODO: deprecate merge, in favor of application specific merges, so we can calculate appropriate stored_line_positions for resultant selection
+    // or maybe just have this function return a selection with no stored_line_position, and use application specific merges for handling stored_line_position...
     /// Create a new [`Selection`] by merging self with other.
     /// Indiscriminate merge. merges whether overlapping, consecutive, 
     /// contained, or disconnected entirely.
     /// resultant selection should be guaranteed to be within text bounds 
     /// because this uses previously initialized selections.
-    // note: merges need to have a stored line position, so that movements after merge work correctly
-    //TODO: maybe error if Direction of self and other are mismatched...    though i can't think of how this case would occur with normal text editing...
+        // note: merges need to have a stored line position, so that movements after merge work correctly
+        //TODO: maybe error if Direction of self and other are mismatched...    
+            //though i can't think of how this case would occur with normal text editing...   
+            //nevermind. this can happen when non extended selection added above, and extended left
+            // maybe it is better to have the merge succeed despite direction, then figure out a reasonable stored line position instead?...
     pub fn merge(&self, other: &Selection, text: &Rope, semantics: CursorSemantics) -> Result<Selection, SelectionError>{   //resultant Selection should be the Direction of self
         //let anchor = self.start().min(other.start());
         //let head = self.end().max(other.end());
-        //let stored_line_position = text_util::offset_from_line_start(head, text);   //self.cursor instead of head?
+        //let stored_line_position = text_util::offset_from_line_start(head, text);   //self.cursor instead of head?    //if neither extended, self.cursor. then base on selection direction?
         //
         //Selection{anchor, head, stored_line_position: Some(stored_line_position)}
 
-        if self.direction(text, semantics) != other.direction(text, semantics){return Err(SelectionError::DirectionMismatch);} //cannot merge selections with differing directions
+        //cannot merge selections with differing directions
+        if self.direction(text, semantics) != other.direction(text, semantics){ //TODO: i think this is why some multicursor merges are failing...
+            return Err(SelectionError::DirectionMismatch);
+        }
         match self.direction(text, semantics){
             Direction::Forward => {
                 let anchor = self.start().min(other.start());
@@ -266,6 +213,30 @@ impl Selection{
                 Ok(Selection{anchor, head, stored_line_position: Some(stored_line_position)})
             }
         }
+    }
+
+    /// Returns a new [`Selection`] from the overlapping range between `self` and `other`, calculating a reasonable `stored_line_position`.
+    pub fn merge_overlapping(&self, other: &Selection, text: &Rope, semantics: CursorSemantics) -> Result<Selection, SelectionError>{
+        if self.overlaps(other){
+            // perform indiscriminate merge to get selection range
+            let mut selection = Selection::new(0, 0);
+            // calculate new stored_line_position
+            selection.stored_line_position = if !self.is_extended(semantics) && !other.is_extended(semantics){
+                match (self.direction(text, semantics), other.direction(text, semantics)){
+                    // if using range merge from alt_edit_core, this would just set selection.direction
+                    (Direction::Forward, Direction::Forward) => {selection = Selection::new(self.start().min(other.start()), self.end().max(other.end()))}
+                    (Direction::Forward, Direction::Backward) => {selection = Selection::new(self.start().min(other.start()), self.end().max(other.end()))} //currently preferring forward for mismatched directions
+                    (Direction::Backward, Direction::Forward) => {selection = Selection::new(self.start().min(other.start()), self.end().max(other.end()))} //currently preferring forward for mismatched directions
+                    (Direction::Backward, Direction::Backward) => {selection = Selection::new(self.end().max(other.end()), self.start().min(other.start()))}
+                }
+                Some(self.cursor(text, semantics))
+            }
+            else{
+                self.stored_line_position
+            };
+            // return merged selection
+            Ok(selection)
+        }else{return Err(SelectionError::NoOverlap)}
     }
     
     /// Returns the char index of [`Selection`] cursor.
@@ -747,399 +718,5 @@ impl Selection{
                 line_number_head
             ) 
         )
-    }
-}
-
-
-
-/// 2 dimensional representation of a single selection(between anchor and head) within document text
-#[derive(Default, PartialEq, Debug, Clone)]
-pub struct Selection2d{
-    anchor: Position,
-    head: Position, //TODO: should this be cursor? because we are using cursor in selection_to_selection2d...
-}
-impl Selection2d{
-    pub fn new(anchor: Position, head: Position) -> Self{
-        Self{
-            anchor,
-            head
-        }
-    }
-    pub fn head(&self) -> &Position{
-        &self.head
-    }
-    pub fn anchor(&self) -> &Position{
-        &self.anchor
-    }
-}
-
-
-
-#[derive(Debug, PartialEq)]
-pub enum SelectionsError{
-    SingleSelection,
-    MultipleSelections,
-    SpansMultipleLines,
-    CannotAddSelectionAbove,
-    CannotAddSelectionBelow,
-}
-/// A collection of [`Selection`]s. 
-/// used in place of [Vec]<[`Selection`]> to ensure certain guarantees are enforced
-/// ## Goal Guarantees:
-/// - will always contain at least 1 {Selection}
-/// - all {Selection}s are grapheme aligned
-/// - all {Selection}s are sorted by increasing position in document
-/// - all overlapping {Selection}s are merged
-    //should this be handled in {Selection}?
-/// - head and anchor are always within text boundaries for each selection
-    //
-/// - ...prob others i haven't thought of yet
-#[derive(Debug, PartialEq, Clone)]
-pub struct Selections{
-    selections: Vec<Selection>,
-    primary_selection_index: usize,
-}
-impl Selections{
-    /// Returns new instance of [`Selections`] from provided input.
-    /// #### Invariants:
-    /// - will alway contain at least one [`Selection`]
-    /// - [`Selection`]s are grapheme aligned
-    /// - [`Selection`]s are sorted by ascending position in doc
-    /// - overlapping [`Selection`]s are merged
-    /// - all [`Selection`]s are within doc boundaries
-    /// 
-    /// # Panics
-    /// `new` panics if `selections` input param is empty.
-    pub fn new(selections: Vec<Selection>, primary_selection_index: usize, _text: &Rope) -> Self{
-        assert!(!selections.is_empty());
-        //if selections.is_empty(){
-        //    selections = vec![Selection::new(0, 0)];
-        //    primary_selection_index = 0;
-        //}
-
-        let mut selections = Self{
-            selections,
-            primary_selection_index,
-        };
-
-        // selections.grapheme_align();
-        selections = selections.sort();
-        //selections = selections.merge_overlapping(text);  //TODO: fix this to use new merge_overlapping fn
-
-        assert!(selections.count() > 0);
-        selections
-    }
-    /// Returns the number of [`Selection`]s in [`Selections`].
-    pub fn count(&self) -> usize{
-        self.selections.len()
-    }
-    pub fn primary_selection_index(&self) -> usize{
-        self.primary_selection_index
-    }
-    pub fn iter(&self) -> std::slice::Iter<'_, Selection>{
-        self.selections.iter()
-    }
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, Selection>{
-        self.selections.iter_mut()
-    }
-    /// Returns a new instance of [`Selections`] with the last element removed.
-    pub fn pop(&self) -> Self{
-        let mut new_selections = self.selections.clone();
-        // Guarantee at least one selection
-        if new_selections.len() > 1{new_selections.pop();}
-        else{return self.clone();}
-
-        // Is there a better way to determine new primary selection?
-        let primary_selection_index = new_selections.len().saturating_sub(1);
-
-        Self{
-            selections: new_selections,
-            primary_selection_index
-        }
-    }
-
-    /// Prepends a [`Selection`] to the front of [Self], updating `primary_selection_index` if desired.
-    pub fn push_front(&self, selection: Selection, update_primary: bool) -> Self{
-        let mut new_selections = self.selections.clone();
-        new_selections.insert(0, selection);
-        Self{
-            selections: new_selections,
-            primary_selection_index: if update_primary{0}else{self.primary_selection_index.saturating_add(1)} //0
-        }
-    }
-    
-    /// Appends a [`Selection`] to the back of [Self], updating `primary_selection_index` if desired.
-    pub fn push(&self, selection: Selection, update_primary: bool) -> Self{
-        let mut new_selections = self.selections.clone();
-        new_selections.push(selection);
-        let primary_selection_index = new_selections.len().saturating_sub(1);
-        Self{
-            selections: new_selections,
-            primary_selection_index: if update_primary{primary_selection_index}else{self.primary_selection_index}
-        }
-    }
-    
-    /// Returns a reference to the [`Selection`] at `primary_selection_index`.
-    pub fn primary(&self) -> &Selection{
-        &self.selections[self.primary_selection_index]
-    }
-    /// Returns a mutable reference to the [`Selection`] at `primary_selection_index`.
-    pub fn primary_mut(&mut self) -> &mut Selection{
-        &mut self.selections[self.primary_selection_index]
-    }
-    pub fn first(&self) -> &Selection{
-        // unwrapping because we ensure at least one selection is always present
-        self.selections.first().unwrap()
-    }
-    //pub fn first_mut(&mut self) -> &mut Selection{
-    //    self.selections.first_mut().unwrap()
-    //}
-    pub fn last(&self) -> &Selection{
-        // unwrapping because we ensure at least one selection is always present
-        self.selections.last().unwrap()
-    }
-    pub fn nth_mut(&mut self, index: usize) -> &mut Selection{
-        self.selections.get_mut(index).unwrap()
-    }
-
-    /// Increments `primary_selection_index`.
-    pub fn increment_primary_selection(&self) -> Result<Self, SelectionsError>{
-        if self.count() < 2{return Err(SelectionsError::SingleSelection);}
-        if self.primary_selection_index.saturating_add(1) < self.count(){
-            Ok(Self{selections: self.selections.clone(), primary_selection_index: self.primary_selection_index + 1})
-        }else{
-            Ok(Self{selections: self.selections.clone(), primary_selection_index: 0})
-        }
-    }
-    /// Decrements the primary selection index.
-    pub fn decrement_primary_selection(&self) -> Result<Self, SelectionsError>{
-        if self.count() < 2{return Err(SelectionsError::SingleSelection);}
-        if self.primary_selection_index > 0{
-            Ok(Self{selections: self.selections.clone(), primary_selection_index: self.primary_selection_index - 1})
-        }else{
-            Ok(Self{selections: self.selections.clone(), primary_selection_index: self.count().saturating_sub(1)})
-        }
-    }
-
-    /// Sorts each [`Selection`] in [Selections] by position.
-    /// #### Invariants:
-    /// - preserves primary selection through the sorting process
-    pub fn sort(&self) -> Self{
-        if self.count() < 2{return self.clone();}
-
-        let primary = self.primary().clone();
-        let mut sorted_selections = self.selections.clone();
-        sorted_selections.sort_unstable_by_key(Selection::start);
-    
-        let primary_selection_index = sorted_selections
-            .iter()
-            .position(|selection| selection == &primary)
-            .unwrap_or(0);
-    
-        Self{
-            selections: sorted_selections,
-            primary_selection_index,
-        }
-    }
-
-    /// Merges overlapping [`Selection`]s.
-    pub fn merge_overlapping(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionsError>{
-        if self.count() < 2{return Err(SelectionsError::SingleSelection);}
-
-        let mut primary = self.primary().clone();
-        let mut new_selections = self.selections.clone();
-        new_selections.dedup_by(|current_selection, prev_selection|{
-            if prev_selection.overlaps(current_selection){
-                let merged_selection = match current_selection.merge(prev_selection, text, semantics){
-                    Ok(val) => val,
-                    Err(_) => {return false;}
-                };
-
-                // Update primary selection to track index in next code block // Only clone if necessary
-                if prev_selection == &primary || current_selection == &primary{
-                    primary = merged_selection.clone();
-                }
-
-                *prev_selection = merged_selection;
-                true
-            }else{false}
-        });
-
-        let primary_selection_index = new_selections.iter()
-            .position(|selection| selection == &primary)
-            .unwrap_or(0);
-
-        assert!(self.count() > 0);
-
-        Ok(Self{
-            selections: new_selections,
-            primary_selection_index,
-        })
-    }
-
-    /// Removes all [`Selection`]s except [`Selection`] at `primary_selection_index`.
-    /// Errors if [`Selections`] has only 1 [`Selection`].
-    pub fn clear_non_primary_selections(&self) -> Result<Self, SelectionsError>{
-        //assert!(self.count() > 1);
-        if self.count() < 2{return Err(SelectionsError::SingleSelection);}
-        
-        let primary_as_vec = vec![self.primary().clone()];
-        assert!(primary_as_vec.len() == 1);
-        
-        Ok(Self{
-            selections: primary_as_vec,
-            primary_selection_index: 0
-        })
-    }
-
-    //TODO: return head and anchor positions
-    //TODO: return Vec<Position> document cursor positions
-    //pub fn cursor_positions(&self, text: &Rope, semantics: CursorSemantics) -> Position{
-    //    let cursor = self.primary();
-    //    let document_cursor = cursor.selection_to_selection2d(text, semantics);
-    //    
-    //    Position::new(
-    //        document_cursor.head().x().saturating_add(1), 
-    //        document_cursor.head().y().saturating_add(1)
-    //    )
-    //}
-
-    /// Adds a new [`Selection`] directly above the top-most [`Selection`], with the same start and end offsets from line start, if possible.
-    pub fn add_selection_above(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionsError>{
-        assert!(self.count() > 0);  //ensure at least one selection in selections
-
-        let top_selection = self.first();
-        let top_selection_line = text.char_to_line(top_selection.start());
-        if top_selection_line == 0{return Err(SelectionsError::CannotAddSelectionAbove);}
-        // should error if any selection spans multiple lines. //callee can determine appropriate response behavior in this case        //vscode behavior is to extend topmost selection up one line if any selection spans multiple lines
-        for selection in self.selections.iter(){
-            if selection.spans_multiple_lines(text, semantics){return Err(SelectionsError::SpansMultipleLines);}
-        }
-
-        // using primary selection here, because that is the selection we want our added selection to emulate, if possible with the available text
-        let start_offset = text_util::offset_from_line_start(self.primary().start(), text);
-        let end_offset = start_offset.saturating_add(self.primary().end().saturating_sub(self.primary().start()));  //start_offset + (end char index - start char index)
-        let line_above = top_selection_line.saturating_sub(1);
-        let line_start = text.line_to_char(line_above);
-        let line_text = text.line(line_above);
-        let line_width = text_util::line_width(line_text, false);
-        let line_width_including_newline = text_util::line_width(line_text, true);
-        let (start, end) = if line_text.to_string().is_empty() || line_text.to_string() == "\n"{    //should be impossible for the text in the line above first selection to be empty. is_empty() check is redundant here...
-            match semantics{
-                CursorSemantics::Bar => (line_start, line_start),
-                CursorSemantics::Block => (line_start, text_util::next_grapheme_index(line_start, text))
-            }
-        }
-        else if self.primary().is_extended(semantics){
-            if start_offset < line_width{   //should we exclusively handle start_offset < line_width && end_offset < line_width as well?
-                (line_start.saturating_add(start_offset), line_start.saturating_add(end_offset.min(line_width_including_newline))) //start offset already verified within line text bounds
-            }
-            else{
-                // currently same as non extended. this might change...
-                match semantics{    //ensure adding the offsets doesn't make this go past line width
-                    CursorSemantics::Bar => (line_start.saturating_add(start_offset.min(line_width)), line_start.saturating_add(start_offset.min(line_width))),
-                    CursorSemantics::Block => (line_start.saturating_add(start_offset.min(line_width)), text_util::next_grapheme_index(line_start.saturating_add(start_offset.min(line_width)), text))
-                }
-            }
-        }
-        else{  //not extended
-            match semantics{    //ensure adding the offsets doesn't make this go past line width
-                CursorSemantics::Bar => (line_start.saturating_add(start_offset.min(line_width)), line_start.saturating_add(start_offset.min(line_width))),
-                CursorSemantics::Block => (line_start.saturating_add(start_offset.min(line_width)), text_util::next_grapheme_index(line_start.saturating_add(start_offset.min(line_width)), text))
-            }
-        };
-
-        match self.primary().direction(text, semantics){
-            Direction::Forward => Ok(self.push_front(Selection::new(start, end), false)),
-            Direction::Backward => Ok(self.push_front(Selection::new(end, start), false))
-        }
-    }
-
-    // TODO: selection added below at text end is not rendering on last line(this is a frontend issue though)
-    /// Adds a new [`Selection`] directly below bottom-most [`Selection`], with the same start and end offsets from line start, if possible.
-    pub fn add_selection_below(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionsError>{
-        assert!(self.count() > 0);  //ensure at least one selection in selections
-
-        let bottom_selection = self.last();
-        let bottom_selection_line = text.char_to_line(bottom_selection.start());
-        //bottom_selection_line must be zero based, and text.len_lines() one based...   //TODO: verify
-        if bottom_selection_line >= text.len_lines().saturating_sub(1){return Err(SelectionsError::CannotAddSelectionBelow);}
-        // should error if any selection spans multiple lines. //callee can determine appropriate response behavior in this case        //vscode behavior is to extend topmost selection down one line if any selection spans multiple lines
-        for selection in self.selections.iter(){
-            if selection.spans_multiple_lines(text, semantics){return Err(SelectionsError::SpansMultipleLines);}
-        }
-
-        // using primary selection here, because that is the selection we want our added selection to emulate, if possible with the available text
-        let start_offset = text_util::offset_from_line_start(self.primary().start(), text);
-        let end_offset = start_offset.saturating_add(self.primary().end().saturating_sub(self.primary().start()));  //start_offset + (end char index - start char index)
-        let line_below = bottom_selection_line.saturating_add(1);
-        let line_start = text.line_to_char(line_below);
-        let line_text = text.line(line_below);
-        let line_width = text_util::line_width(line_text, false);
-        let line_width_including_newline = text_util::line_width(line_text, true);
-        let (start, end) = if line_text.to_string().is_empty() || line_text.to_string() == "\n"{    //should be impossible for the text in the line above first selection to be empty. is_empty() check is redundant here...
-            match semantics{
-                CursorSemantics::Bar => (line_start, line_start),
-                CursorSemantics::Block => (line_start, text_util::next_grapheme_index(line_start, text))
-            }
-        }
-        else if self.primary().is_extended(semantics){
-            if start_offset < line_width{   //should we exclusively handle start_offset < line_width && end_offset < line_width as well?
-                (line_start.saturating_add(start_offset), line_start.saturating_add(end_offset.min(line_width_including_newline))) //start offset already verified within line text bounds
-            }
-            else{
-                // currently same as non extended. this might change...
-                match semantics{    //ensure adding the offsets doesn't make this go past line width
-                    CursorSemantics::Bar => (line_start.saturating_add(start_offset.min(line_width)), line_start.saturating_add(start_offset.min(line_width))),
-                    CursorSemantics::Block => (line_start.saturating_add(start_offset.min(line_width)), text_util::next_grapheme_index(line_start.saturating_add(start_offset.min(line_width)), text))
-                }
-            }
-        }
-        else{  //not extended
-            match semantics{    //ensure adding the offsets doesn't make this go past line width
-                CursorSemantics::Bar => (line_start.saturating_add(start_offset.min(line_width)), line_start.saturating_add(start_offset.min(line_width))),
-                CursorSemantics::Block => (line_start.saturating_add(start_offset.min(line_width)), text_util::next_grapheme_index(line_start.saturating_add(start_offset.min(line_width)), text))
-            }
-        };
-
-        match self.primary().direction(text, semantics){
-            Direction::Forward => Ok(self.push(Selection::new(start, end), false)),
-            Direction::Backward => Ok(self.push(Selection::new(end, start), false))
-        }
-    }
-
-    pub fn remove_primary_selection(&self) -> Result<Self, SelectionsError>{
-        assert!(self.count() >= 1);
-        
-        if self.count() < 2{return Err(SelectionsError::SingleSelection);}
-        
-        let mut new_selections = Vec::new();
-        for selection in &self.selections{
-            if selection != self.primary(){
-                new_selections.push(selection.clone());
-            }
-        }
-        //keep the new primary selection relatively close by
-        let new_primary_index = if self.primary_selection_index > 0{
-            self.primary_selection_index.saturating_sub(1)
-        }else{
-            self.primary_selection_index
-        };
-
-        Ok(Self{selections: new_selections, primary_selection_index: new_primary_index})
-    }
-
-    // should these be made purely functional?  //for selection in selections{if selection <= current_selection_index{push selection to vec}}
-    pub fn shift_subsequent_selections_forward(&mut self, current_selection_index: usize, amount: usize){
-        for subsequent_selection_index in current_selection_index.saturating_add(1)..self.count(){
-            let subsequent_selection = self.nth_mut(subsequent_selection_index);
-            *subsequent_selection = Selection::new(subsequent_selection.anchor().saturating_add(amount), subsequent_selection.head().saturating_add(amount));
-        }
-    }
-    pub fn shift_subsequent_selections_backward(&mut self, current_selection_index: usize, amount: usize){
-        for subsequent_selection_index in current_selection_index.saturating_add(1)..self.count(){
-            let subsequent_selection = self.nth_mut(subsequent_selection_index);
-            *subsequent_selection = Selection::new(subsequent_selection.anchor().saturating_sub(amount), subsequent_selection.head().saturating_sub(amount));
-        }
     }
 }

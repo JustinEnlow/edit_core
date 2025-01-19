@@ -1,6 +1,8 @@
 use ropey::Rope;
 use edit_core::view::View;
-use edit_core::selection::{Selection, CursorSemantics, Selections, Selection2d};
+use edit_core::selection::{Selection, CursorSemantics};
+use edit_core::selection2d::Selection2d;
+use edit_core::selections::Selections;
 use edit_core::Position;
 
 #[test]

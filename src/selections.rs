@@ -1,0 +1,384 @@
+use ropey::Rope;
+use crate::selection::{Selection, CursorSemantics, Direction};
+use crate::text_util;
+
+
+
+#[derive(Debug, PartialEq)]
+pub enum SelectionsError{
+    SingleSelection,
+    MultipleSelections,
+    SpansMultipleLines,
+    CannotAddSelectionAbove,
+    CannotAddSelectionBelow,
+}
+/// A collection of [`Selection`]s. 
+/// used in place of [Vec]<[`Selection`]> to ensure certain guarantees are enforced
+/// ## Goal Guarantees:
+/// - will always contain at least 1 {Selection}
+/// - all {Selection}s are grapheme aligned
+/// - all {Selection}s are sorted by increasing position in document
+/// - all overlapping {Selection}s are merged
+    //should this be handled in {Selection}?
+/// - head and anchor are always within text boundaries for each selection
+    //
+/// - ...prob others i haven't thought of yet
+#[derive(Debug, PartialEq, Clone)]
+pub struct Selections{
+    selections: Vec<Selection>,
+    primary_selection_index: usize,
+}
+impl Selections{
+    /// Returns new instance of [`Selections`] from provided input.
+    /// #### Invariants:
+    /// - will alway contain at least one [`Selection`]
+    /// - [`Selection`]s are grapheme aligned
+    /// - [`Selection`]s are sorted by ascending position in doc
+    /// - overlapping [`Selection`]s are merged
+    /// - all [`Selection`]s are within doc boundaries
+    /// 
+    /// # Panics
+    /// `new` panics if `selections` input param is empty.
+    pub fn new(selections: Vec<Selection>, primary_selection_index: usize, _text: &Rope) -> Self{
+        assert!(!selections.is_empty());
+        //if selections.is_empty(){
+        //    selections = vec![Selection::new(0, 0)];
+        //    primary_selection_index = 0;
+        //}
+
+        let mut selections = Self{
+            selections,
+            primary_selection_index,
+        };
+
+        // selections.grapheme_align();
+        selections = selections.sort();
+        //selections = selections.merge_overlapping(text);  //TODO: fix this to use new merge_overlapping fn
+
+        assert!(selections.count() > 0);
+        selections
+    }
+    /// Returns the number of [`Selection`]s in [`Selections`].
+    pub fn count(&self) -> usize{
+        self.selections.len()
+    }
+    pub fn primary_selection_index(&self) -> usize{
+        self.primary_selection_index
+    }
+    pub fn iter(&self) -> std::slice::Iter<'_, Selection>{
+        self.selections.iter()
+    }
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, Selection>{
+        self.selections.iter_mut()
+    }
+    /// Returns a new instance of [`Selections`] with the last element removed.
+    pub fn pop(&self) -> Self{
+        let mut new_selections = self.selections.clone();
+        // Guarantee at least one selection
+        if new_selections.len() > 1{new_selections.pop();}
+        else{return self.clone();}
+
+        // Is there a better way to determine new primary selection?
+        let primary_selection_index = new_selections.len().saturating_sub(1);
+
+        Self{
+            selections: new_selections,
+            primary_selection_index
+        }
+    }
+
+    /// Prepends a [`Selection`] to the front of [Self], updating `primary_selection_index` if desired.
+    pub fn push_front(&self, selection: Selection, update_primary: bool) -> Self{
+        let mut new_selections = self.selections.clone();
+        new_selections.insert(0, selection);
+        Self{
+            selections: new_selections,
+            primary_selection_index: if update_primary{0}else{self.primary_selection_index.saturating_add(1)} //0
+        }
+    }
+    
+    /// Appends a [`Selection`] to the back of [Self], updating `primary_selection_index` if desired.
+    pub fn push(&self, selection: Selection, update_primary: bool) -> Self{
+        let mut new_selections = self.selections.clone();
+        new_selections.push(selection);
+        let primary_selection_index = new_selections.len().saturating_sub(1);
+        Self{
+            selections: new_selections,
+            primary_selection_index: if update_primary{primary_selection_index}else{self.primary_selection_index}
+        }
+    }
+    
+    /// Returns a reference to the [`Selection`] at `primary_selection_index`.
+    pub fn primary(&self) -> &Selection{
+        &self.selections[self.primary_selection_index]
+    }
+    /// Returns a mutable reference to the [`Selection`] at `primary_selection_index`.
+    pub fn primary_mut(&mut self) -> &mut Selection{
+        &mut self.selections[self.primary_selection_index]
+    }
+    pub fn first(&self) -> &Selection{
+        // unwrapping because we ensure at least one selection is always present
+        self.selections.first().unwrap()
+    }
+    //pub fn first_mut(&mut self) -> &mut Selection{
+    //    self.selections.first_mut().unwrap()
+    //}
+    pub fn last(&self) -> &Selection{
+        // unwrapping because we ensure at least one selection is always present
+        self.selections.last().unwrap()
+    }
+    pub fn nth_mut(&mut self, index: usize) -> &mut Selection{
+        self.selections.get_mut(index).unwrap()
+    }
+
+    /// Increments `primary_selection_index`.
+    pub fn increment_primary_selection(&self) -> Result<Self, SelectionsError>{
+        if self.count() < 2{return Err(SelectionsError::SingleSelection);}
+        if self.primary_selection_index.saturating_add(1) < self.count(){
+            Ok(Self{selections: self.selections.clone(), primary_selection_index: self.primary_selection_index + 1})
+        }else{
+            Ok(Self{selections: self.selections.clone(), primary_selection_index: 0})
+        }
+    }
+    /// Decrements the primary selection index.
+    pub fn decrement_primary_selection(&self) -> Result<Self, SelectionsError>{
+        if self.count() < 2{return Err(SelectionsError::SingleSelection);}
+        if self.primary_selection_index > 0{
+            Ok(Self{selections: self.selections.clone(), primary_selection_index: self.primary_selection_index - 1})
+        }else{
+            Ok(Self{selections: self.selections.clone(), primary_selection_index: self.count().saturating_sub(1)})
+        }
+    }
+
+    /// Sorts each [`Selection`] in [Selections] by position.
+    /// #### Invariants:
+    /// - preserves primary selection through the sorting process
+    pub fn sort(&self) -> Self{
+        if self.count() < 2{return self.clone();}
+
+        let primary = self.primary().clone();
+        let mut sorted_selections = self.selections.clone();
+        sorted_selections.sort_unstable_by_key(Selection::start);
+    
+        let primary_selection_index = sorted_selections
+            .iter()
+            .position(|selection| selection == &primary)
+            .unwrap_or(0);
+    
+        Self{
+            selections: sorted_selections,
+            primary_selection_index,
+        }
+    }
+
+    /// Merges overlapping [`Selection`]s.
+    pub fn merge_overlapping(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionsError>{
+        if self.count() < 2{return Err(SelectionsError::SingleSelection);}
+
+        let mut primary = self.primary().clone();
+        let mut new_selections = self.selections.clone();
+        new_selections.dedup_by(|current_selection, prev_selection|{
+            if prev_selection.overlaps(current_selection){
+                let merged_selection = match current_selection.merge(prev_selection, text, semantics){
+                    Ok(val) => val,
+                    Err(_) => {return false;}
+                };
+
+                // Update primary selection to track index in next code block // Only clone if necessary
+                if prev_selection == &primary || current_selection == &primary{
+                    primary = merged_selection.clone();
+                }
+
+                *prev_selection = merged_selection;
+                true
+            }else{false}
+        });
+
+        let primary_selection_index = new_selections.iter()
+            .position(|selection| selection == &primary)
+            .unwrap_or(0);
+
+        assert!(self.count() > 0);
+
+        Ok(Self{
+            selections: new_selections,
+            primary_selection_index,
+        })
+
+        // let mut new_selections = Vec::new();
+        // iter through selections skipping first
+            // if current_selection overlaps previous_selection
+                // push merged selection to new_selections
+                // if current_selection is primary, set primary_index to this one
+            // else
+                // push current_selection to new_selections
+                // id current_selection is primary, set primary_index to this one
+        // return new_selections
+    }
+
+    /// Removes all [`Selection`]s except [`Selection`] at `primary_selection_index`.
+    /// Errors if [`Selections`] has only 1 [`Selection`].
+    pub fn clear_non_primary_selections(&self) -> Result<Self, SelectionsError>{
+        //assert!(self.count() > 1);
+        if self.count() < 2{return Err(SelectionsError::SingleSelection);}
+        
+        let primary_as_vec = vec![self.primary().clone()];
+        assert!(primary_as_vec.len() == 1);
+        
+        Ok(Self{
+            selections: primary_as_vec,
+            primary_selection_index: 0
+        })
+    }
+
+    //TODO: return head and anchor positions
+    //TODO: return Vec<Position> document cursor positions
+    //pub fn cursor_positions(&self, text: &Rope, semantics: CursorSemantics) -> Position{
+    //    let cursor = self.primary();
+    //    let document_cursor = cursor.selection_to_selection2d(text, semantics);
+    //    
+    //    Position::new(
+    //        document_cursor.head().x().saturating_add(1), 
+    //        document_cursor.head().y().saturating_add(1)
+    //    )
+    //}
+
+    /// Adds a new [`Selection`] directly above the top-most [`Selection`], with the same start and end offsets from line start, if possible.
+    pub fn add_selection_above(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionsError>{
+        assert!(self.count() > 0);  //ensure at least one selection in selections
+
+        let top_selection = self.first();
+        let top_selection_line = text.char_to_line(top_selection.start());
+        if top_selection_line == 0{return Err(SelectionsError::CannotAddSelectionAbove);}
+        // should error if any selection spans multiple lines. //callee can determine appropriate response behavior in this case        //vscode behavior is to extend topmost selection up one line if any selection spans multiple lines
+        for selection in self.selections.iter(){
+            if selection.spans_multiple_lines(text, semantics){return Err(SelectionsError::SpansMultipleLines);}
+        }
+
+        // using primary selection here, because that is the selection we want our added selection to emulate, if possible with the available text
+        let start_offset = text_util::offset_from_line_start(self.primary().start(), text);
+        let end_offset = start_offset.saturating_add(self.primary().end().saturating_sub(self.primary().start()));  //start_offset + (end char index - start char index)
+        let line_above = top_selection_line.saturating_sub(1);
+        let line_start = text.line_to_char(line_above);
+        let line_text = text.line(line_above);
+        let line_width = text_util::line_width(line_text, false);
+        let line_width_including_newline = text_util::line_width(line_text, true);
+        let (start, end) = if line_text.to_string().is_empty() || line_text.to_string() == "\n"{    //should be impossible for the text in the line above first selection to be empty. is_empty() check is redundant here...
+            match semantics{
+                CursorSemantics::Bar => (line_start, line_start),
+                CursorSemantics::Block => (line_start, text_util::next_grapheme_index(line_start, text))
+            }
+        }
+        else if self.primary().is_extended(semantics){
+            if start_offset < line_width{   //should we exclusively handle start_offset < line_width && end_offset < line_width as well?
+                (line_start.saturating_add(start_offset), line_start.saturating_add(end_offset.min(line_width_including_newline))) //start offset already verified within line text bounds
+            }
+            else{
+                // currently same as non extended. this might change...
+                match semantics{    //ensure adding the offsets doesn't make this go past line width
+                    CursorSemantics::Bar => (line_start.saturating_add(start_offset.min(line_width)), line_start.saturating_add(start_offset.min(line_width))),
+                    CursorSemantics::Block => (line_start.saturating_add(start_offset.min(line_width)), text_util::next_grapheme_index(line_start.saturating_add(start_offset.min(line_width)), text))
+                }
+            }
+        }
+        else{  //not extended
+            match semantics{    //ensure adding the offsets doesn't make this go past line width
+                CursorSemantics::Bar => (line_start.saturating_add(start_offset.min(line_width)), line_start.saturating_add(start_offset.min(line_width))),
+                CursorSemantics::Block => (line_start.saturating_add(start_offset.min(line_width)), text_util::next_grapheme_index(line_start.saturating_add(start_offset.min(line_width)), text))
+            }
+        };
+
+        match self.primary().direction(text, semantics){
+            Direction::Forward => Ok(self.push_front(Selection::new(start, end), false)),
+            Direction::Backward => Ok(self.push_front(Selection::new(end, start), false))
+        }
+    }
+
+    // TODO: selection added below at text end is not rendering on last line(this is a frontend issue though)
+    /// Adds a new [`Selection`] directly below bottom-most [`Selection`], with the same start and end offsets from line start, if possible.
+    pub fn add_selection_below(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionsError>{
+        assert!(self.count() > 0);  //ensure at least one selection in selections
+
+        let bottom_selection = self.last();
+        let bottom_selection_line = text.char_to_line(bottom_selection.start());
+        //bottom_selection_line must be zero based, and text.len_lines() one based...   //TODO: verify
+        if bottom_selection_line >= text.len_lines().saturating_sub(1){return Err(SelectionsError::CannotAddSelectionBelow);}
+        // should error if any selection spans multiple lines. //callee can determine appropriate response behavior in this case        //vscode behavior is to extend topmost selection down one line if any selection spans multiple lines
+        for selection in self.selections.iter(){
+            if selection.spans_multiple_lines(text, semantics){return Err(SelectionsError::SpansMultipleLines);}
+        }
+
+        // using primary selection here, because that is the selection we want our added selection to emulate, if possible with the available text
+        let start_offset = text_util::offset_from_line_start(self.primary().start(), text);
+        let end_offset = start_offset.saturating_add(self.primary().end().saturating_sub(self.primary().start()));  //start_offset + (end char index - start char index)
+        let line_below = bottom_selection_line.saturating_add(1);
+        let line_start = text.line_to_char(line_below);
+        let line_text = text.line(line_below);
+        let line_width = text_util::line_width(line_text, false);
+        let line_width_including_newline = text_util::line_width(line_text, true);
+        let (start, end) = if line_text.to_string().is_empty() || line_text.to_string() == "\n"{    //should be impossible for the text in the line above first selection to be empty. is_empty() check is redundant here...
+            match semantics{
+                CursorSemantics::Bar => (line_start, line_start),
+                CursorSemantics::Block => (line_start, text_util::next_grapheme_index(line_start, text))
+            }
+        }
+        else if self.primary().is_extended(semantics){
+            if start_offset < line_width{   //should we exclusively handle start_offset < line_width && end_offset < line_width as well?
+                (line_start.saturating_add(start_offset), line_start.saturating_add(end_offset.min(line_width_including_newline))) //start offset already verified within line text bounds
+            }
+            else{
+                // currently same as non extended. this might change...
+                match semantics{    //ensure adding the offsets doesn't make this go past line width
+                    CursorSemantics::Bar => (line_start.saturating_add(start_offset.min(line_width)), line_start.saturating_add(start_offset.min(line_width))),
+                    CursorSemantics::Block => (line_start.saturating_add(start_offset.min(line_width)), text_util::next_grapheme_index(line_start.saturating_add(start_offset.min(line_width)), text))
+                }
+            }
+        }
+        else{  //not extended
+            match semantics{    //ensure adding the offsets doesn't make this go past line width
+                CursorSemantics::Bar => (line_start.saturating_add(start_offset.min(line_width)), line_start.saturating_add(start_offset.min(line_width))),
+                CursorSemantics::Block => (line_start.saturating_add(start_offset.min(line_width)), text_util::next_grapheme_index(line_start.saturating_add(start_offset.min(line_width)), text))
+            }
+        };
+
+        match self.primary().direction(text, semantics){
+            Direction::Forward => Ok(self.push(Selection::new(start, end), false)),
+            Direction::Backward => Ok(self.push(Selection::new(end, start), false))
+        }
+    }
+
+    pub fn remove_primary_selection(&self) -> Result<Self, SelectionsError>{
+        assert!(self.count() >= 1);
+        
+        if self.count() < 2{return Err(SelectionsError::SingleSelection);}
+        
+        let mut new_selections = Vec::new();
+        for selection in &self.selections{
+            if selection != self.primary(){
+                new_selections.push(selection.clone());
+            }
+        }
+        //keep the new primary selection relatively close by
+        let new_primary_index = if self.primary_selection_index > 0{
+            self.primary_selection_index.saturating_sub(1)
+        }else{
+            self.primary_selection_index
+        };
+
+        Ok(Self{selections: new_selections, primary_selection_index: new_primary_index})
+    }
+
+    // should these be made purely functional?  //for selection in selections{if selection <= current_selection_index{push selection to vec}}
+    pub fn shift_subsequent_selections_forward(&mut self, current_selection_index: usize, amount: usize){
+        for subsequent_selection_index in current_selection_index.saturating_add(1)..self.count(){
+            let subsequent_selection = self.nth_mut(subsequent_selection_index);
+            *subsequent_selection = Selection::new(subsequent_selection.anchor().saturating_add(amount), subsequent_selection.head().saturating_add(amount));
+        }
+    }
+    pub fn shift_subsequent_selections_backward(&mut self, current_selection_index: usize, amount: usize){
+        for subsequent_selection_index in current_selection_index.saturating_add(1)..self.count(){
+            let subsequent_selection = self.nth_mut(subsequent_selection_index);
+            *subsequent_selection = Selection::new(subsequent_selection.anchor().saturating_sub(amount), subsequent_selection.head().saturating_sub(amount));
+        }
+    }
+}

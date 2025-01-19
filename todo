@@ -10,6 +10,7 @@ Document:
     [ ] handle auto-indent on newline insertion
     [ ] pipe commands to shell and insert result into document
     [ ] figure out how to handle read-only or permission restricted files...
+    [ ] make search operate over selections, returning matched selections in place of the original selection(maybe the search should be in seletion.rs and the selection ordering management should be in document.rs?)
 
 Selection:
     [ ] make sure extend functions do not extend past doc end. this is ok for movement functions because new characters need to be added to the document

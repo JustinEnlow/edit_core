@@ -1,5 +1,6 @@
 use crate::view::View;
-use crate::selection::{CursorSemantics, Movement, Selection, Selections, SelectionsError};
+use crate::selection::{CursorSemantics, Movement, Selection};
+use crate::selections::{Selections, SelectionsError};
 use crate::history::{Operation, Change, ChangeSet};
 use std::fs::{self, File};
 use std::error::Error;
@@ -14,7 +15,7 @@ use std::cmp::Ordering;
 // tab keypress inserts the number of spaces specified in TAB_WIDTH into the focused document
 pub const TAB_WIDTH: usize = 4; //should this be language dependant? on-the-fly configurable?   //TODO: consider what to do with files where the tab width already in use is different than this setting
 // whether to use hard or soft tabs
-pub const USE_HARD_TAB: bool = false;
+pub const USE_HARD_TAB: bool = false;   //maybe do enum TabStyle{Hard, Soft, Smart}
 // whether to use full file path or just file name
 pub const USE_FULL_FILE_PATH: bool = false;
 

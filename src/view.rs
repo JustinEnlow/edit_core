@@ -1,5 +1,7 @@
 use ropey::Rope;
-use crate::selection::{CursorSemantics, Selection, Selection2d, Selections};
+use crate::selection::{CursorSemantics, Selection};
+use crate::selection2d::Selection2d;
+use crate::selections::Selections;
 use crate::Position;
 
 
@@ -286,7 +288,8 @@ impl View{
     /// Returns cursor positions that are within [`View`] boundaries.
     /// ```
     /// # use ropey::Rope;
-    /// # use edit_core::selection::{Selection, CursorSemantics, Selections};
+    /// # use edit_core::selection::{Selection, CursorSemantics};
+    /// # use edit_core::selections::Selections;
     /// # use edit_core::view::View;
     /// # use edit_core::document::Document;
     /// # use edit_core::Position;
