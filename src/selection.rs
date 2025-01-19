@@ -219,21 +219,34 @@ impl Selection{
     pub fn merge_overlapping(&self, other: &Selection, text: &Rope, semantics: CursorSemantics) -> Result<Selection, SelectionError>{
         if self.overlaps(other){
             // perform indiscriminate merge to get selection range
-            let mut selection = Selection::new(0, 0);
-            // calculate new stored_line_position
-            selection.stored_line_position = if !self.is_extended(semantics) && !other.is_extended(semantics){
-                match (self.direction(text, semantics), other.direction(text, semantics)){
-                    // if using range merge from alt_edit_core, this would just set selection.direction
-                    (Direction::Forward, Direction::Forward) => {selection = Selection::new(self.start().min(other.start()), self.end().max(other.end()))}
-                    (Direction::Forward, Direction::Backward) => {selection = Selection::new(self.start().min(other.start()), self.end().max(other.end()))} //currently preferring forward for mismatched directions
-                    (Direction::Backward, Direction::Forward) => {selection = Selection::new(self.start().min(other.start()), self.end().max(other.end()))} //currently preferring forward for mismatched directions
-                    (Direction::Backward, Direction::Backward) => {selection = Selection::new(self.end().max(other.end()), self.start().min(other.start()))}
-                }
-                Some(self.cursor(text, semantics))
-            }
-            else{
-                self.stored_line_position
+            let start = self.start().min(other.start());
+            let end = self.end().max(other.end());
+            // set resultant direction, based on inputs
+            let mut selection = match (self.direction(text, semantics), other.direction(text, semantics), self.is_extended(semantics), other.is_extended(semantics)){
+                // if using range from alt_edit_core, this would just set selection.direction...
+                (Direction::Forward, Direction::Forward, false, false) => Selection::new(start, end),   //Forward
+                (Direction::Forward, Direction::Forward, true, false) => Selection::new(start, end),    //Forward
+                (Direction::Forward, Direction::Forward, false, true) => Selection::new(start, end),    //Forward
+                (Direction::Forward, Direction::Forward, true, true) => Selection::new(start, end),     //Forward
+
+                (Direction::Forward, Direction::Backward, false, false) => Selection::new(start, end),  //Forward
+                (Direction::Forward, Direction::Backward, true, false) => Selection::new(start, end),   //Forward
+                (Direction::Forward, Direction::Backward, false, true) => Selection::new(end, start),   //Backward
+                (Direction::Forward, Direction::Backward, true, true) => Selection::new(start, end),    //Forward
+
+                (Direction::Backward, Direction::Forward, false, false) => Selection::new(start, end),  //Forward
+                (Direction::Backward, Direction::Forward, true, false) => Selection::new(end, start),   //Backward
+                (Direction::Backward, Direction::Forward, false, true) => Selection::new(start, end),   //Forward
+                (Direction::Backward, Direction::Forward, true, true) => Selection::new(start, end),    //Forward
+
+                (Direction::Backward, Direction::Backward, false, false) => Selection::new(end, start), //Backward
+                (Direction::Backward, Direction::Backward, true, false) => Selection::new(end, start),  //Backward
+                (Direction::Backward, Direction::Backward, false, true) => Selection::new(end, start),  //Backward
+                (Direction::Backward, Direction::Backward, true, true) => Selection::new(end, start),   //Backward
             };
+            // calculate new stored_line_position
+            //selection.stored_line_position = Some(text_util::offset_from_line_start(self.cursor(text, semantics), text));
+            selection.stored_line_position = Some(text_util::offset_from_line_start(selection.cursor(text, semantics), text));
             // return merged selection
             Ok(selection)
         }else{return Err(SelectionError::NoOverlap)}

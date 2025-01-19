@@ -54,6 +54,9 @@ impl Selections{
         // selections.grapheme_align();
         selections = selections.sort();
         //selections = selections.merge_overlapping(text);  //TODO: fix this to use new merge_overlapping fn
+        //if let Ok(merged_selections) = selections.merge_overlapping(text, semantics){
+        //    selections = merged_selections;
+        //}
 
         assert!(selections.count() > 0);
         selections
@@ -179,7 +182,11 @@ impl Selections{
         let mut new_selections = self.selections.clone();
         new_selections.dedup_by(|current_selection, prev_selection|{
             if prev_selection.overlaps(current_selection){
-                let merged_selection = match current_selection.merge(prev_selection, text, semantics){
+                //let merged_selection = match current_selection.merge(prev_selection, text, semantics){
+                //    Ok(val) => val,
+                //    Err(_) => {return false;}
+                //};
+                let merged_selection = match current_selection.merge_overlapping(prev_selection, text, semantics){
                     Ok(val) => val,
                     Err(_) => {return false;}
                 };
@@ -204,16 +211,6 @@ impl Selections{
             selections: new_selections,
             primary_selection_index,
         })
-
-        // let mut new_selections = Vec::new();
-        // iter through selections skipping first
-            // if current_selection overlaps previous_selection
-                // push merged selection to new_selections
-                // if current_selection is primary, set primary_index to this one
-            // else
-                // push current_selection to new_selections
-                // id current_selection is primary, set primary_index to this one
-        // return new_selections
     }
 
     /// Removes all [`Selection`]s except [`Selection`] at `primary_selection_index`.
