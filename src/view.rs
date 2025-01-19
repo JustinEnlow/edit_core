@@ -93,8 +93,8 @@ impl View{
         assert!(selection.cursor(text, semantics) <= text.len_chars());
 
         let cursor = selection.selection_to_selection2d(text, semantics);
-        let cursor_y = cursor.head().y();
-        let cursor_x = cursor.head().x();
+        let cursor_y = cursor.head().y;
+        let cursor_x = cursor.head().x;
 
         let within_vertical_bounds = cursor_y >= self.vertical_start && cursor_y < self.vertical_start.saturating_add(self.height);
         let within_horizontal_bounds = cursor_x >= self.horizontal_start && cursor_x < self.horizontal_start.saturating_add(self.width);
@@ -109,8 +109,8 @@ impl View{
         assert!(selection.cursor(text, semantics) <= text.len_chars());
 
         let cursor = selection.selection_to_selection2d(text, semantics);
-        let cursor_y = cursor.head().y();
-        let cursor_x = cursor.head().x();
+        let cursor_y = cursor.head().y;
+        let cursor_x = cursor.head().x;
 
         let mut new_view = self.clone();
 
@@ -284,41 +284,10 @@ impl View{
         view_blocks
     }
     
-
-    /// Returns cursor positions that are within [`View`] boundaries.
-    /// ```
-    /// # use ropey::Rope;
-    /// # use edit_core::selection::{Selection, CursorSemantics};
-    /// # use edit_core::selections::Selections;
-    /// # use edit_core::view::View;
-    /// # use edit_core::document::Document;
-    /// # use edit_core::Position;
-    /// 
-    /// fn test(selection: Selection, expected: Vec<Position>, view: View, semantics: CursorSemantics) -> bool{
-    ///     let text = Rope::from("idk\nsome\nshit\n");
-    ///     let mut doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![selection], 0, &text)).with_view(view);
-    ///     println!("expected: {:#?}\ngot: {:#?}\n", expected, doc.view().cursor_positions(&text, &doc.selections(), semantics));
-    ///     doc.view().cursor_positions(&text, &doc.selections(), semantics) == expected
-    /// }
-    /// 
-    /// assert!(test(Selection::new(0, 0), vec![Position::new(0, 0)], View::new(0, 0, 2, 2), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 1), vec![Position::new(0, 0)], View::new(0, 0, 2, 2), CursorSemantics::Block));
-    /// assert!(test(Selection::new(0, 0), Vec::new(), View::new(1, 0, 2, 2), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 1), Vec::new(), View::new(1, 0, 2, 2), CursorSemantics::Block));
-    /// assert!(test(Selection::new(0, 0), Vec::new(), View::new(1, 1, 2, 2), CursorSemantics::Bar));
-    /// assert!(test(Selection::new(0, 1), Vec::new(), View::new(1, 1, 2, 2), CursorSemantics::Block));
-    /// ```
-    pub fn cursor_positions(&self, text: &Rope, selections: &Selections, semantics: CursorSemantics) -> Vec<Position>{
-        selections.iter()
-            .filter_map(|cursor|{
-                Self::cursor_position(cursor.selection_to_selection2d(text, semantics), self)
-            })
-            .collect()
-    }
     // translates a document cursor position to a client view cursor position. if outside client view, returns None
     fn cursor_position(doc_cursor: Selection2d, client_view: &View) -> Option<Position>{
-        let head_x = doc_cursor.head().x();
-        let head_y = doc_cursor.head().y();
+        let head_x = doc_cursor.head().x;
+        let head_y = doc_cursor.head().y;
 
         let in_horizontal_bounds = head_x >= client_view.horizontal_start
             && head_x < client_view.horizontal_start.saturating_add(client_view.width);
@@ -335,8 +304,17 @@ impl View{
             None
         }
     }
+    /// Returns [`Position`] of primary cursor if it is within [`View`] boundaries, or None otherwise.
     pub fn primary_cursor_position(&self, text: &Rope, selections: &Selections, semantics: CursorSemantics) -> Option<Position>{
         let primary = selections.primary();
         Self::cursor_position(primary.selection_to_selection2d(text, semantics), self)
+    }
+    /// Returns [`Position`]s of cursors that are within [`View`] boundaries, or an empty vec otherwise.
+    pub fn cursor_positions(&self, text: &Rope, selections: &Selections, semantics: CursorSemantics) -> Vec<Position>{
+        selections.iter()
+            .filter_map(|cursor|{
+                Self::cursor_position(cursor.selection_to_selection2d(text, semantics), self)
+            })
+            .collect()
     }
 }

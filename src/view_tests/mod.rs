@@ -1,0 +1,13 @@
+mod scroll_down;
+mod scroll_left;
+mod scroll_right;
+mod scroll_up;
+mod should_scroll;
+mod scroll_following_cursor;
+mod center_vertically_around_cursor;
+mod text;
+mod line_numbers;
+mod selections;
+mod view_blocks;
+mod primary_cursor_position;
+mod cursor_positions;

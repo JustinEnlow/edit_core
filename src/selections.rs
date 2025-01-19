@@ -59,6 +59,7 @@ impl Selections{
         //}
 
         assert!(selections.count() > 0);
+        //TODO: for every selection assert start >= 0 and end <= text.len_chars + 1(for final empty line)
         selections
     }
     /// Returns the number of [`Selection`]s in [`Selections`].
@@ -156,7 +157,7 @@ impl Selections{
     /// Sorts each [`Selection`] in [Selections] by position.
     /// #### Invariants:
     /// - preserves primary selection through the sorting process
-    pub fn sort(&self) -> Self{
+    pub fn sort(&self) -> Self{ //TODO: return error instead...
         if self.count() < 2{return self.clone();}
 
         let primary = self.primary().clone();
@@ -216,7 +217,6 @@ impl Selections{
     /// Removes all [`Selection`]s except [`Selection`] at `primary_selection_index`.
     /// Errors if [`Selections`] has only 1 [`Selection`].
     pub fn clear_non_primary_selections(&self) -> Result<Self, SelectionsError>{
-        //assert!(self.count() > 1);
         if self.count() < 2{return Err(SelectionsError::SingleSelection);}
         
         let primary_as_vec = vec![self.primary().clone()];
@@ -345,8 +345,6 @@ impl Selections{
     }
 
     pub fn remove_primary_selection(&self) -> Result<Self, SelectionsError>{
-        assert!(self.count() >= 1);
-        
         if self.count() < 2{return Err(SelectionsError::SingleSelection);}
         
         let mut new_selections = Vec::new();
@@ -378,4 +376,6 @@ impl Selections{
             *subsequent_selection = Selection::new(subsequent_selection.anchor().saturating_sub(amount), subsequent_selection.head().saturating_sub(amount));
         }
     }
+
+    //TODO: impl multiselection movement/extend functions
 }
