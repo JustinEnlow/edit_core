@@ -18,6 +18,22 @@ fn grapheme_aligns_sorts_and_merges_valid_selections(){
     assert_eq!(expected_selections, selections);
 }
 
+#[test] fn selections_are_grapheme_aligned(){
+    assert!(false);
+}
+
+#[test] fn selections_are_sorted_by_ascending_position_in_doc(){
+    assert!(false);
+}
+
+#[test] fn overlapping_selections_are_merged(){
+    assert!(false);
+}
+
+#[test] fn all_selections_are_within_doc_bounds(){
+    assert!(false);
+}
+
 #[test]
 #[should_panic]
 fn should_panic_if_input_selections_empty(){

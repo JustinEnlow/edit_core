@@ -9,6 +9,8 @@
 
 pub mod editor;
 pub mod document;
+pub mod range;
+#[cfg(test)] mod range_tests;
 pub mod selection;
 #[cfg(test)] mod selection_tests;
 pub mod selection2d;

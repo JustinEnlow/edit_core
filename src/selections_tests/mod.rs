@@ -9,3 +9,6 @@ mod merge_overlapping;
 mod clear_non_primary_selections;
 mod add_selection_above;
 mod add_selection_below;
+mod remove_primary_selection;
+mod shift_subsequent_selections_forward;
+mod shift_subsequent_selections_backward;

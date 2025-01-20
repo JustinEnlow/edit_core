@@ -63,15 +63,19 @@ impl Selections{
         selections
     }
     /// Returns the number of [`Selection`]s in [`Selections`].
+    // note: not tested in selections_tests module
     pub fn count(&self) -> usize{
         self.selections.len()
     }
+    // note: not tested in selections_tests module
     pub fn primary_selection_index(&self) -> usize{
         self.primary_selection_index
     }
+    // note: not tested in selections_tests module
     pub fn iter(&self) -> std::slice::Iter<'_, Selection>{
         self.selections.iter()
     }
+    // note: not tested in selections_tests module
     pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, Selection>{
         self.selections.iter_mut()
     }
@@ -113,13 +117,16 @@ impl Selections{
     }
     
     /// Returns a reference to the [`Selection`] at `primary_selection_index`.
+    // note: not tested in selections_tests module
     pub fn primary(&self) -> &Selection{
         &self.selections[self.primary_selection_index]
     }
     /// Returns a mutable reference to the [`Selection`] at `primary_selection_index`.
+    // note: not tested in selections_tests module
     pub fn primary_mut(&mut self) -> &mut Selection{
         &mut self.selections[self.primary_selection_index]
     }
+    // note: not tested in selections_tests module
     pub fn first(&self) -> &Selection{
         // unwrapping because we ensure at least one selection is always present
         self.selections.first().unwrap()
@@ -127,10 +134,12 @@ impl Selections{
     //pub fn first_mut(&mut self) -> &mut Selection{
     //    self.selections.first_mut().unwrap()
     //}
+    // note: not tested in selections_tests module
     pub fn last(&self) -> &Selection{
         // unwrapping because we ensure at least one selection is always present
         self.selections.last().unwrap()
     }
+    // note: not tested in selections_tests module
     pub fn nth_mut(&mut self, index: usize) -> &mut Selection{
         self.selections.get_mut(index).unwrap()
     }
@@ -182,7 +191,7 @@ impl Selections{
         let mut primary = self.primary().clone();
         let mut new_selections = self.selections.clone();
         new_selections.dedup_by(|current_selection, prev_selection|{
-            if prev_selection.overlaps(current_selection){
+            //if prev_selection.overlaps(current_selection){
                 //let merged_selection = match current_selection.merge(prev_selection, text, semantics){
                 //    Ok(val) => val,
                 //    Err(_) => {return false;}
@@ -199,7 +208,7 @@ impl Selections{
 
                 *prev_selection = merged_selection;
                 true
-            }else{false}
+            //}else{false}
         });
 
         let primary_selection_index = new_selections.iter()
@@ -228,24 +237,12 @@ impl Selections{
         })
     }
 
-    //TODO: return head and anchor positions
-    //TODO: return Vec<Position> document cursor positions
-    //pub fn cursor_positions(&self, text: &Rope, semantics: CursorSemantics) -> Position{
-    //    let cursor = self.primary();
-    //    let document_cursor = cursor.selection_to_selection2d(text, semantics);
-    //    
-    //    Position::new(
-    //        document_cursor.head().x().saturating_add(1), 
-    //        document_cursor.head().y().saturating_add(1)
-    //    )
-    //}
-
     /// Adds a new [`Selection`] directly above the top-most [`Selection`], with the same start and end offsets from line start, if possible.
     pub fn add_selection_above(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionsError>{
         assert!(self.count() > 0);  //ensure at least one selection in selections
 
         let top_selection = self.first();
-        let top_selection_line = text.char_to_line(top_selection.start());
+        let top_selection_line = text.char_to_line(top_selection.range().start);
         if top_selection_line == 0{return Err(SelectionsError::CannotAddSelectionAbove);}
         // should error if any selection spans multiple lines. //callee can determine appropriate response behavior in this case        //vscode behavior is to extend topmost selection up one line if any selection spans multiple lines
         for selection in self.selections.iter(){
@@ -253,14 +250,14 @@ impl Selections{
         }
 
         // using primary selection here, because that is the selection we want our added selection to emulate, if possible with the available text
-        let start_offset = text_util::offset_from_line_start(self.primary().start(), text);
-        let end_offset = start_offset.saturating_add(self.primary().end().saturating_sub(self.primary().start()));  //start_offset + (end char index - start char index)
+        let start_offset = text_util::offset_from_line_start(self.primary().range().start, text);
+        let end_offset = start_offset.saturating_add(self.primary().range().end.saturating_sub(self.primary().range().start));  //start_offset + (end char index - start char index)
         let line_above = top_selection_line.saturating_sub(1);
         let line_start = text.line_to_char(line_above);
         let line_text = text.line(line_above);
         let line_width = text_util::line_width(line_text, false);
         let line_width_including_newline = text_util::line_width(line_text, true);
-        let (start, end) = if line_text.to_string().is_empty() || line_text.to_string() == "\n"{    //should be impossible for the text in the line above first selection to be empty. is_empty() check is redundant here...
+        let (start, end) = if line_text.to_string().is_empty() || line_text == "\n"{    //should be impossible for the text in the line above first selection to be empty. is_empty() check is redundant here...
             match semantics{
                 CursorSemantics::Bar => (line_start, line_start),
                 CursorSemantics::Block => (line_start, text_util::next_grapheme_index(line_start, text))
@@ -297,7 +294,7 @@ impl Selections{
         assert!(self.count() > 0);  //ensure at least one selection in selections
 
         let bottom_selection = self.last();
-        let bottom_selection_line = text.char_to_line(bottom_selection.start());
+        let bottom_selection_line = text.char_to_line(bottom_selection.range().start);
         //bottom_selection_line must be zero based, and text.len_lines() one based...   //TODO: verify
         if bottom_selection_line >= text.len_lines().saturating_sub(1){return Err(SelectionsError::CannotAddSelectionBelow);}
         // should error if any selection spans multiple lines. //callee can determine appropriate response behavior in this case        //vscode behavior is to extend topmost selection down one line if any selection spans multiple lines
@@ -306,14 +303,14 @@ impl Selections{
         }
 
         // using primary selection here, because that is the selection we want our added selection to emulate, if possible with the available text
-        let start_offset = text_util::offset_from_line_start(self.primary().start(), text);
-        let end_offset = start_offset.saturating_add(self.primary().end().saturating_sub(self.primary().start()));  //start_offset + (end char index - start char index)
+        let start_offset = text_util::offset_from_line_start(self.primary().range().start, text);
+        let end_offset = start_offset.saturating_add(self.primary().range().end.saturating_sub(self.primary().range().start));  //start_offset + (end char index - start char index)
         let line_below = bottom_selection_line.saturating_add(1);
         let line_start = text.line_to_char(line_below);
         let line_text = text.line(line_below);
         let line_width = text_util::line_width(line_text, false);
         let line_width_including_newline = text_util::line_width(line_text, true);
-        let (start, end) = if line_text.to_string().is_empty() || line_text.to_string() == "\n"{    //should be impossible for the text in the line above first selection to be empty. is_empty() check is redundant here...
+        let (start, end) = if line_text.to_string().is_empty() || line_text == "\n"{    //should be impossible for the text in the line above first selection to be empty. is_empty() check is redundant here...
             match semantics{
                 CursorSemantics::Bar => (line_start, line_start),
                 CursorSemantics::Block => (line_start, text_util::next_grapheme_index(line_start, text))

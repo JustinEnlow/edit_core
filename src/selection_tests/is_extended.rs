@@ -22,3 +22,5 @@ use crate::selection::{Selection, CursorSemantics};
     assert_eq!(Selection::new(2, 0).is_extended(CursorSemantics::Block), true);
     
 }
+
+//TODO: test with multichar graphemes

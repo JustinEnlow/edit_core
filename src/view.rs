@@ -197,7 +197,7 @@ impl View{
         let mut client_view_text = String::new();
     
         for view_block in view_blocks.iter(){
-            client_view_text.push_str(&text.slice(view_block.start()..view_block.end()).to_string());
+            client_view_text.push_str(&text.slice(view_block.range().start..view_block.range().end).to_string());
             client_view_text.push('\n');
         }
     
@@ -233,10 +233,10 @@ impl View{
             let view_start = view_block.anchor();
             let mut intersected = false;
             for selection in selections.iter(){
-                if let Ok(selected) = view_block.intersection(selection){
+                if let Some(selected) = view_block.range().intersection(selection.range()){
                     // add intersecting to list //this represents a selection in view bounds
-                    let new_anchor = Position::new(selected.anchor() - view_start, y);
-                    let new_head = Position::new(selected.head() - view_start, y);
+                    let new_anchor = Position::new(selected.start/*anchor()*/ - view_start, y);
+                    let new_head = Position::new(selected.end/*head()*/ - view_start, y);
                     //selections_in_view.push(Selection2d::new(Position::new(selected.anchor() - view_start, y), Position::new(selected.head() - view_start, y)));
                     selections_in_view.push(Selection2d::new(new_anchor, new_head));
                     intersected = true;
@@ -256,7 +256,7 @@ impl View{
     // should this include newlines('\n') in its width calculation? maybe pass in include_newline bool?
     // we want to highlight newlines as well
     // but that may mess with the logic for "empty" lines...idk
-    pub fn view_blocks(&self, text: &Rope, include_newline: bool) -> Vec<Selection>{
+    pub fn view_blocks(&self, text: &Rope, include_newline: bool) -> Vec<Selection>{    //TODO: return Vec<Range> instead of Vec<Selection>
         let mut view_blocks = Vec::new();
         let vertical_range = self.vertical_start..self.vertical_start + self.height;
 

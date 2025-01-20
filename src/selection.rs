@@ -1,7 +1,7 @@
 // follow documentation style from https://std-dev-guide.rust-lang.org/development/how-to-write-documentation.html
 use ropey::Rope;
 use crate::{
-    text_util, view::View, Position, selection2d::Selection2d
+    text_util, view::View, Position, selection2d::Selection2d, range::Range
 };
 
 
@@ -16,7 +16,7 @@ pub enum CursorSemantics{
     Bar,    //difference between anchor and head is 0
     Block   //difference between anchor and head is 1 grapheme
 }
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Direction{
     Forward,
     Backward,
@@ -38,21 +38,58 @@ pub enum SelectionError{        //or should each fallible fn have its own fn spe
 /// Should ensure head/anchor are always within text bounds
 #[derive(PartialEq, Clone, Debug)]
 pub struct Selection{   //should anchor and head be pulled out into their own structure? struct Range{anchor: usize, head: usize} or maybe Range{start: usize, end: usize}
-    anchor: usize,  // the stationary portion of a selection.
-    head: usize,    // the mobile portion of a selection. this is the portion a user can move to extend selection
+    //anchor: usize,  // the stationary portion of a selection.
+    //head: usize,    // the mobile portion of a selection. this is the portion a user can move to extend selection
+    range: Range,   //TODO: make pub
+    direction: Direction,   //TODO: make pub
     stored_line_position: Option<usize>,    // the offset from the start of the line self.head is on
 }
 impl Selection{
     /////////////////////////////////////////////////////////// Only for Testing ////////////////////////////////////////////////////////////////////
     /// Returns a new instance of [`Selection`] with a specified `stored_line_position`.                                                           //
     /**/pub fn with_stored_line_position(anchor: usize, head: usize, stored_line_position: usize) -> Self{                                         //
-    /**/    Self{anchor, head, stored_line_position: Some(stored_line_position)}                                                                   //
+    /**/    //Self{anchor, head, stored_line_position: Some(stored_line_position)}                                                                 //
+    /**/    if head >= anchor{                                                                                                                     //
+    /**/        Self{                                                                                                                              //
+    /**/            range: Range::new(anchor, head),                                                                                    //
+    /**/            direction: Direction::Forward,                                                                                                 //
+    /**/            stored_line_position: Some(stored_line_position)                                                                               //
+    /**/        }                                                                                                                                  //
+    /**/    }else{                                                                                                                                 //
+    /**/        Self{                                                                                                                              //
+    /**/            range: Range::new(head, anchor),                                                                                    //
+    /**/            direction: Direction::Backward,                                                                                                //
+    /**/            stored_line_position: Some(stored_line_position)                                                                               //
+    /**/        }                                                                                                                                  //
+    /**/    }                                                                                                                                      //
     /**/}                                                                                                                                          //
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     
     /// Returns a new instance of [`Selection`].
-    pub fn new(anchor: usize, head: usize) -> Self{ // could init with cursor semantics: (anchor: usize, cursor: usize, semantics: CursorSemantics)
-        Self{anchor, head, stored_line_position: None}
+    // TODO: maybe should panic if block semantics and head == anchor
+    // TODO: maybe take CursorSemantics as an argument and store it in Selection, this way we never have to pass it in again...
+    // TODO: address TODOs in selection_tests/new.rs
+    pub fn new(anchor: usize, head: usize) -> Self{
+        //assert!(anchor >= 0);  //should be ensured by `usize` type
+        //assert!(anchor <= text.len_chars().saturating_add(1));
+        //assert!(head >= 0);   //should be ensured by `usize` type
+        //assert!(head <= text.len_chars().saturating_add(1));
+        //if block semantics, assert!(anchor != head);
+
+        if head >= anchor{
+            Self{
+                range: Range::new(anchor, head), 
+                direction: Direction::Forward, 
+                stored_line_position: None
+            }
+        }
+        else{
+            Self{
+                range: Range::new(head, anchor), 
+                direction: Direction::Backward, 
+                stored_line_position: None
+            }
+        }
     }
 
     /// Returns a string for debugging selections over a text.
@@ -64,15 +101,15 @@ impl Selection{
     ///     cursor(left hand side) = :, if block cursor semantics
     pub fn debug(&self, text: &Rope, semantics: CursorSemantics) -> String{
         //TODO: return an actual error, instead of a magic string. although, it is kind of nice to not have to .unwrap() for every call...
-        if semantics == CursorSemantics::Block && self.head == self.anchor{return "Selection head and anchor should not be equal using Block semantics.".to_string()}
+        if semantics == CursorSemantics::Block && self.head() == self.anchor(){return "Selection head and anchor should not be equal using Block semantics.".to_string()}
         let mut debug_string = String::new();
         for index in 0..=text.len_chars().saturating_add(1){ //needed to add 1 to allow debug chars after text len to be pushed
-            if index == self.start(){debug_string.push('[');}
+            if index == self.range.start{debug_string.push('[');}
             if index == self.anchor(){debug_string.push('|');}
             if index == self.cursor(text, semantics) && semantics == CursorSemantics::Block{debug_string.push(':');}
             if index == self.head() && self.direction(text, semantics) == Direction::Forward{debug_string.push('>');}
             if index == self.head() && self.direction(text, semantics) == Direction::Backward{debug_string.push('<');}
-            if index == self.end(){debug_string.push(']');}
+            if index == self.range.end{debug_string.push(']');}
             if let Some(char) = text.get_char(index){
                 if char == '\n'{debug_string.push('\n');}
                 else if char == '\t'{debug_string.push('\t');}
@@ -82,25 +119,37 @@ impl Selection{
 
         debug_string
     }
+
+    /// Returns the [`Range`] associated with this [`Selection`].
+    // note: not tested in selection_tests, and i don't think it should be because all relevant tests are done in range_tests module
+    pub fn range(&self) -> &Range{&self.range}  //TODO: make pub in Selection struct definition instead
     
     /// Returns the char index of [`Selection`] anchor.
-    pub fn anchor(&self) -> usize{self.anchor}
+    pub fn anchor(&self) -> usize{
+        match self.direction{
+            Direction::Forward => self.range.start,
+            Direction::Backward => self.range.end
+        }
+    }
     
     /// Returns the char index of [`Selection`] head.
-    pub fn head(&self) -> usize{self.head}
+    pub fn head(&self) -> usize{
+        match self.direction{
+            Direction::Forward => self.range.end,
+            Direction::Backward => self.range.start
+        }
+    }
 
     /// Returns the char index of the start of the [`Selection`] from left to right.
-    pub fn start(&self) -> usize{std::cmp::min(self.anchor, self.head)}
-    
-    /// Returns the char index of the end of the [`Selection`] from left to right.
-    pub fn end(&self) -> usize{std::cmp::max(self.anchor, self.head)}
+    // note: not tested in selection_tests, and i don't think it should be because all relevant tests are done in range_tests module
+    pub fn start(&self) -> usize{self.range.start}      //only needed for Selections::sort. figure out how to make that work without this...
 
     /// Returns `true` if [`Selection`] len > 0 with bar cursor semantics, or 
     /// [`Selection`] len > 1 with block cursor semantics, or else returns `false`.
     pub fn is_extended(&self, semantics: CursorSemantics) -> bool{
         match semantics{
-            CursorSemantics::Bar => self.end().saturating_sub(self.start()) > 0,
-            CursorSemantics::Block => self.end().saturating_sub(self.start()) > 1  //if selection is greater than one grapheme //currently uses char count though...
+            CursorSemantics::Bar => self.range.end.saturating_sub(self.range.start) > 0,
+            CursorSemantics::Block => self.range.end.saturating_sub(self.range.start) > 1  //if selection is greater than one grapheme //currently uses char count though...
         }
 
         //i think something like below code will be needed for UTF-8 support, because a single grapheme can be comprised of multiple chars
@@ -113,143 +162,70 @@ impl Selection{
     /// Returns a bool indicating whether the selection spans multiple lines.
     pub fn spans_multiple_lines(&self, text: &Rope, semantics: CursorSemantics) -> bool{
         // ensure the selection does not exceed the length of the text
-        if self.end() > text.len_chars(){return false;}
+        if self.range.end > text.len_chars(){return false;}
 
-        let start_line = text.char_to_line(self.start());
-        let end_line = text.char_to_line(self.end());
+        let start_line = text.char_to_line(self.range.start);
+        let end_line = text.char_to_line(self.range.end);
 
         // if selection is not extended or is extended on the same line
         if !self.is_extended(semantics) || start_line == end_line{return false;}
         // if selection extends to a newline char, but doesn't span multiple lines
-        if end_line.saturating_sub(start_line) == 1 && text.line_to_char(end_line) == self.end(){return false;}
+        if end_line.saturating_sub(start_line) == 1 && text.line_to_char(end_line) == self.range.end{return false;}
 
         // all other cases
         true
     }
 
     /// Returns the direction of [`Selection`].
+    // TODO: we should be able to just make this public in the Selection struct definition
     pub fn direction(&self, text: &Rope, semantics: CursorSemantics) -> Direction{
-        assert!(self.cursor(text, semantics) <= text.len_chars());  //we would need a & to text
-        assert!(self.anchor <= text.len_chars());
-        if self.cursor(text, semantics) < self.anchor{Direction::Backward}
-        else{Direction::Forward}
+        self.direction
     }
 
     ///// Sets [`Selection`] direction to specified direction.
-    //pub fn set_direction(&self, direction: Direction, text: &Rope, semantics: CursorSemantics) -> Self{
-    //    assert!(self.start() <= self.end());    //i think this is already guaranteed
-    //    assert!(text.len_lines() > 0);
-    //    
-    //    let (anchor, head) = match direction {
-    //        Direction::Forward => (self.start(), self.end()),
-    //        Direction::Backward => (self.end(), self.start()),
-    //    };
-    //
-    //    let mut selection = Selection::new(anchor, head);
-    //    selection.stored_line_position = Some(text_util::offset_from_line_start(selection.cursor(semantics), text));
-    //
+    //pub fn set_direction(&self, direction: Direction) -> Self{
+    //    let mut selection = self.clone();
+    //    selection.direction = direction;
     //    selection
     //}
-
-    /// Checks `self` and `other` for overlap.
-    pub fn overlaps(&self, other: &Selection) -> bool{
-        self.start() == other.start() || 
-        self.end() == other.end() || 
-        (self.end() > other.start() && other.end() > self.start())
-    }
-
-    // Returns a bool indicating whether the provided char index is contained within the [`Selection`].
-    pub fn contains(&self, idx: usize) -> bool{idx >= self.start() && idx <= self.end()}
-
-    /// Returns a new [`Selection`] from the overlap of `self` and `other`.
-    /// Returns Error if `self` and `other` are non-overlapping.
-    pub fn intersection(&self, other: &Selection) -> Result<Self, SelectionError>{
-        if self.overlaps(other){
-            Ok(Selection::new(self.start().max(other.start()), self.end().min(other.end())))
-            // Selection{anchor: self.start().max(other.start()), head: self.end().min(other.end()), stored_line_position: text_util::offset_from_line_start(head, text)}   //if we want stored line position too
-        }else{Err(SelectionError::NoOverlap)}
-    }
-
-    // TODO: deprecate merge, in favor of application specific merges, so we can calculate appropriate stored_line_positions for resultant selection
-    // or maybe just have this function return a selection with no stored_line_position, and use application specific merges for handling stored_line_position...
-    /// Create a new [`Selection`] by merging self with other.
-    /// Indiscriminate merge. merges whether overlapping, consecutive, 
-    /// contained, or disconnected entirely.
-    /// resultant selection should be guaranteed to be within text bounds 
-    /// because this uses previously initialized selections.
-        // note: merges need to have a stored line position, so that movements after merge work correctly
-        //TODO: maybe error if Direction of self and other are mismatched...    
-            //though i can't think of how this case would occur with normal text editing...   
-            //nevermind. this can happen when non extended selection added above, and extended left
-            // maybe it is better to have the merge succeed despite direction, then figure out a reasonable stored line position instead?...
-    pub fn merge(&self, other: &Selection, text: &Rope, semantics: CursorSemantics) -> Result<Selection, SelectionError>{   //resultant Selection should be the Direction of self
-        //let anchor = self.start().min(other.start());
-        //let head = self.end().max(other.end());
-        //let stored_line_position = text_util::offset_from_line_start(head, text);   //self.cursor instead of head?    //if neither extended, self.cursor. then base on selection direction?
-        //
-        //Selection{anchor, head, stored_line_position: Some(stored_line_position)}
-
-        //cannot merge selections with differing directions
-        if self.direction(text, semantics) != other.direction(text, semantics){ //TODO: i think this is why some multicursor merges are failing...
-            return Err(SelectionError::DirectionMismatch);
-        }
-        match self.direction(text, semantics){
-            Direction::Forward => {
-                let anchor = self.start().min(other.start());
-                let head = self.end().max(other.end());
-                let cursor = match semantics{
-                    CursorSemantics::Bar => {head}
-                    CursorSemantics::Block => {text_util::previous_grapheme_index(head, text)}
-                };
-                let stored_line_position = text_util::offset_from_line_start(cursor, text);
-
-                Ok(Selection{anchor, head, stored_line_position: Some(stored_line_position)})
-            }
-            Direction::Backward => {
-                let anchor = self.end().max(other.end());
-                let head = self.start().min(other.start());
-                let stored_line_position = text_util::offset_from_line_start(head, text);
-
-                Ok(Selection{anchor, head, stored_line_position: Some(stored_line_position)})
-            }
-        }
-    }
-
-    /// Returns a new [`Selection`] from the overlapping range between `self` and `other`, calculating a reasonable `stored_line_position`.
+    
+    /// Returns a new [`Selection`] from the overlapping [`Range`]s of `self` and `other`, with a reasonable `stored_line_position` calculated.
     pub fn merge_overlapping(&self, other: &Selection, text: &Rope, semantics: CursorSemantics) -> Result<Selection, SelectionError>{
-        if self.overlaps(other){
+        //assert!(self.semantics == other.semantics)    //for future consideration...
+        if self.range.overlaps(other.range()){
             // perform indiscriminate merge to get selection range
-            let start = self.start().min(other.start());
-            let end = self.end().max(other.end());
+            let new_range = self.range.merge(&other.range);
+            let mut selection = Selection::new(new_range.start, new_range.end);
+            
             // set resultant direction, based on inputs
-            let mut selection = match (self.direction(text, semantics), other.direction(text, semantics), self.is_extended(semantics), other.is_extended(semantics)){
-                // if using range from alt_edit_core, this would just set selection.direction...
-                (Direction::Forward, Direction::Forward, false, false) => Selection::new(start, end),   //Forward
-                (Direction::Forward, Direction::Forward, true, false) => Selection::new(start, end),    //Forward
-                (Direction::Forward, Direction::Forward, false, true) => Selection::new(start, end),    //Forward
-                (Direction::Forward, Direction::Forward, true, true) => Selection::new(start, end),     //Forward
+            match (self.direction(text, semantics), other.direction(text, semantics), self.is_extended(semantics), other.is_extended(semantics)){
+                (Direction::Forward, Direction::Forward, false, false) => selection.direction = Direction::Forward,
+                (Direction::Forward, Direction::Forward, true, false) => selection.direction = Direction::Forward,
+                (Direction::Forward, Direction::Forward, false, true) => selection.direction = Direction::Forward,
+                (Direction::Forward, Direction::Forward, true, true) => selection.direction = Direction::Forward,
 
-                (Direction::Forward, Direction::Backward, false, false) => Selection::new(start, end),  //Forward
-                (Direction::Forward, Direction::Backward, true, false) => Selection::new(start, end),   //Forward
-                (Direction::Forward, Direction::Backward, false, true) => Selection::new(end, start),   //Backward
-                (Direction::Forward, Direction::Backward, true, true) => Selection::new(start, end),    //Forward
+                (Direction::Forward, Direction::Backward, false, false) => selection.direction = Direction::Forward,
+                (Direction::Forward, Direction::Backward, true, false) => selection.direction = Direction::Forward,
+                (Direction::Forward, Direction::Backward, false, true) => selection.direction = Direction::Backward,
+                (Direction::Forward, Direction::Backward, true, true) => selection.direction = Direction::Forward,
 
-                (Direction::Backward, Direction::Forward, false, false) => Selection::new(start, end),  //Forward
-                (Direction::Backward, Direction::Forward, true, false) => Selection::new(end, start),   //Backward
-                (Direction::Backward, Direction::Forward, false, true) => Selection::new(start, end),   //Forward
-                (Direction::Backward, Direction::Forward, true, true) => Selection::new(start, end),    //Forward
+                (Direction::Backward, Direction::Forward, false, false) => selection.direction = Direction::Forward,
+                (Direction::Backward, Direction::Forward, true, false) => selection.direction = Direction::Backward,
+                (Direction::Backward, Direction::Forward, false, true) => selection.direction = Direction::Forward,
+                (Direction::Backward, Direction::Forward, true, true) => selection.direction = Direction::Forward,
 
-                (Direction::Backward, Direction::Backward, false, false) => Selection::new(end, start), //Backward
-                (Direction::Backward, Direction::Backward, true, false) => Selection::new(end, start),  //Backward
-                (Direction::Backward, Direction::Backward, false, true) => Selection::new(end, start),  //Backward
-                (Direction::Backward, Direction::Backward, true, true) => Selection::new(end, start),   //Backward
-            };
+                (Direction::Backward, Direction::Backward, false, false) => selection.direction = Direction::Backward,
+                (Direction::Backward, Direction::Backward, true, false) => selection.direction = Direction::Backward,
+                (Direction::Backward, Direction::Backward, false, true) => selection.direction = Direction::Backward,
+                (Direction::Backward, Direction::Backward, true, true) => selection.direction = Direction::Backward,
+            }
+            
             // calculate new stored_line_position
-            //selection.stored_line_position = Some(text_util::offset_from_line_start(self.cursor(text, semantics), text));
             selection.stored_line_position = Some(text_util::offset_from_line_start(selection.cursor(text, semantics), text));
+            
             // return merged selection
             Ok(selection)
-        }else{return Err(SelectionError::NoOverlap)}
+        }else{Err(SelectionError::NoOverlap)}
     }
     
     /// Returns the char index of [`Selection`] cursor.
@@ -260,70 +236,118 @@ impl Selection{
     ///         block(using "[ and ]" symbols): i d k \n s[o]m e \n s h i t \n
     pub fn cursor(&self, text: &Rope, semantics: CursorSemantics) -> usize{
         match semantics{
-            CursorSemantics::Bar => self.head,
+            CursorSemantics::Bar => self.head(),
             CursorSemantics::Block => {
-                if self.head >= self.anchor{text_util::previous_grapheme_index(self.head, text)}
-                else{self.head}
+                match self.direction{
+                    Direction::Forward => text_util::previous_grapheme_index(self.head(), text),
+                    Direction::Backward => self.head()
+                }
             }
         }
     }
 
     /// Returns a new instance of [`Selection`] with cursor at specified char index in rope.
     /// Will shift `anchor`/`head` positions to accommodate Bar/Block cursor semantics.
+    /// If movement == Movement::Move, returned selection will always be Direction::Forward.
     /// Errors if `to`  > `text.len_chars()`.
     pub fn put_cursor(&self, to: usize, text: &Rope, movement: Movement, semantics: CursorSemantics, update_stored_line_position: bool) -> Result<Self, SelectionError>{
-        if to > text.len_chars(){return Err(SelectionError::InvalidInput);}
+        //if to > text.len_chars(){return Err(SelectionError::InvalidInput);}
+        //
+        //let mut selection = self.clone();
+        //match (semantics, movement){
+        //    (CursorSemantics::Bar, Movement::Move) => {
+        //        selection.anchor = to;
+        //        selection.head = to;
+        //    }
+        //    (CursorSemantics::Bar, Movement::Extend) => selection.head = to,
+        //    (CursorSemantics::Block, Movement::Move) => {
+        //        selection.anchor = to;
+        //        //selection.head = to.saturating_add(1).min(text.len_chars().saturating_add(1));   //allowing one more char past text.len_chars() for block cursor
+        //        selection.head = text_util::next_grapheme_index(to, text).min(text.len_chars().saturating_add(1));  //allowing one more char past text.len_chars() for block cursor
+        //    }
+        //    (CursorSemantics::Block, Movement::Extend) => {
+        //        let new_anchor = if self.head >= self.anchor && to < self.anchor{   //if direction forward and to < self.anchor
+        //            if let Some(char_at_cursor) = text.get_char(self.cursor(text, semantics)){
+        //                if char_at_cursor == '\n'{
+        //                    self.anchor
+        //                }else{
+        //                    //self.anchor.saturating_add(1).min(text.len_chars())
+        //                    text_util::next_grapheme_index(self.anchor, text).min(text.len_chars())
+        //                }
+        //            }else{
+        //                //self.anchor.saturating_add(1).min(text.len_chars())
+        //                text_util::next_grapheme_index(self.anchor, text).min(text.len_chars())
+        //            }
+        //        }else if self.head < self.anchor && to >= self.anchor{  //if direction backward and to >= self.anchor
+        //            //self.anchor.saturating_sub(1)
+        //            text_util::previous_grapheme_index(self.anchor, text)
+        //        }else{  //direction forward and to >= self.anchor || if direction backward and to < self.anchor
+        //            self.anchor
+        //        };
+//
+        //        if new_anchor <= to{
+        //            selection.anchor = new_anchor;
+        //            //selection.head = to.saturating_add(1).min(text.len_chars().saturating_add(1))    //allowing one more char past text.len_chars() for block cursor
+        //            selection.head = text_util::next_grapheme_index(to, text).min(text.len_chars().saturating_add(1));  //allowing one more char past text.len_chars() for block cursor
+        //        }else{
+        //            selection.anchor = new_anchor;
+        //            selection.head = to;
+        //        }
+        //    }
+        //}
+        //if update_stored_line_position{
+        //    selection.stored_line_position = Some(text_util::offset_from_line_start(selection.cursor(text, semantics), text));
+        //}
+//
+        //assert!(selection.anchor <= text.len_chars());                  //is this needed?
+        //assert!(selection.cursor(text, semantics) <= text.len_chars());       //is this needed?
+//
+        //Ok(selection)
         
-        let mut selection = self.clone();
-        match (semantics, movement){
-            (CursorSemantics::Bar, Movement::Move) => {
-                selection.anchor = to;
-                selection.head = to;
-            }
-            (CursorSemantics::Bar, Movement::Extend) => selection.head = to,
-            (CursorSemantics::Block, Movement::Move) => {
-                selection.anchor = to;
-                //selection.head = to.saturating_add(1).min(text.len_chars().saturating_add(1));   //allowing one more char past text.len_chars() for block cursor
-                selection.head = text_util::next_grapheme_index(to, text).min(text.len_chars().saturating_add(1));  //allowing one more char past text.len_chars() for block cursor
-            }
-            (CursorSemantics::Block, Movement::Extend) => {
-                let new_anchor = if self.head >= self.anchor && to < self.anchor{   //if direction forward and to < self.anchor
-                    if let Some(char_at_cursor) = text.get_char(self.cursor(text, semantics)){
-                        if char_at_cursor == '\n'{
-                            self.anchor
-                        }else{
-                            //self.anchor.saturating_add(1).min(text.len_chars())
-                            text_util::next_grapheme_index(self.anchor, text).min(text.len_chars())
-                        }
-                    }else{
-                        //self.anchor.saturating_add(1).min(text.len_chars())
-                        text_util::next_grapheme_index(self.anchor, text).min(text.len_chars())
-                    }
-                }else if self.head < self.anchor && to >= self.anchor{  //if direction backward and to >= self.anchor
-                    //self.anchor.saturating_sub(1)
-                    text_util::previous_grapheme_index(self.anchor, text)
-                }else{  //direction forward and to >= self.anchor || if direction backward and to < self.anchor
-                    self.anchor
-                };
-
-                if new_anchor <= to{
-                    selection.anchor = new_anchor;
-                    //selection.head = to.saturating_add(1).min(text.len_chars().saturating_add(1))    //allowing one more char past text.len_chars() for block cursor
-                    selection.head = text_util::next_grapheme_index(to, text).min(text.len_chars().saturating_add(1));  //allowing one more char past text.len_chars() for block cursor
-                }else{
-                    selection.anchor = new_anchor;
-                    selection.head = to;
+        if to <= text.len_chars(){
+            let mut selection = match (semantics, movement){
+                (CursorSemantics::Bar, Movement::Move) => {
+                    Selection::new(to, to)
                 }
-            }
-        }
-        if update_stored_line_position{
-            selection.stored_line_position = Some(text_util::offset_from_line_start(selection.cursor(text, semantics), text));
-        }
+                (CursorSemantics::Bar, Movement::Extend) => {
+                    Selection::new(self.anchor(), to)
+                }
+                (CursorSemantics::Block, Movement::Move) => {
+                    Selection::new(to, text_util::next_grapheme_index(to, text).min(text.len_chars().saturating_add(1)))
+                }
+                (CursorSemantics::Block, Movement::Extend) => {
+                    let new_anchor = if self.head() >= self.anchor() && to < self.anchor(){   //if direction forward and to < self.anchor
+                        if let Some(char_at_cursor) = text.get_char(self.cursor(text, semantics)){
+                            if char_at_cursor == '\n'{
+                                self.anchor()
+                            }else{
+                                text_util::next_grapheme_index(self.anchor(), text).min(text.len_chars())
+                            }
+                        }else{
+                            text_util::next_grapheme_index(self.anchor(), text).min(text.len_chars())
+                        }
+                    }else if self.head() < self.anchor() && to >= self.anchor(){  //if direction backward and to >= self.anchor
+                        text_util::previous_grapheme_index(self.anchor(), text)
+                    }else{  //direction forward and to >= self.anchor || if direction backward and to < self.anchor
+                        self.anchor()
+                    };
+    
+                    if new_anchor <= to{//allowing one more char past text.len_chars() for block cursor
+                        Selection::new(new_anchor, text_util::next_grapheme_index(to, text).min(text.len_chars().saturating_add(1)))
+                    }else{
+                        Selection::new(new_anchor, to)
+                    }
+                }
+            };
 
-        assert!(selection.anchor <= text.len_chars());                  //is this needed?
-        assert!(selection.cursor(text, semantics) <= text.len_chars());       //is this needed?
+            selection.stored_line_position = if update_stored_line_position{
+                /*selection.stored_line_position = */Some(text_util::offset_from_line_start(selection.cursor(text, semantics), text))
+            }else{
+                /*selection.stored_line_position = */self.stored_line_position
+            };
 
-        Ok(selection)
+            Ok(selection)
+        }else{Err(SelectionError::InvalidInput)}
     }
 
     /// Returns a new instance of [`Selection`] with the cursor moved vertically by specified amount.
@@ -528,9 +552,9 @@ impl Selection{
                 //if self.cursor(semantics) == line_end.saturating_sub(1)
                 if self.cursor(text, semantics) == text_util::previous_grapheme_index(line_end, text)
                 || self.cursor(text, semantics) == line_end{return Err(SelectionError::ResultsInSameState);}
-                let start_line = text.char_to_line(self.start());
-                let end_line = text.char_to_line(self.end());
-                if self.cursor(text, semantics) == self.start() && end_line > start_line{
+                let start_line = text.char_to_line(self.range.start);
+                let end_line = text.char_to_line(self.range.end);
+                if self.cursor(text, semantics) == self.range.start && end_line > start_line{
                     self.put_cursor(line_end, text, Movement::Extend, semantics, true)  //put cursor over newline, if extending from a line below
                 }else{
                     //self.put_cursor(line_end.saturating_sub(1), text, Movement::Extend, semantics, true)
@@ -648,7 +672,7 @@ impl Selection{
     
     /// Returns a new instance of [`Selection`] with [`Selection`] extended to encompass all text.
     pub fn select_all(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{  //TODO: ensure this can't extend past doc text end
-        if self.start() == 0 && (self.end() == text.len_chars() || self.end() == text.len_chars().saturating_add(1)){return Err(SelectionError::ResultsInSameState);}
+        if self.range.start == 0 && (self.range.end == text.len_chars() || self.range.end == text.len_chars().saturating_add(1)){return Err(SelectionError::ResultsInSameState);}
         let selection = self.put_cursor(0, text, Movement::Move, semantics, true)?;
         selection.put_cursor(text.len_chars(), text, Movement::Extend, semantics, true)
     }
@@ -698,7 +722,7 @@ impl Selection{
     /// Translates a [`Selection`] to a [Selection2d].
     pub fn selection_to_selection2d(&self, text: &Rope, semantics: CursorSemantics) -> Selection2d{
         let line_number_head = text.char_to_line(self.cursor(text, semantics));
-        let line_number_anchor = text.char_to_line(self.anchor);
+        let line_number_anchor = text.char_to_line(self.anchor());
 
         let head_line_start_idx = text.line_to_char(line_number_head);
         let anchor_line_start_idx = text.line_to_char(line_number_anchor);
@@ -721,7 +745,7 @@ impl Selection{
         //}
         Selection2d::new(
             Position::new(
-                self.anchor.saturating_sub(anchor_line_start_idx),
+                self.anchor().saturating_sub(anchor_line_start_idx),
                 //column_anchor,
                 line_number_anchor
             ),

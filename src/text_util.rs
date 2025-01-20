@@ -6,19 +6,6 @@ use crate::selection::{CursorSemantics, Selection};
 
 
 /// Returns the count of visible graphemes in a line of text.
-/// # Example
-/// ```
-/// # use ropey::Rope;
-/// # use edit_core::text_util;
-/// 
-/// let text = Rope::from("idk\n");
-/// assert!(text_util::line_width(text.slice(..), false) == 3);
-/// assert!(text_util::line_width(text.slice(..), true) == 4);
-/// 
-/// //let text = Rope::from("idk\n\n");
-/// //assert!(text_util::line_width(text.slice(..), false) == 3);
-/// //assert!(text_util::line_width(text.slice(..), true) == 4);
-/// ```
 // TODO: handle non standard width chars such as '\t'
 pub fn line_width(line: RopeSlice, include_newline: bool) -> usize{
     let mut line_width = 0;
@@ -32,20 +19,6 @@ pub fn line_width(line: RopeSlice, include_newline: bool) -> usize{
 
 //TODO: handle graphemes instead of chars?
 /// Returns the offset of the first non whitespace grapheme from the start of a line of text.
-/// # Example
-/// ```
-/// # use ropey::Rope;
-/// # use edit_core::text_util;
-/// 
-/// let text = Rope::from("   idk\n");
-/// assert!(text_util::first_non_whitespace_character_offset(text.slice(..)) == 3);
-/// 
-/// let text = Rope::from("");
-/// assert!(text_util::first_non_whitespace_character_offset(text.slice(..)) == 0);
-/// 
-/// let text = Rope::from("   ");
-/// assert!(text_util::first_non_whitespace_character_offset(text.slice(..)) == 0);
-/// ```
 pub fn first_non_whitespace_character_offset(line: RopeSlice) -> usize{
     let line = line.to_string();
     
@@ -61,6 +34,7 @@ pub fn first_non_whitespace_character_offset(line: RopeSlice) -> usize{
     0
 }
 
+//TODO: test
 pub fn next_grapheme_index(current_index: usize, _text: &Rope) -> usize{ //should this eventually be Option<usize>?
     current_index.saturating_add(1) //placeholder to handle ascii text. code will need to change to handle UTF-8
 }
@@ -82,32 +56,6 @@ fn is_whitespace(char: char) -> bool{
 }
 
 /// Returns the index of the next word boundary
-/// ```
-/// # use ropey::Rope;
-/// # use edit_core::text_util;
-/// 
-/// let text = Rope::from("fn idk(){/*something*/}");
-/// assert_eq!(2, text_util::next_word_boundary(0, &text));   //|f n   i d k ( ) { / * s o m e t h i n g * / }  // f n|  i d k ( ) { / * s o m e t h i n g * / }
-/// assert_eq!(6, text_util::next_word_boundary(2, &text));   // f n|  i d k ( ) { / * s o m e t h i n g * / }  // f n   i d k|( ) { / * s o m e t h i n g * / }
-/// assert_eq!(7, text_util::next_word_boundary(6, &text));   // f n   i d k|( ) { / * s o m e t h i n g * / }  // f n   i d k (|) { / * s o m e t h i n g * / }
-/// assert_eq!(8, text_util::next_word_boundary(7, &text));   // f n   i d k (|) { / * s o m e t h i n g * / }  // f n   i d k ( )|{ / * s o m e t h i n g * / }
-/// assert_eq!(9, text_util::next_word_boundary(8, &text));   // f n   i d k ( )|{ / * s o m e t h i n g * / }  // f n   i d k ( ) {|/ * s o m e t h i n g * / }
-/// assert_eq!(10, text_util::next_word_boundary(9, &text));  // f n   i d k ( ) {|/ * s o m e t h i n g * / }  // f n   i d k ( ) { /|* s o m e t h i n g * / }
-/// assert_eq!(11, text_util::next_word_boundary(10, &text)); // f n   i d k ( ) { /|* s o m e t h i n g * / }  // f n   i d k ( ) { / *|s o m e t h i n g * / }
-/// assert_eq!(20, text_util::next_word_boundary(11, &text)); // f n   i d k ( ) { / *|s o m e t h i n g * / }  // f n   i d k ( ) { / * s o m e t h i n g|* / }
-/// assert_eq!(21, text_util::next_word_boundary(20, &text)); // f n   i d k ( ) { / * s o m e t h i n g|* / }  // f n   i d k ( ) { / * s o m e t h i n g *|/ }
-/// assert_eq!(22, text_util::next_word_boundary(21, &text)); // f n   i d k ( ) { / * s o m e t h i n g *|/ }  // f n   i d k ( ) { / * s o m e t h i n g * /|}
-/// assert_eq!(23, text_util::next_word_boundary(22, &text)); // f n   i d k ( ) { / * s o m e t h i n g * /|}  // f n   i d k ( ) { / * s o m e t h i n g * / }|
-/// 
-/// let text = Rope::from("idk ");
-/// assert_eq!(4, text_util::next_word_boundary(3, &text));
-/// let text = Rope::from("idk\t");
-/// assert_eq!(4, text_util::next_word_boundary(3, &text));
-/// let text = Rope::from("idk\n");
-/// assert_eq!(4, text_util::next_word_boundary(3, &text));
-/// let text = Rope::from("idk\t ");
-/// assert_eq!(5, text_util::next_word_boundary(3, &text));
-/// ```
 pub fn next_word_boundary(current_position: usize, text: &Rope) -> usize{   //should this be Option<usize>?
     // if current_position == text.len_chars(){return None;}
     
@@ -148,30 +96,6 @@ pub fn next_word_boundary(current_position: usize, text: &Rope) -> usize{   //sh
 }
 
 /// Returns the index of the previous word boundary
-/// ```
-/// # use ropey::Rope;
-/// # use edit_core::text_util;
-/// 
-/// let text = Rope::from("fn idk(){/*something*/}");
-/// assert_eq!(22, text_util::previous_word_boundary(23, &text)); // f n   i d k ( ) { / * s o m e t h i n g * / }|  // f n   i d k ( ) { / * s o m e t h i n g * /|}
-/// assert_eq!(21, text_util::previous_word_boundary(22, &text)); // f n   i d k ( ) { / * s o m e t h i n g * /|}   // f n   i d k ( ) { / * s o m e t h i n g *|/ }
-/// assert_eq!(20, text_util::previous_word_boundary(21, &text)); // f n   i d k ( ) { / * s o m e t h i n g *|/ }   // f n   i d k ( ) { / * s o m e t h i n g|* / }
-/// assert_eq!(11, text_util::previous_word_boundary(20, &text)); // f n   i d k ( ) { / * s o m e t h i n g|* / }   // f n   i d k ( ) { / *|s o m e t h i n g * / }
-/// assert_eq!(10, text_util::previous_word_boundary(11, &text)); // f n   i d k ( ) { / *|s o m e t h i n g * / }   // f n   i d k ( ) { /|* s o m e t h i n g * / }
-/// assert_eq!(9, text_util::previous_word_boundary(10, &text));  // f n   i d k ( ) { /|* s o m e t h i n g * / }   // f n   i d k ( ) {|/ * s o m e t h i n g * / }
-/// assert_eq!(8, text_util::previous_word_boundary(9, &text));   // f n   i d k ( ) {|/ * s o m e t h i n g * / }   // f n   i d k ( )|{ / * s o m e t h i n g * / }
-/// assert_eq!(7, text_util::previous_word_boundary(8, &text));   // f n   i d k ( )|{ / * s o m e t h i n g * / }   // f n   i d k (|) { / * s o m e t h i n g * / }
-/// assert_eq!(6, text_util::previous_word_boundary(7, &text));   // f n   i d k (|) { / * s o m e t h i n g * / }   // f n   i d k|( ) { / * s o m e t h i n g * / }
-/// assert_eq!(3, text_util::previous_word_boundary(6, &text));   // f n   i d k|( ) { / * s o m e t h i n g * / }   // f n  |i d k ( ) { / * s o m e t h i n g * / }
-/// assert_eq!(0, text_util::previous_word_boundary(3, &text));   // f n  |i d k ( ) { / * s o m e t h i n g * / }   //|f n   i d k ( ) { / * s o m e t h i n g * / }
-/// 
-/// let text = Rope::from(" idk");
-/// assert_eq!(0, text_util::previous_word_boundary(1, &text));
-/// let text = Rope::from("\tidk");
-/// assert_eq!(0, text_util::previous_word_boundary(1, &text));
-/// let text = Rope::from("\nidk");
-/// assert_eq!(0, text_util::previous_word_boundary(1, &text));
-/// ```
 pub fn previous_word_boundary(current_position: usize, text: &Rope) -> usize{   //should this be Option<usize>?
     // if current_position == 0{return None;}
     
@@ -206,17 +130,6 @@ pub fn previous_word_boundary(current_position: usize, text: &Rope) -> usize{   
 }
 
 /// Returns true if slice contains only spaces.
-/// #Example
-/// ```
-/// # use edit_core::text_util;
-/// # use ropey::RopeSlice;
-/// 
-/// let text = RopeSlice::from("    ");
-/// assert!(text_util::slice_is_all_spaces(text));
-/// 
-/// let text = RopeSlice::from(" idk ");
-/// assert!(!text_util::slice_is_all_spaces(text));
-/// ```
 pub fn slice_is_all_spaces(slice: RopeSlice) -> bool{
     for char in slice.chars(){
         if char != ' '{
@@ -228,22 +141,6 @@ pub fn slice_is_all_spaces(slice: RopeSlice) -> bool{
 }
 
 /// Returns the grapheme distance to next multiple of user defined tab width.
-/// # Example
-/// ```
-/// # use ropey::Rope;
-/// # use edit_core::document::TAB_WIDTH;
-/// # use edit_core::selection::{Selection, CursorSemantics};
-/// # use edit_core::text_util;
-/// 
-/// let mut tab = String::new();
-/// for _ in 0..TAB_WIDTH{
-///     tab.push(' ');
-/// }
-/// let text = Rope::from(format!("{}idk\n", tab));
-/// let selection = Selection::new(1, 1);
-/// let distance = text_util::distance_to_next_multiple_of_tab_width(selection, &text, CursorSemantics::Bar);
-/// assert!(distance == 3);
-/// ```
 pub fn distance_to_next_multiple_of_tab_width(selection: Selection, text: &Rope, semantics: CursorSemantics) -> usize{
     let next_tab_distance = offset_from_line_start(selection.cursor(text, semantics), text) % TAB_WIDTH;
     //if offset_from_line_start(selection.cursor(semantics), text) % TAB_WIDTH != 0{
@@ -256,16 +153,6 @@ pub fn distance_to_next_multiple_of_tab_width(selection: Selection, text: &Rope,
 }
 
 /// Returns the offset of cursor position from the start of a line of text.
-/// # Example
-/// ```
-/// # use ropey::Rope;
-/// # use edit_core::selection::Selection;
-/// # use edit_core::text_util;
-/// 
-/// let text = Rope::from("idk\nsome\nshit\n");
-/// let selection = Selection::new(2, 2);
-/// assert!(text_util::offset_from_line_start(selection.head(), &text) == 2);
-/// ```
 // TODO: maybe this really does belong in [Selection] in selection.rs?
 pub fn offset_from_line_start(point: usize, text: &Rope) -> usize{
     let line_start = text.line_to_char(text.char_to_line(point));
