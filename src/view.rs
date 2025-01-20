@@ -1,4 +1,5 @@
 use ropey::Rope;
+use crate::range::Range;
 use crate::selection::{CursorSemantics, Selection};
 use crate::selection2d::Selection2d;
 use crate::selections::Selections;
@@ -197,7 +198,7 @@ impl View{
         let mut client_view_text = String::new();
     
         for view_block in view_blocks.iter(){
-            client_view_text.push_str(&text.slice(view_block.range.start..view_block.range.end).to_string());
+            client_view_text.push_str(&text.slice(view_block.start..view_block.end).to_string());
             client_view_text.push('\n');
         }
     
@@ -224,38 +225,38 @@ impl View{
     /// Returns a [`Vec`] of [`Selection2d`]s that represent [`Selection`]s with any portion of itself within the boundaries of [`View`].
     /// Returned selections should be in screen space coordinates.
     /// Assumes selections are already sorted and merged.
-    pub fn selections(&self, selections: &Selections, text: &Rope) -> Option<Vec<Selection2d>>{ //TODO: return Vec<Range> instead?  Option shouldn't be needed, since Vec can be empty
+    pub fn selections(&self, selections: &Selections, text: &Rope) -> Vec<Selection2d>{
         let view_blocks = self.view_blocks(text, true); //make sure to adjust tests to include newline
         let mut selections_in_view = Vec::with_capacity(view_blocks.len() * self.width);
 
         for (y, view_block) in view_blocks.iter().enumerate(){
-            let view_start = view_block.anchor();
-            let mut intersected = false;
+            let view_start = view_block.start;
+            //let mut intersected = false;
             for selection in selections.iter(){
-                if let Some(selected) = view_block.range.intersection(&selection.range){
+                if let Some(selected_in_view) = view_block.intersection(&selection.range){
                     // add intersecting to list //this represents a selection in view bounds
-                    let new_anchor = Position::new(selected.start/*anchor()*/ - view_start, y);
-                    let new_head = Position::new(selected.end/*head()*/ - view_start, y);
-                    //selections_in_view.push(Selection2d::new(Position::new(selected.anchor() - view_start, y), Position::new(selected.head() - view_start, y)));
+                    let new_anchor = Position::new(selected_in_view.start - view_start, y); //TODO: sat_sub
+                    let new_head = Position::new(selected_in_view.end - view_start, y); //TODO: sat_sub
                     selections_in_view.push(Selection2d::new(new_anchor, new_head));
-                    intersected = true;
+                    //intersected = true;
                 }
             }
 
-            if !intersected{
-                // retain non intersecting view_blocks  //this represents no selection in view
-                selections_in_view.push(Selection2d::new(Position::new(0, y), Position::new(0, y)));
-            }
+            // ATTENTION!!! commenting this out until using the editor proves this is needed for some reason...
+            //if !intersected{
+            //    // retain non intersecting view_blocks  //this represents no selection in view              //TODO: why retain non intersecting view blocks?...
+            //    selections_in_view.push(Selection2d::new(Position::new(0, y), Position::new(0, y)));
+            //}
         }
 
-        Some(selections_in_view)
+        selections_in_view
     }
 
     /// Maps a [`View`] as a [`Vec`] of [`Selection`]s over a text rope.
     // should this include newlines('\n') in its width calculation? maybe pass in include_newline bool?
     // we want to highlight newlines as well
     // but that may mess with the logic for "empty" lines...idk
-    pub fn view_blocks(&self, text: &Rope, include_newline: bool) -> Vec<Selection>{    //TODO: return Vec<Range> instead of Vec<Selection>
+    pub fn view_blocks(&self, text: &Rope, include_newline: bool) -> Vec<Range>{
         let mut view_blocks = Vec::new();
         let vertical_range = self.vertical_start..self.vertical_start + self.height;
 
@@ -271,12 +272,12 @@ impl View{
 
                 if line_end < view_start{   //handle view shifted right past end of line text(includes empty lines)
                     view_start = line_start;
-                    view_end = line_start;  //zero width output selections represent a line with no text in view bounds
+                    view_end = line_start;  //zero width output ranges represent a line with no text in view bounds
                 }
                 else if line_end < view_end{
                     view_end = line_end;
                 }
-                view_blocks.push(Selection::new(view_start, view_end));
+                view_blocks.push(Range::new(view_start, view_end));
             }
         }
 
