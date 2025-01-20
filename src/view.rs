@@ -197,7 +197,7 @@ impl View{
         let mut client_view_text = String::new();
     
         for view_block in view_blocks.iter(){
-            client_view_text.push_str(&text.slice(view_block.range().start..view_block.range().end).to_string());
+            client_view_text.push_str(&text.slice(view_block.range.start..view_block.range.end).to_string());
             client_view_text.push('\n');
         }
     
@@ -224,8 +224,7 @@ impl View{
     /// Returns a [`Vec`] of [`Selection2d`]s that represent [`Selection`]s with any portion of itself within the boundaries of [`View`].
     /// Returned selections should be in screen space coordinates.
     /// Assumes selections are already sorted and merged.
-    // should this return Option<Vec<Selection, usize>> with usize being the selection's line number instead?
-    pub fn selections(&self, selections: &Selections, text: &Rope) -> Option<Vec<Selection2d>>{
+    pub fn selections(&self, selections: &Selections, text: &Rope) -> Option<Vec<Selection2d>>{ //TODO: return Vec<Range> instead?  Option shouldn't be needed, since Vec can be empty
         let view_blocks = self.view_blocks(text, true); //make sure to adjust tests to include newline
         let mut selections_in_view = Vec::with_capacity(view_blocks.len() * self.width);
 
@@ -233,7 +232,7 @@ impl View{
             let view_start = view_block.anchor();
             let mut intersected = false;
             for selection in selections.iter(){
-                if let Some(selected) = view_block.range().intersection(selection.range()){
+                if let Some(selected) = view_block.range.intersection(&selection.range){
                     // add intersecting to list //this represents a selection in view bounds
                     let new_anchor = Position::new(selected.start/*anchor()*/ - view_start, y);
                     let new_head = Position::new(selected.end/*head()*/ - view_start, y);

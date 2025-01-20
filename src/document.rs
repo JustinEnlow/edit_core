@@ -476,7 +476,7 @@ impl Document{
 
         let selection = self.selections.primary_mut();
         // Copy the selected text to the clipboard
-        self.clipboard = self.text.slice(selection.range().start..selection.range().end).to_string();
+        self.clipboard = self.text.slice(selection.range.start..selection.range.end).to_string();
         self.delete(semantics)  //notice this is returning the result from delete
     }
 
@@ -487,7 +487,7 @@ impl Document{
         
         let selection = self.selections.primary().clone();
         // Copy the selected text to the clipboard
-        self.clipboard = self.text.slice(selection.range().start..selection.range().end).to_string();
+        self.clipboard = self.text.slice(selection.range.start..selection.range.end).to_string();
 
         Ok(())
     }

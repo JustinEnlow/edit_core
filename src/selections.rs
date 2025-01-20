@@ -242,7 +242,7 @@ impl Selections{
         assert!(self.count() > 0);  //ensure at least one selection in selections
 
         let top_selection = self.first();
-        let top_selection_line = text.char_to_line(top_selection.range().start);
+        let top_selection_line = text.char_to_line(top_selection.range.start);
         if top_selection_line == 0{return Err(SelectionsError::CannotAddSelectionAbove);}
         // should error if any selection spans multiple lines. //callee can determine appropriate response behavior in this case        //vscode behavior is to extend topmost selection up one line if any selection spans multiple lines
         for selection in self.selections.iter(){
@@ -250,8 +250,8 @@ impl Selections{
         }
 
         // using primary selection here, because that is the selection we want our added selection to emulate, if possible with the available text
-        let start_offset = text_util::offset_from_line_start(self.primary().range().start, text);
-        let end_offset = start_offset.saturating_add(self.primary().range().end.saturating_sub(self.primary().range().start));  //start_offset + (end char index - start char index)
+        let start_offset = text_util::offset_from_line_start(self.primary().range.start, text);
+        let end_offset = start_offset.saturating_add(self.primary().range.end.saturating_sub(self.primary().range.start));  //start_offset + (end char index - start char index)
         let line_above = top_selection_line.saturating_sub(1);
         let line_start = text.line_to_char(line_above);
         let line_text = text.line(line_above);
@@ -282,7 +282,7 @@ impl Selections{
             }
         };
 
-        match self.primary().direction(text, semantics){
+        match self.primary().direction{
             Direction::Forward => Ok(self.push_front(Selection::new(start, end), false)),
             Direction::Backward => Ok(self.push_front(Selection::new(end, start), false))
         }
@@ -294,7 +294,7 @@ impl Selections{
         assert!(self.count() > 0);  //ensure at least one selection in selections
 
         let bottom_selection = self.last();
-        let bottom_selection_line = text.char_to_line(bottom_selection.range().start);
+        let bottom_selection_line = text.char_to_line(bottom_selection.range.start);
         //bottom_selection_line must be zero based, and text.len_lines() one based...   //TODO: verify
         if bottom_selection_line >= text.len_lines().saturating_sub(1){return Err(SelectionsError::CannotAddSelectionBelow);}
         // should error if any selection spans multiple lines. //callee can determine appropriate response behavior in this case        //vscode behavior is to extend topmost selection down one line if any selection spans multiple lines
@@ -303,8 +303,8 @@ impl Selections{
         }
 
         // using primary selection here, because that is the selection we want our added selection to emulate, if possible with the available text
-        let start_offset = text_util::offset_from_line_start(self.primary().range().start, text);
-        let end_offset = start_offset.saturating_add(self.primary().range().end.saturating_sub(self.primary().range().start));  //start_offset + (end char index - start char index)
+        let start_offset = text_util::offset_from_line_start(self.primary().range.start, text);
+        let end_offset = start_offset.saturating_add(self.primary().range.end.saturating_sub(self.primary().range.start));  //start_offset + (end char index - start char index)
         let line_below = bottom_selection_line.saturating_add(1);
         let line_start = text.line_to_char(line_below);
         let line_text = text.line(line_below);
@@ -335,7 +335,7 @@ impl Selections{
             }
         };
 
-        match self.primary().direction(text, semantics){
+        match self.primary().direction{
             Direction::Forward => Ok(self.push(Selection::new(start, end), false)),
             Direction::Backward => Ok(self.push(Selection::new(end, start), false))
         }

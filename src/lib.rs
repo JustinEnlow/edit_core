@@ -3,8 +3,6 @@
 #![allow(clippy::len_without_is_empty)]
 #![allow(clippy::assign_op_pattern)]    //allow x = x + y, instead of x += y
 
-//use std::path::PathBuf;
-
 
 
 pub mod editor;

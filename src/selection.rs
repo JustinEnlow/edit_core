@@ -40,8 +40,8 @@ pub enum SelectionError{        //or should each fallible fn have its own fn spe
 pub struct Selection{   //should anchor and head be pulled out into their own structure? struct Range{anchor: usize, head: usize} or maybe Range{start: usize, end: usize}
     //anchor: usize,  // the stationary portion of a selection.
     //head: usize,    // the mobile portion of a selection. this is the portion a user can move to extend selection
-    range: Range,   //TODO: make pub
-    direction: Direction,   //TODO: make pub
+    pub range: Range,
+    pub direction: Direction,
     stored_line_position: Option<usize>,    // the offset from the start of the line self.head is on
 }
 impl Selection{
@@ -107,8 +107,8 @@ impl Selection{
             if index == self.range.start{debug_string.push('[');}
             if index == self.anchor(){debug_string.push('|');}
             if index == self.cursor(text, semantics) && semantics == CursorSemantics::Block{debug_string.push(':');}
-            if index == self.head() && self.direction(text, semantics) == Direction::Forward{debug_string.push('>');}
-            if index == self.head() && self.direction(text, semantics) == Direction::Backward{debug_string.push('<');}
+            if index == self.head() && self.direction == Direction::Forward{debug_string.push('>');}
+            if index == self.head() && self.direction == Direction::Backward{debug_string.push('<');}
             if index == self.range.end{debug_string.push(']');}
             if let Some(char) = text.get_char(index){
                 if char == '\n'{debug_string.push('\n');}
@@ -119,10 +119,6 @@ impl Selection{
 
         debug_string
     }
-
-    /// Returns the [`Range`] associated with this [`Selection`].
-    // note: not tested in selection_tests, and i don't think it should be because all relevant tests are done in range_tests module
-    pub fn range(&self) -> &Range{&self.range}  //TODO: make pub in Selection struct definition instead
     
     /// Returns the char index of [`Selection`] anchor.
     pub fn anchor(&self) -> usize{
@@ -175,30 +171,18 @@ impl Selection{
         // all other cases
         true
     }
-
-    /// Returns the direction of [`Selection`].
-    // TODO: we should be able to just make this public in the Selection struct definition
-    pub fn direction(&self, text: &Rope, semantics: CursorSemantics) -> Direction{
-        self.direction
-    }
-
-    ///// Sets [`Selection`] direction to specified direction.
-    //pub fn set_direction(&self, direction: Direction) -> Self{
-    //    let mut selection = self.clone();
-    //    selection.direction = direction;
-    //    selection
-    //}
     
     /// Returns a new [`Selection`] from the overlapping [`Range`]s of `self` and `other`, with a reasonable `stored_line_position` calculated.
     pub fn merge_overlapping(&self, other: &Selection, text: &Rope, semantics: CursorSemantics) -> Result<Selection, SelectionError>{
         //assert!(self.semantics == other.semantics)    //for future consideration...
-        if self.range.overlaps(other.range()){
+        //assert!(self.text == other.text)  //for future consideration...
+        if self.range.overlaps(&other.range){
             // perform indiscriminate merge to get selection range
             let new_range = self.range.merge(&other.range);
             let mut selection = Selection::new(new_range.start, new_range.end);
             
             // set resultant direction, based on inputs
-            match (self.direction(text, semantics), other.direction(text, semantics), self.is_extended(semantics), other.is_extended(semantics)){
+            match (self.direction, other.direction, self.is_extended(semantics), other.is_extended(semantics)){
                 (Direction::Forward, Direction::Forward, false, false) => selection.direction = Direction::Forward,
                 (Direction::Forward, Direction::Forward, true, false) => selection.direction = Direction::Forward,
                 (Direction::Forward, Direction::Forward, false, true) => selection.direction = Direction::Forward,
