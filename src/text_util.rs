@@ -35,8 +35,8 @@ pub fn first_non_whitespace_character_offset(line: RopeSlice) -> usize{
 }
 
 //TODO: test
-pub fn next_grapheme_index(current_index: usize, _text: &Rope) -> usize{ //should this eventually be Option<usize>?
-    current_index.saturating_add(1) //placeholder to handle ascii text. code will need to change to handle UTF-8
+pub fn next_grapheme_index(current_index: usize, text: &Rope) -> usize{ //should this eventually be Option<usize>?
+    current_index.saturating_add(1).min(text.len_chars().saturating_add(1)) //placeholder to handle ascii text. code will need to change to handle UTF-8
 }
 
 pub fn previous_grapheme_index(current_index: usize, _text: &Rope) -> usize{ //should this eventually be Option<usize>?

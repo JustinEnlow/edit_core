@@ -25,6 +25,14 @@ fn merge_overlapping_selections(){
     assert_eq!(Selections::new(vec![Selection::with_stored_line_position(0, 14, 4)], 0, &text), Selections::new(vec![Selection::new(0, 1), Selection::new(0, 14)], 0, &text).merge_overlapping(&text, CursorSemantics::Block).unwrap());
 }
 
-#[test] fn error(){
-    assert!(false);
+#[test] fn error_if_single_selection(){
+    let text = Rope::from("idk\nsome\nshit\n");
+    let selections = Selections::new(vec![Selection::new(0, 0)], 0, &text);
+    assert!(selections.merge_overlapping(&text, CursorSemantics::Bar).is_err());
+}
+
+#[test] fn no_change_if_no_selections_overlap(){
+    let text = Rope::from("idk\nsome\nshit\n");
+    let selections = Selections::new(vec![Selection::new(0, 1), Selection::new(4, 5)], 0, &text);
+    assert_eq!(Selections::new(vec![Selection::new(0, 1), Selection::new(4, 5)], 0, &text), selections.merge_overlapping(&text, CursorSemantics::Block).unwrap());
 }
