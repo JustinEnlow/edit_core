@@ -497,28 +497,6 @@ impl Document{
         self.insert_string(&self.clipboard.clone(), semantics)
     }
 
-    //TODO: the body of this impl should prob be implemented in selections.rs
-    //TODO: also, this should search within selections, not just the whole text. at least by default...
-    // frontend application should save previous selections for case where user exits search mode
-    pub fn search(&mut self, input: &str/*, semantics: CursorSemantics*/){  //TODO: may want to return Result
-        let mut selections = Vec::new();
-        let mut start = 0;
-        
-        while let Some(index_of_match) = text_util::kmp_search(&self.text.to_string()[start..], input){
-        //while let Some(index_of_match) = text_util::naive_search(&self.text.to_string()[start..], input){
-            let index_of_match_end = index_of_match + input.len();
-            selections.push(Selection::new(index_of_match + start, index_of_match_end + start));
-            start = index_of_match_end + start;
-            if start >= self.text.len_chars(){
-                break;
-            }
-        }
-
-        if !selections.is_empty(){
-            self.selections = Selections::new(selections, 0, &self.text);
-        }
-    }
-
-    //TODO: impl fn move_selected_text_up
-    //TODO: impl fn move_selected_text_down
+    //TODO: impl fn move_selected_text_up       //swap selected text with line above
+    //TODO: impl fn move_selected_text_down     //swap selected text with line below
 }

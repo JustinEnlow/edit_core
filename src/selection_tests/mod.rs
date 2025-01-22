@@ -47,5 +47,6 @@ mod extend_doc_start;
 mod move_doc_end;
 mod extend_doc_end;
 mod select_all;
+mod search;
 mod shift_and_extend;
 mod selection_to_selection2d;

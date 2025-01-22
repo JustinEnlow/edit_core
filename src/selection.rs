@@ -1,5 +1,6 @@
 // follow documentation style from https://std-dev-guide.rust-lang.org/development/how-to-write-documentation.html
 use ropey::Rope;
+use regex::Regex;
 use crate::{
     text_util, view::View, Position, selection2d::Selection2d, range::Range
 };
@@ -666,6 +667,26 @@ impl Selection{
     //TODO: make pub fn select_until    //extend selection until provided character is selected (should have one for forwards and one for backwards)
     //TODO: make pub fn align_selected_text_vertically //maybe this belongs in document.rs, since it would have to be an edit...
     //TODO: make pub fn rotate_selected_text   //maybe this belongs in document.rs, since it would have to be an edit...
+    
+    /// Returns a [`Vec`] of [`Selection`]s where the underlying text is a match for the `input` search string.
+    pub fn search(&self, input: &str, text: &Rope) -> Vec<Selection>{   //text should be the text within a selection, not the whole document text       //TODO: -> Result<Vec<Selection>>
+        let mut selections = Vec::new();
+        let start = self.range.start;
+
+        match Regex::new(input){
+            Ok(regex) => {
+                for search_match in regex.find_iter(&text.to_string()[start..self.range.end.min(text.len_chars())]){
+                    selections.push(Selection::new(search_match.start().saturating_add(start), search_match.end().saturating_add(start)));
+                }
+            }
+            Err(_) => {}    //return error FailedToParseRegex
+        }
+
+        if selections.is_empty(){
+            //return NoMatch error      //this error is not strictly necessary since caller can just check for an empty return vec
+        }
+        selections
+    }
 
     //TODO: should this be made purely functional?
     //TODO: should this pass up possible errors from move/extend calls?

@@ -11,6 +11,7 @@ pub enum SelectionsError{
     SpansMultipleLines,
     CannotAddSelectionAbove,
     CannotAddSelectionBelow,
+    NoSearchMatches
 }
 /// A collection of [`Selection`]s. 
 /// used in place of [Vec]<[`Selection`]> to ensure certain guarantees are enforced
@@ -373,6 +374,32 @@ impl Selections{
         for subsequent_selection_index in current_selection_index.saturating_add(1)..self.count(){
             let subsequent_selection = self.nth_mut(subsequent_selection_index);
             *subsequent_selection = Selection::new(subsequent_selection.anchor().saturating_sub(amount), subsequent_selection.head().saturating_sub(amount));
+        }
+    }
+
+    //TODO: maybe. if no selection extended, search whole text
+    pub fn search(&self, input: &str, text: &Rope) -> Result<Self, SelectionsError>{
+        if input.is_empty(){return Err(SelectionsError::NoSearchMatches);}
+        let mut new_selections = Vec::new();
+        let mut num_pushed: usize = 0;
+        let primary_selection = self.primary();
+        //let mut primary_selection_index = self.primary_selection_index;
+        let mut primary_selection_index = 0;
+        
+        for selection in self.selections.iter(){
+            let matches = selection.search(input, text);
+            if selection == primary_selection{
+                primary_selection_index = num_pushed.saturating_sub(1);
+            }
+            for search_match in matches{
+                new_selections.push(search_match);
+                num_pushed = num_pushed + 1;
+            }
+        }
+
+        if new_selections.is_empty(){Err(SelectionsError::NoSearchMatches)}
+        else{
+            Ok(Selections::new(new_selections, primary_selection_index, text))
         }
     }
 
