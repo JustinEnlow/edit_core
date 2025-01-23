@@ -655,6 +655,22 @@ impl Selection{
         self.put_cursor(text.len_chars(), text, Movement::Extend, semantics, true)
     }
     
+    /// Returns a new instance of [`Selection`] encompassing the current_line.
+    //TODO: make pub fn select_line //should this include newline at end of line? //should this include indentation at start of line? //vscode includes both, as does kakoune
+    pub fn select_line(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        //vs code selects all spanned lines...  maybe caller can make that determination...
+        if self.spans_multiple_lines(text, semantics){return Err(SelectionError::InvalidInput);}    //make specific error. SpansMultipleLines or something...
+
+        let line = text.char_to_line(self.range.start);
+        let line_start = text.line_to_char(line);
+        let line_end = line_start + text_util::line_width(text.line(line), true);
+
+        if self.range.start == line_start && self.range.end == line_end{Err(SelectionError::ResultsInSameState)}
+        else{
+            Ok(Selection::new(line_start, line_end))
+        }
+    }
+
     /// Returns a new instance of [`Selection`] with [`Selection`] extended to encompass all text.
     pub fn select_all(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{  //TODO: ensure this can't extend past doc text end
         if self.range.start == 0 && (self.range.end == text.len_chars() || self.range.end == text.len_chars().saturating_add(1)){return Err(SelectionError::ResultsInSameState);}
@@ -662,11 +678,8 @@ impl Selection{
         selection.put_cursor(text.len_chars(), text, Movement::Extend, semantics, true)
     }
 
-    //TODO: make pub fn select_line //should this include newline at end of line? //should this include indentation at start of line? //vscode includes both, as does kakoune
     //TODO: make pub fn select_inside   //for bracket pairs and the like
     //TODO: make pub fn select_until    //extend selection until provided character is selected (should have one for forwards and one for backwards)
-    //TODO: make pub fn align_selected_text_vertically //maybe this belongs in document.rs, since it would have to be an edit...
-    //TODO: make pub fn rotate_selected_text   //maybe this belongs in document.rs, since it would have to be an edit...
     
     /// Returns a [`Vec`] of [`Selection`]s where the underlying text is a match for the `input` search string.
     pub fn search(&self, input: &str, text: &Rope) -> Vec<Selection>{   //text should be the text within a selection, not the whole document text       //TODO: -> Result<Vec<Selection>>

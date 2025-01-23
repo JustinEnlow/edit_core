@@ -46,6 +46,7 @@ mod move_doc_start;
 mod extend_doc_start;
 mod move_doc_end;
 mod extend_doc_end;
+mod select_line;
 mod select_all;
 mod search;
 mod shift_and_extend;

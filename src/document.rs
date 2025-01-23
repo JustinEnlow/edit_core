@@ -499,4 +499,7 @@ impl Document{
 
     //TODO: impl fn move_selected_text_up       //swap selected text with line above
     //TODO: impl fn move_selected_text_down     //swap selected text with line below
+
+    //TODO: make pub fn align_selected_text_vertically
+    //TODO: make pub fn rotate_selected_text
 }
