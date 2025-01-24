@@ -680,6 +680,7 @@ impl Selection{
 
     //TODO: make pub fn select_inside   //for bracket pairs and the like
     //TODO: make pub fn select_until    //extend selection until provided character is selected (should have one for forwards and one for backwards)
+    //TODO: make pub fn split           //split current selection at specified input string. error if input string not contained, empty, etc.
     
     /// Returns a [`Vec`] of [`Selection`]s where the underlying text is a match for the `input` search string.
     pub fn search(&self, input: &str, text: &Rope) -> Vec<Selection>{   //text should be the text within a selection, not the whole document text       //TODO: -> Result<Vec<Selection>>
