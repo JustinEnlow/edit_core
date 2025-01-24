@@ -121,7 +121,7 @@ impl Selection{
         debug_string
     }
     
-    /// Returns the char index of [`Selection`] anchor.
+    /// Returns the char index of [`Selection`] anchor. Anchor is the stationary portion of an extended [`Selection`].
     pub fn anchor(&self) -> usize{
         match self.direction{
             Direction::Forward => self.range.start,
@@ -129,7 +129,7 @@ impl Selection{
         }
     }
     
-    /// Returns the char index of [`Selection`] head.
+    /// Returns the char index of [`Selection`] head. Head is the mobile portion of an extended [`Selection`].
     pub fn head(&self) -> usize{
         match self.direction{
             Direction::Forward => self.range.end,
@@ -236,60 +236,7 @@ impl Selection{
     /// If movement == Movement::Move, returned selection will always be Direction::Forward.
     /// Errors if `to`  > `text.len_chars()`.
     pub fn put_cursor(&self, to: usize, text: &Rope, movement: Movement, semantics: CursorSemantics, update_stored_line_position: bool) -> Result<Self, SelectionError>{
-        //if to > text.len_chars(){return Err(SelectionError::InvalidInput);}
-        //
-        //let mut selection = self.clone();
-        //match (semantics, movement){
-        //    (CursorSemantics::Bar, Movement::Move) => {
-        //        selection.anchor = to;
-        //        selection.head = to;
-        //    }
-        //    (CursorSemantics::Bar, Movement::Extend) => selection.head = to,
-        //    (CursorSemantics::Block, Movement::Move) => {
-        //        selection.anchor = to;
-        //        //selection.head = to.saturating_add(1).min(text.len_chars().saturating_add(1));   //allowing one more char past text.len_chars() for block cursor
-        //        selection.head = text_util::next_grapheme_index(to, text).min(text.len_chars().saturating_add(1));  //allowing one more char past text.len_chars() for block cursor
-        //    }
-        //    (CursorSemantics::Block, Movement::Extend) => {
-        //        let new_anchor = if self.head >= self.anchor && to < self.anchor{   //if direction forward and to < self.anchor
-        //            if let Some(char_at_cursor) = text.get_char(self.cursor(text, semantics)){
-        //                if char_at_cursor == '\n'{
-        //                    self.anchor
-        //                }else{
-        //                    //self.anchor.saturating_add(1).min(text.len_chars())
-        //                    text_util::next_grapheme_index(self.anchor, text).min(text.len_chars())
-        //                }
-        //            }else{
-        //                //self.anchor.saturating_add(1).min(text.len_chars())
-        //                text_util::next_grapheme_index(self.anchor, text).min(text.len_chars())
-        //            }
-        //        }else if self.head < self.anchor && to >= self.anchor{  //if direction backward and to >= self.anchor
-        //            //self.anchor.saturating_sub(1)
-        //            text_util::previous_grapheme_index(self.anchor, text)
-        //        }else{  //direction forward and to >= self.anchor || if direction backward and to < self.anchor
-        //            self.anchor
-        //        };
-//
-        //        if new_anchor <= to{
-        //            selection.anchor = new_anchor;
-        //            //selection.head = to.saturating_add(1).min(text.len_chars().saturating_add(1))    //allowing one more char past text.len_chars() for block cursor
-        //            selection.head = text_util::next_grapheme_index(to, text).min(text.len_chars().saturating_add(1));  //allowing one more char past text.len_chars() for block cursor
-        //        }else{
-        //            selection.anchor = new_anchor;
-        //            selection.head = to;
-        //        }
-        //    }
-        //}
-        //if update_stored_line_position{
-        //    selection.stored_line_position = Some(text_util::offset_from_line_start(selection.cursor(text, semantics), text));
-        //}
-//
-        //assert!(selection.anchor <= text.len_chars());                  //is this needed?
-        //assert!(selection.cursor(text, semantics) <= text.len_chars());       //is this needed?
-//
-        //Ok(selection)
-        
-        if to <= text.len_chars(){
+        if to <= text.len_chars(){  //TODO: maybe if block semantics, and movement extend, and to == text.len_chars, to should instead be previous_grapheme(text.len_chars)
             let mut selection = match (semantics, movement){
                 (CursorSemantics::Bar, Movement::Move) => {
                     Selection::new(to, to)
@@ -301,6 +248,9 @@ impl Selection{
                     Selection::new(to, text_util::next_grapheme_index(to, text).min(text.len_chars().saturating_add(1)))
                 }
                 (CursorSemantics::Block, Movement::Extend) => {
+                    //
+                    if to == text.len_chars(){return Err(SelectionError::InvalidInput);}
+                    //
                     let new_anchor = if self.head() >= self.anchor() && to < self.anchor(){   //if direction forward and to < self.anchor
                         if let Some(char_at_cursor) = text.get_char(self.cursor(text, semantics)){
                             if char_at_cursor == '\n'{
@@ -420,7 +370,11 @@ impl Selection{
     }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended to the right.
     pub fn extend_right(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{    //TODO: ensure this can't extend past doc text end
-        if self.cursor(text, semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
+        //if self.cursor(text, semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
+        if self.range.start == text.len_chars()
+        || self.range.end == text.len_chars()
+        || self.cursor(text, semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
+
         self.move_horizontally(1, text, Movement::Extend, Direction::Forward, semantics)
     }
 
@@ -444,7 +398,10 @@ impl Selection{
     }
     /// Returns a new instance of [`Selection`] with cursor extended right to the nearest word boundary.
     pub fn extend_right_word_boundary(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{  //TODO: ensure this can't extend past doc text end
-        if self.cursor(text, semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
+        //if self.cursor(text, semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
+        if self.range.start == text.len_chars()
+        || self.range.end == text.len_chars()
+        || self.cursor(text, semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
         
         let goal_index = text_util::next_word_boundary(self.head(), text);
         match semantics{
@@ -453,9 +410,16 @@ impl Selection{
             }
             CursorSemantics::Block => {
                 if goal_index == text.len_chars(){
-                    self.put_cursor(goal_index, text, Movement::Extend, semantics, true)
+                    //self.put_cursor(goal_index, text, Movement::Extend, semantics, true)
+                    self.put_cursor(text_util::previous_grapheme_index(text.len_chars(), text), text, Movement::Extend, semantics, true)
                 }else{
-                    self.put_cursor(text_util::previous_grapheme_index(goal_index, text), text, Movement::Extend, semantics, true)
+                    self.put_cursor(
+                        text_util::previous_grapheme_index(goal_index, text), 
+                        text, 
+                        Movement::Extend, 
+                        semantics, 
+                        true
+                    )
                 }
             }
         }
@@ -505,7 +469,12 @@ impl Selection{
     }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended down.
     pub fn extend_down(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{ //TODO: ensure this can't extend past doc text end
-        if text.char_to_line(self.cursor(text, semantics)) == text.len_lines().saturating_sub(1){return Err(SelectionError::ResultsInSameState);}
+        //if text.char_to_line(self.cursor(text, semantics)) == text.len_lines().saturating_sub(1){return Err(SelectionError::ResultsInSameState);}
+        let last_line = text.len_lines().saturating_sub(1);
+        if text.char_to_line(self.range.start) == last_line
+        || text.char_to_line(self.range.end) == last_line
+        || text.char_to_line(self.cursor(text, semantics)) == last_line{return Err(SelectionError::ResultsInSameState);}
+        
         self.move_vertically(1, text, Movement::Extend, Direction::Forward, semantics)
     }
 
@@ -629,7 +598,12 @@ impl Selection{
     }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended down by the height of `client_view`.
     pub fn extend_page_down(&self, text: &Rope, client_view: &View, semantics: CursorSemantics) -> Result<Self, SelectionError>{    //TODO: ensure this can't extend past doc text end
-        if text.char_to_line(self.cursor(text, semantics)) == text.len_lines().saturating_sub(1){return Err(SelectionError::ResultsInSameState);}
+        //if text.char_to_line(self.cursor(text, semantics)) == text.len_lines().saturating_sub(1){return Err(SelectionError::ResultsInSameState);}
+        let last_line = text.len_lines().saturating_sub(1);
+        if text.char_to_line(self.range.start) == last_line
+        || text.char_to_line(self.range.end) == last_line
+        || text.char_to_line(self.cursor(text, semantics)) == last_line{return Err(SelectionError::ResultsInSameState);}
+
         self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Extend, Direction::Forward, semantics)
     }
 
@@ -651,12 +625,30 @@ impl Selection{
     }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended to doc end.
     pub fn extend_doc_end(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{  //TODO: ensure this can't extend past doc text end
-        if self.cursor(text, semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
-        self.put_cursor(text.len_chars(), text, Movement::Extend, semantics, true)
+        if self.range.start == text.len_chars()
+        || self.range.end == text.len_chars()
+        || self.cursor(text, semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
+        
+        self.put_cursor(
+            match semantics{
+                CursorSemantics::Bar => text.len_chars(), 
+                CursorSemantics::Block => text_util::previous_grapheme_index(text.len_chars(), text)
+            }, 
+            text, 
+            Movement::Extend, 
+            semantics, 
+            true
+        )
+
+        // or if we end up getting rid of put cursor...
+        //let mut selection = Selection::new(self.anchor(), text.len_chars());
+        //selection.stored_line_position = Some(text_util::offset_from_line_start(selection.cursor(text, semantics), text));
+        //Ok(selection)
     }
     
     /// Returns a new instance of [`Selection`] encompassing the current_line.
     //TODO: make pub fn select_line //should this include newline at end of line? //should this include indentation at start of line? //vscode includes both, as does kakoune
+    //TODO: if called on empty last line, this moves the selection to second to last line end, instead it should error
     pub fn select_line(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
         //vs code selects all spanned lines...  maybe caller can make that determination...
         if self.spans_multiple_lines(text, semantics){return Err(SelectionError::InvalidInput);}    //make specific error. SpansMultipleLines or something...
@@ -675,7 +667,8 @@ impl Selection{
     pub fn select_all(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{  //TODO: ensure this can't extend past doc text end
         if self.range.start == 0 && (self.range.end == text.len_chars() || self.range.end == text.len_chars().saturating_add(1)){return Err(SelectionError::ResultsInSameState);}
         let selection = self.put_cursor(0, text, Movement::Move, semantics, true)?;
-        selection.put_cursor(text.len_chars(), text, Movement::Extend, semantics, true)
+        //selection.put_cursor(text.len_chars(), text, Movement::Extend, semantics, true)
+        selection.put_cursor(match semantics{CursorSemantics::Bar => text.len_chars(), CursorSemantics::Block => text_util::previous_grapheme_index(text.len_chars(), text)}, text, Movement::Extend, semantics, true)
     }
 
     //TODO: make pub fn select_inside   //for bracket pairs and the like

@@ -33,3 +33,7 @@ use crate::selection::{Selection, CursorSemantics};
     let selection = Selection::new(4, 9);
     assert!(selection.select_line(&text, CursorSemantics::Block).is_err());
 }
+
+#[test] fn errors_if_at_doc_end_and_line_empty(){
+    assert!(false);
+}
