@@ -35,5 +35,7 @@ use crate::selection::{Selection, CursorSemantics};
 }
 
 #[test] fn errors_if_at_doc_end_and_line_empty(){
-    assert!(false);
+    let text = Rope::from("idk\nsome\nshit\n");
+    assert!(Selection::new(14, 14).select_line(&text, CursorSemantics::Bar).is_err());
+    assert!(Selection::new(14, 15).select_line(&text, CursorSemantics::Block).is_err());
 }

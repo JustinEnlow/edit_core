@@ -38,12 +38,13 @@ pub enum SelectionError{        //or should each fallible fn have its own fn spe
 /// a cursor is a selection with an anchor/head difference of 0 or 1(depending on cursor semantics)
 /// Should ensure head/anchor are always within text bounds
 #[derive(PartialEq, Clone, Debug)]
-pub struct Selection{   //should anchor and head be pulled out into their own structure? struct Range{anchor: usize, head: usize} or maybe Range{start: usize, end: usize}
-    //anchor: usize,  // the stationary portion of a selection.
-    //head: usize,    // the mobile portion of a selection. this is the portion a user can move to extend selection
+pub struct Selection{
     pub range: Range,
     pub direction: Direction,
-    stored_line_position: Option<usize>,    // the offset from the start of the line self.head is on
+    //text: &Rope,                  //This may be useful to store instead of passing in to each fn. What implications would storing this here have?...
+    //semantics: CursorSemantics,   //This may be useful to store instead of passing in to each fn. How would changing this on the fly be handled?...
+    /// the offset from the start of the line self.cursor is on
+    stored_line_position: Option<usize>,
 }
 impl Selection{
     /////////////////////////////////////////////////////////// Only for Testing ////////////////////////////////////////////////////////////////////
@@ -72,10 +73,10 @@ impl Selection{
     // TODO: address TODOs in selection_tests/new.rs
     pub fn new(anchor: usize, head: usize) -> Self{
         //assert!(anchor >= 0);  //should be ensured by `usize` type
-        //assert!(anchor <= text.len_chars().saturating_add(1));
+        //assert!(anchor <= text.len_chars().saturating_add(1));            //requires a reference to underlying Rope
         //assert!(head >= 0);   //should be ensured by `usize` type
-        //assert!(head <= text.len_chars().saturating_add(1));
-        //if block semantics, assert!(anchor != head);
+        //assert!(head <= text.len_chars().saturating_add(1));              //requires a reference to underlying Rope
+        //if block semantics, assert!(anchor != head);                      //requires instance of CursorSemantics
 
         if head >= anchor{
             Self{
@@ -120,6 +121,9 @@ impl Selection{
 
         debug_string
     }
+
+    // TODO: make fn to_rope_slice
+    // TODO: make fn to_string
     
     /// Returns the char index of [`Selection`] anchor. Anchor is the stationary portion of an extended [`Selection`].
     pub fn anchor(&self) -> usize{
@@ -652,6 +656,7 @@ impl Selection{
     pub fn select_line(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
         //vs code selects all spanned lines...  maybe caller can make that determination...
         if self.spans_multiple_lines(text, semantics){return Err(SelectionError::InvalidInput);}    //make specific error. SpansMultipleLines or something...
+        if text.char_to_line(self.cursor(text, semantics)) == text.len_lines().saturating_sub(1){return Err(SelectionError::ResultsInSameState);}
 
         let line = text.char_to_line(self.range.start);
         let line_start = text.line_to_char(line);

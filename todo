@@ -2,13 +2,14 @@ always ensure:
     full doctests or unit tests for each item before moving on to the next
     make movements/edits that result in the same state return an error. this allows the front end application to decide whether to display a warning message, giving visual feedback
 
-
+all:
+    [ ] determine a reasonable unsigned integer size to be used throughout, instead of usize.
 
 Document:
     [ ] determine what to do when current file tab width is different than desired tab width, if we do anything at all
         - hard tabs shouldn't change anything we do, but soft tabs might
     [ ] handle auto-indent on newline insertion
-    [ ] pipe commands to shell and insert result into document
+    [ ] pipe commands to shell and insert result into document  //this may actually be best as a frontend impl
     [ ] figure out how to handle read-only or permission restricted files...
     [ ] add fn to move current line / selected lines up one line
     [ ] add fn to move current line / selected lines down one line
