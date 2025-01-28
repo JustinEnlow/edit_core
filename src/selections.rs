@@ -411,5 +411,30 @@ impl Selections{
         }
     }
 
+    //TODO: impl tests in src/selections_tests
+    pub fn split(&self, input: &str, text: &Rope) -> Result<Self, SelectionsError>{
+        if input.is_empty(){return Err(SelectionsError::NoSearchMatches);}
+        let mut new_selections = Vec::new();
+        let mut num_pushed: usize = 0;
+        let primary_selection = self.primary();
+        let mut primary_selection_index = 0;
+        
+        for selection in &self.selections{
+            let matches = selection.split(input, text);
+            if selection == primary_selection{
+                primary_selection_index = num_pushed.saturating_sub(1);
+            }
+            for search_match in matches{
+                new_selections.push(search_match);
+                num_pushed = num_pushed + 1;
+            }
+        }
+
+        if new_selections.is_empty(){Err(SelectionsError::NoSearchMatches)}
+        else{
+            Ok(Selections::new(new_selections, primary_selection_index, text))
+        }
+    }
+
     //TODO: impl multiselection movement/extend functions
 }

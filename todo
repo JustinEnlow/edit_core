@@ -15,5 +15,12 @@ Document:
     [ ] add fn to move current line / selected lines down one line
 
 Selection:
-    [ ] make sure extend functions do not extend past doc end. this is ok for movement functions because new characters need to be added to the document
+    [x] make sure extend functions do not extend past doc end. this is ok for movement functions because new characters need to be added to the document
     [x] make search operate over selections, returning matched selections in place of the original selection(maybe the search should be in seletion.rs and the selection ordering management should be in document.rs?)
+    [ ] add search forward  (match and select a single next instance of search input, but can be used with multiselections)
+    [ ] add search backward (match and select a single previous instance of search input, but can be used with multiselections)
+    // paragraph is a newline delimited block of text   (example: idk\nsome\nshit\n\nsomething\nelse\n) (paragraphs are "idk\nsome\nshit\n" and "something\nelse\n")
+    [ ] add move to paragraph start     //ctrl + home   (move doc start will need to become ctrl + page up)
+    [ ] add move to paragraph end       //ctrl + end    (mode doc end will need to become ctrl + page down)
+    [ ] add extend to paragraph start   //ctrl + shift + home
+    [ ] add extend to paragraph end     //ctrl + shift + end

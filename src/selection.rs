@@ -706,6 +706,32 @@ impl Selection{
         selections
     }
 
+    //           1         2
+    // 012345678901234567890123456789
+    // fn idk(idk: Idk, shit: Shit){        test string
+    pub fn split(&self, pattern: &str, text: &Rope) -> Vec<Selection>{
+        let mut selections = Vec::new();
+        if let Ok(regex) = Regex::new(pattern){
+            let mut start = self.range.start; //0;
+            let mut found_split = false;
+            // Iter over each split, and push the retained selection before it, if any...       TODO: test split at start of selection
+            for split in regex.find_iter(&text.to_string()[self.range.start..self.range.end.min(text.len_chars())]){
+                found_split = true;
+                let selection_range = Range::new(start, split.start().saturating_add(self.range.start));
+                if selection_range.start < selection_range.end{
+                    selections.push(Selection::new(selection_range.start, selection_range.end));
+                }
+                start = split.end().saturating_add(self.range.start);
+            }
+            // Handle any remaining text after the last split
+            //if split found and end of last split < selection end
+            if found_split && start < self.range.end.min(text.len_chars()){
+                selections.push(Selection::new(start, self.range.end.min(text.len_chars())));
+            }
+        }
+        selections
+    }
+
     //TODO: should this be made purely functional?
     //TODO: should this pass up possible errors from move/extend calls?
     pub fn shift_and_extend(&mut self, amount: usize, text: &Rope, semantics: CursorSemantics){ //-> Result<(), SelectionError>{
