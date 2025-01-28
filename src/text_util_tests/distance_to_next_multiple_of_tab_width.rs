@@ -10,6 +10,6 @@ use crate::text_util;
     }
     let text = Rope::from(format!("{}idk\n", tab));
     let selection = Selection::new(1, 1);
-    let distance = text_util::distance_to_next_multiple_of_tab_width(selection, &text, CursorSemantics::Bar);
+    let distance = text_util::distance_to_next_multiple_of_tab_width(&selection, &text, CursorSemantics::Bar);
     assert!(distance == 3);
 }

@@ -7,7 +7,7 @@ use crate::selection::{CursorSemantics, Selection};
 
 /// Returns the count of visible graphemes in a line of text.
 // TODO: handle non standard width chars such as '\t'
-pub fn line_width(line: RopeSlice, include_newline: bool) -> usize{
+#[must_use] pub fn line_width(line: RopeSlice, include_newline: bool) -> usize{
     let mut line_width = 0;
     for char in line.chars(){
         if include_newline || char != '\n'{
@@ -19,7 +19,7 @@ pub fn line_width(line: RopeSlice, include_newline: bool) -> usize{
 
 //TODO: handle graphemes instead of chars?
 /// Returns the offset of the first non whitespace grapheme from the start of a line of text.
-pub fn first_non_whitespace_character_offset(line: RopeSlice) -> usize{
+#[must_use] pub fn first_non_whitespace_character_offset(line: RopeSlice) -> usize{
     let line = line.to_string();
     
     //if line.len_chars() == 0{return 0;}
@@ -35,11 +35,11 @@ pub fn first_non_whitespace_character_offset(line: RopeSlice) -> usize{
 }
 
 //TODO: test
-pub fn next_grapheme_index(current_index: usize, text: &Rope) -> usize{ //should this eventually be Option<usize>?
+#[must_use] pub fn next_grapheme_index(current_index: usize, text: &Rope) -> usize{ //should this eventually be Option<usize>?
     current_index.saturating_add(1).min(text.len_chars().saturating_add(1)) //placeholder to handle ascii text. code will need to change to handle UTF-8
 }
 
-pub fn previous_grapheme_index(current_index: usize, _text: &Rope) -> usize{ //should this eventually be Option<usize>?
+#[must_use] pub fn previous_grapheme_index(current_index: usize, _text: &Rope) -> usize{ //should this eventually be Option<usize>?
     current_index.saturating_sub(1) //placeholder to handle ascii text. code will need to change to handle UTF-8
 }
 
@@ -56,7 +56,7 @@ fn is_whitespace(char: char) -> bool{
 }
 
 /// Returns the index of the next word boundary
-pub fn next_word_boundary(current_position: usize, text: &Rope) -> usize{   //should this be Option<usize>?
+#[must_use] pub fn next_word_boundary(current_position: usize, text: &Rope) -> usize{   //should this be Option<usize>?
     // if current_position == text.len_chars(){return None;}
     
     let mut index = current_position;
@@ -96,7 +96,7 @@ pub fn next_word_boundary(current_position: usize, text: &Rope) -> usize{   //sh
 }
 
 /// Returns the index of the previous word boundary
-pub fn previous_word_boundary(current_position: usize, text: &Rope) -> usize{   //should this be Option<usize>?
+#[must_use] pub fn previous_word_boundary(current_position: usize, text: &Rope) -> usize{   //should this be Option<usize>?
     // if current_position == 0{return None;}
     
     let mut index = current_position;
@@ -130,7 +130,7 @@ pub fn previous_word_boundary(current_position: usize, text: &Rope) -> usize{   
 }
 
 /// Returns true if slice contains only spaces.
-pub fn slice_is_all_spaces(slice: RopeSlice) -> bool{
+#[must_use] pub fn slice_is_all_spaces(slice: RopeSlice) -> bool{
     for char in slice.chars(){
         if char != ' '{
             return false;
@@ -141,7 +141,7 @@ pub fn slice_is_all_spaces(slice: RopeSlice) -> bool{
 }
 
 /// Returns the grapheme distance to next multiple of user defined tab width.
-pub fn distance_to_next_multiple_of_tab_width(selection: Selection, text: &Rope, semantics: CursorSemantics) -> usize{
+#[must_use] pub fn distance_to_next_multiple_of_tab_width(selection: &Selection, text: &Rope, semantics: CursorSemantics) -> usize{
     let next_tab_distance = offset_from_line_start(selection.cursor(text, semantics), text) % TAB_WIDTH;
     //if offset_from_line_start(selection.cursor(semantics), text) % TAB_WIDTH != 0{
     if next_tab_distance != 0{
@@ -154,14 +154,14 @@ pub fn distance_to_next_multiple_of_tab_width(selection: Selection, text: &Rope,
 
 /// Returns the offset of cursor position from the start of a line of text.
 // TODO: maybe this really does belong in [Selection] in selection.rs?
-pub fn offset_from_line_start(point: usize, text: &Rope) -> usize{
+#[must_use] pub fn offset_from_line_start(point: usize, text: &Rope) -> usize{
     let line_start = text.line_to_char(text.char_to_line(point));
     point.saturating_sub(line_start)
 }
 
 /// Returns the start index of the first matching pattern inside a text if one exists, or None
 // AI gen code. verify behavior and clarify code intent at some later point.
-pub fn naive_search(text: &str, pattern: &str) -> Option<usize> {
+#[must_use] pub fn naive_search(text: &str, pattern: &str) -> Option<usize> {
     let text_len = text.len();
     let pattern_len = pattern.len();
 
@@ -206,7 +206,7 @@ fn build_lps(pattern: &str) -> Vec<usize> {
 }
 
 // AI gen code. verify behavior and clarify code intent at some later point.
-pub fn kmp_search(text: &str, pattern: &str) -> Option<usize> {
+#[must_use] pub fn kmp_search(text: &str, pattern: &str) -> Option<usize> {
     let n = text.len();
     let m = pattern.len();
 

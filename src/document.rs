@@ -1,3 +1,10 @@
+//! Defines a `Document` structure, representing a text document with support for text manipulation.
+//!
+//! This module contains constants, types, and functions for manipulating text within a document, including:
+//! - Basic document operations like insert, delete, replace, undo, redo
+//! - Management of selections and cursor positioning
+//! - Handling of different tab styles and file paths
+
 use crate::view::View;
 use crate::selection::{CursorSemantics, Movement, Selection};
 use crate::selections::{Selections, SelectionsError};
@@ -10,17 +17,24 @@ use ropey::Rope;
 use crate::text_util;
 use std::cmp::Ordering;
 
+
 // should these consts be set in the frontend app, and passed in to functions that require them?
 
-// tab keypress inserts the number of spaces specified in TAB_WIDTH into the focused document
+
+/// Specifies the display width of a tab character. This value could be adjusted based on user preferences or configuration, though there are currently no per-language settings.
 pub const TAB_WIDTH: usize = 4; //should this be language dependant? on-the-fly configurable?   //TODO: consider what to do with files where the tab width already in use is different than this setting
-// whether to use hard or soft tabs
+
+/// Indicates whether to use hard tabs (e.g., `\t`) or spaces for indentation.
+///     - If `USE_HARD_TAB` is `true`, a literal tab character (`\t`) is inserted.
+///     - If `USE_HARD_TAB` is `false`, spaces are inserted, with the number of spaces determined by the `TAB_WIDTH` setting.
 pub const USE_HARD_TAB: bool = false;   //maybe do enum TabStyle{Hard, Soft, Smart}
-// whether to use full file path or just file name
+
+/// Determines whether the full file path or just the file name should be displayed when showing the document's name.
 pub const USE_FULL_FILE_PATH: bool = false;
 
 
 
+/// Represents errors that can occur when performing operations on a document.
 #[derive(Debug)]
 pub enum DocumentError{
     NoChangesToUndo,
@@ -29,6 +43,7 @@ pub enum DocumentError{
     InvalidInput,
     SelectionsError(SelectionsError)
 }
+/// Holds the document's text, selection data, and other state like undo/redo stacks and clipboard.
 pub struct Document{
     text: Rope,
     file_path: Option<PathBuf>,
@@ -44,47 +59,48 @@ impl Document{
     // if possible, i would like to implement these elsewhere, and have them still be usable in other test locations
     ////////////////////////////////////////////////////////////////////// Testing Only ///////////////////////////////////////////////////////////////////////////
     /// Instantiate a new [`Document`]. Only for testing.                                                                                                        //
-    /**/pub fn new(cursor_semantics: CursorSemantics) -> Self{                                                                                                   //
-    /**/    Self::initialize_fields(None, Rope::new(), cursor_semantics)                                                                         //
+    /**/#[must_use] pub fn new(cursor_semantics: CursorSemantics) -> Self{                                                                                       //
+    /**/    Self::initialize_fields(None, &Rope::new(), cursor_semantics)                                                                        //
     /**/}                                                                                                                                                        //
     /// Add [Rope]-based text to an existing instance of [Document]. Only for testing.                                                                           //
-    /**/pub fn with_text(mut self, text: Rope) -> Self{                                                                                                          //
+    /**/#[must_use] pub fn with_text(mut self, text: Rope) -> Self{                                                                                              //
     /**/    self.text = text.clone();                                                                                                                            //
     /**/    self.last_saved_text = text;                                                                                                                         //
     /**/    self                                                                                                                                                 //
     /**/}                                                                                                                                                        //
     /// Add [Selections] to an existing instance of [Document]. Only for testing.                                                                                //
-    /**/pub fn with_selections(mut self, selections: Selections) -> Self{                                                                                        //
+    /**/#[must_use] pub fn with_selections(mut self, selections: Selections) -> Self{                                                                            //
     /**/    self.selections = selections;                                                                                                                        //
     /**/    self                                                                                                                                                 //
     /**/}                                                                                                                                                        //
     /// Add a [View] to an existing instance of [Document]. Only for testing.                                                                                    //
-    /**/pub fn with_view(mut self, view: View) -> Self{                                                                                                          //
+    /**/#[must_use] pub fn with_view(mut self, view: View) -> Self{                                                                                              //
     /**/    self.client_view = view;                                                                                                                             //
     /**/    self                                                                                                                                                 //
     /**/}                                                                                                                                                        //
     /// Add [String]-based text to an existing instance of [Document]. Clipboard is scoped to the editor only, not the system clipboard. Only for testing.       //
-    /**/pub fn with_clipboard(mut self, clipboard: String) -> Self{                                                                                              //
+    /**/#[must_use] pub fn with_clipboard(mut self, clipboard: String) -> Self{                                                                                  //
     /**/    self.clipboard = clipboard;                                                                                                                          //
     /**/    self                                                                                                                                                 //
     /**/}                                                                                                                                                        //
     ////////////////////////////////////////////////////////////////////// Testing Only ///////////////////////////////////////////////////////////////////////////
     
+    /// Opens a document from a given file path and loads its content. Supports both block and bar cursor semantics.
     pub fn open(path: &PathBuf, cursor_semantics: CursorSemantics) -> Result<Self, Box<dyn Error>>{
         let text = Rope::from_reader(BufReader::new(File::open(path)?))?;   // pass errors up
 
         // TODO: make text tab use match settings for USE_HARD_TAB and TAB_WIDTH
 
-        Ok(Self::initialize_fields(Some(path.clone()), text, cursor_semantics))
+        Ok(Self::initialize_fields(Some(path.clone()), &text, cursor_semantics))
     }
     fn initialize_fields(
         file_path: Option<PathBuf>,
-        text: Rope,
+        text: &Rope,
         cursor_semantics: CursorSemantics,
     ) -> Self{
         let selections = match cursor_semantics{
-            CursorSemantics::Bar => Selections::new(vec![Selection::new(0, 0)], 0, &text),
-            CursorSemantics::Block => Selections::new(vec![Selection::new(0, 1)], 0, &text),
+            CursorSemantics::Bar => Selections::new(vec![Selection::new(0, 0)], 0, text),
+            CursorSemantics::Block => Selections::new(vec![Selection::new(0, 1)], 0, text),
         };
         Self{
             text: text.clone(),
@@ -98,7 +114,7 @@ impl Document{
             clipboard: String::new(),
         }
     }
-    pub fn file_name(&self) -> Option<String>{
+    #[must_use] pub fn file_name(&self) -> Option<String>{
         match &self.file_path{
             Some(path) => {
                 if USE_FULL_FILE_PATH{
@@ -120,33 +136,34 @@ impl Document{
     /// let doc = Document::new(CursorSemantics::Bar).with_text(text.clone());
     /// assert_eq!(doc.len(), 4);
     /// ```
-    pub fn len(&self) -> usize{
+    #[must_use] pub fn len(&self) -> usize{
         self.text.len_lines()
     }
-    pub fn selections(&self) -> &Selections{
+    #[must_use] pub fn selections(&self) -> &Selections{
         &self.selections
     }
     pub fn selections_mut(&mut self) -> &mut Selections{
         &mut self.selections
     }
-    pub fn text(&self) -> &Rope{
+    #[must_use] pub fn text(&self) -> &Rope{
         &self.text
     }
-    pub fn view(&self) -> &View{
+    #[must_use] pub fn view(&self) -> &View{
         &self.client_view
     }
     pub fn view_mut(&mut self) -> &mut View{
         &mut self.client_view
     }
-    pub fn clipboard(&self) -> &str{
+    #[must_use] pub fn clipboard(&self) -> &str{
         &self.clipboard
     }
-    pub fn undo_stack(&self) -> Vec<ChangeSet>{ //should this be &Vec?
+    #[must_use] pub fn undo_stack(&self) -> Vec<ChangeSet>{ //should this be &Vec?
         self.undo_stack.clone()
     }
-    pub fn redo_stack(&self) -> Vec<ChangeSet>{ //should this be &Vec?
+    #[must_use] pub fn redo_stack(&self) -> Vec<ChangeSet>{ //should this be &Vec?
         self.redo_stack.clone()
     }
+    /// Saves the document's content to its file path.
     pub fn save(&mut self) -> Result<(), Box<dyn Error>>{
         if let Some(path) = &self.file_path{ // does nothing if path is None    //maybe return Err(()) instead?
             self.text.write_to(BufWriter::new(fs::File::create(path)?))?;
@@ -156,7 +173,7 @@ impl Document{
         
         Ok(())
     }
-    pub fn is_modified(&self) -> bool{
+    #[must_use] pub fn is_modified(&self) -> bool{
         //self.modified
         self.text != self.last_saved_text
     }
@@ -185,10 +202,11 @@ impl Document{
     }
     // TODO: test. should test rope is edited correctly and selection is moved correctly, not necessarily the returned change. behavior, not impl
     fn apply_delete(doc_text: &mut Rope, selection: &mut Selection, semantics: CursorSemantics) -> Change{  //TODO: Error if cursor and anchor at end of text
+        use std::cmp::Ordering;
+        
         let old_selection = selection.clone();
         let original_text = doc_text.clone();
 
-        use std::cmp::Ordering;
         let (start, end, new_cursor) = match selection.cursor(doc_text, semantics).cmp(&selection.anchor()){
             Ordering::Less => {(selection.head(), selection.anchor(), selection.cursor(doc_text, semantics))}
             Ordering::Greater => {
@@ -202,13 +220,14 @@ impl Document{
             }
             Ordering::Equal => {
                 if selection.cursor(doc_text, semantics) == doc_text.len_chars(){ //do nothing    //or preferrably return error   //could have condition check in calling fn
-                    return Change::new(Operation::Delete, old_selection, selection.clone(), Operation::Insert{inserted_text: "".to_string()});
-                }else{
+                    //return Change::new(Operation::Delete, old_selection, selection.clone(), Operation::Insert{inserted_text: "".to_string()});
+                    return Change::new(Operation::Delete, old_selection, selection.clone(), Operation::Insert{inserted_text: String::new()});   //change suggested by clippy lint
+                }//else{
                     match semantics{
                         CursorSemantics::Bar => {(selection.head(), selection.head().saturating_add(1), selection.anchor())}
                         CursorSemantics::Block => {(selection.anchor(), selection.head(), selection.anchor())}
                     }
-                }
+                //}
             }
         };
 
@@ -222,7 +241,7 @@ impl Document{
         Change::new(Operation::Delete, old_selection, selection.clone(), Operation::Insert{inserted_text: change_text.to_string()})
     }
 
-    /// Undoes the most recent change made to the document, restoring the previous state.
+    /// Reverts the last set of changes made to the document.
     pub fn undo(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{    //should this be a HistoryError instead?...
         // Check if there is something to undo
         if let Some(change_set) = self.undo_stack.pop(){
@@ -269,8 +288,8 @@ impl Document{
         }else{Err(DocumentError::NoChangesToUndo)}
     }
 
-    /// Redoes the most recent Undo made to the document, restoring the previous state.
-    /// Make sure to clear the redo stack in every edit fn. new actions invalidate the redo history
+    /// Re-applies the last undone changes to the document.
+    // Make sure to clear the redo stack in every edit fn. new actions invalidate the redo history
     pub fn redo(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{    //should this be HistoryError instead?...
         // Check if there is something to redo
         if let Some(change_set) = self.redo_stack.pop(){
@@ -332,7 +351,7 @@ impl Document{
                         else{self.handle_insert("\t", i, semantics)}
                     }
                     else{
-                        let tab_distance = text_util::distance_to_next_multiple_of_tab_width(selection.clone(), &self.text, semantics);
+                        let tab_distance = text_util::distance_to_next_multiple_of_tab_width(selection, &self.text, semantics);
                         let modified_tab_width = if tab_distance > 0 && tab_distance < TAB_WIDTH{tab_distance}else{TAB_WIDTH};
                         let soft_tab = " ".repeat(modified_tab_width);
 
@@ -413,7 +432,7 @@ impl Document{
     /// #### Invariants:
     /// - will not delete past start of doc
     /// - at start of line, appends current line to end of previous line
-    /// - removes previous soft tab, if TAB_WIDTH spaces are before cursor
+    /// - removes previous soft tab, if `TAB_WIDTH` spaces are before cursor
     /// - deletes selection if selection extended
     pub fn backspace(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
         let selections_before_changes = self.selections.clone();

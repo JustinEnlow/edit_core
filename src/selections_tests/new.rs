@@ -22,12 +22,12 @@ use crate::selections::Selections;
 
 #[test]#[should_panic] fn ensures_all_selections_are_within_doc_bounds(){
     let text = Rope::from("idk\nsome\nshit\n");
-    Selections::new(vec![Selection::new(0, 0), Selection::new(19, 19)], 0, &text);  //panics
+    let _ = Selections::new(vec![Selection::new(0, 0), Selection::new(19, 19)], 0, &text);  //panics
 }
 
 #[test]
 #[should_panic]
 fn should_panic_if_input_selections_empty(){
     let text = Rope::from("idk\nsome\nshit\n");
-    Selections::new(vec![], 0, &text);  //panics
+    let _ = Selections::new(vec![], 0, &text);  //panics
 }

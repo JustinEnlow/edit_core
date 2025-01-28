@@ -30,7 +30,7 @@ pub struct ClientIDManager{
 }
 impl ClientIDManager{
     pub fn assign_id(&mut self) -> ClientID{
-        if let Some(id) = self.available_ids.first().cloned(){
+        if let Some(id) = self.available_ids.first().copied(){  //.cloned(){    //.copied() suggested by clippy lint
             self.available_ids.remove(0);
             id
         }else{
@@ -43,6 +43,6 @@ impl ClientIDManager{
 
     pub fn release_id(&mut self, id: ClientID){
         self.available_ids.push(id);
-        self.available_ids.sort();
+        self.available_ids.sort_unstable();
     }
 }

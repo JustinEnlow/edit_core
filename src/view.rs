@@ -25,21 +25,26 @@ pub struct View{
 }
 impl View{
     /// Returns a new instance of [`View`] from provided inputs.
-    pub fn new(horizontal_start: usize, vertical_start: usize, width: usize, height: usize) -> Self{
+    #[must_use] pub fn new(horizontal_start: usize, vertical_start: usize, width: usize, height: usize) -> Self{
         Self{horizontal_start, vertical_start, width, height}
     }
     pub fn set_size(&mut self, width: usize, height: usize){
         self.width = width;
         self.height = height;
     }
-    pub fn height(&self) -> usize{
+    #[must_use] pub fn height(&self) -> usize{
         self.height
     }
-    pub fn horizontal_start(&self) -> usize{
+    #[must_use] pub fn horizontal_start(&self) -> usize{
         self.horizontal_start
     }
 
     /// Returns a new instance of [`View`] with `vertical_start` increased by specified amount.
+    /// # Errors
+    ///     - if `amount` is 0.
+    ///     - if function would return a `View` with the same state.
+    /// # Panics
+    ///     - if `text` is invalid.
     pub fn scroll_down(&self, amount: usize, text: &Rope) -> Result<Self, ViewError>{
         assert!(text.len_lines() > 0);
 
@@ -57,12 +62,18 @@ impl View{
         }
     }
     /// Returns a new instance of [`View`] with `horizontal_start` decreased by specified amount.
+    /// # Errors
+    ///     - if `amount` is 0.
+    ///     - if function would return a `View` with the same state.
     pub fn scroll_left(&self, amount: usize) -> Result<Self, ViewError>{
         if amount == 0{return Err(ViewError::InvalidInput);}
         if self.horizontal_start == 0{return Err(ViewError::ResultsInSameState);}
         Ok(Self::new(self.horizontal_start.saturating_sub(amount), self.vertical_start, self.width, self.height))
     }
     /// Returns a new instance of [`View`] with `horizontal_start` increased by specified amount.
+    /// # Errors
+    ///     - if `amount` is 0.
+    ///     - if function would return a `View` with the same state.
     pub fn scroll_right(&self, amount: usize, text: &Rope) -> Result<Self, ViewError>{
         if amount == 0{return Err(ViewError::InvalidInput);}
 
@@ -83,6 +94,9 @@ impl View{
         }
     }
     /// Returns a new instance of [`View`] with `vertical_start` decreased by specified amount.
+    /// # Errors
+    ///     - if `amount` is 0.
+    ///     - if function would return a `View` with the same state.
     pub fn scroll_up(&self, amount: usize) -> Result<View, ViewError>{
         if amount == 0{return Err(ViewError::InvalidInput);}
         if self.vertical_start == 0{return Err(ViewError::ResultsInSameState);}
@@ -90,7 +104,9 @@ impl View{
     }
     /// Returns a `bool` indicating whether the [`View`] should be scrolled or not. If `head` of primary [`Selection2d`]
     /// is outside [`View`] boundaries, [`View`] should be scrolled.
-    pub fn should_scroll(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> bool{
+    /// # Panics
+    ///     - if `selection` is invalid.
+    #[must_use] pub fn should_scroll(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> bool{
         assert!(selection.cursor(text, semantics) <= text.len_chars());
 
         let cursor = selection.selection_to_selection2d(text, semantics);
@@ -106,7 +122,9 @@ impl View{
     /// Returns a new instance of [`View`] with `horizontal_start` and/or `vertical_start` shifted to keep `head` of
     /// [`Selection`] in [`View`].
     /// Can follow any specified selection, not just primary selection.
-    pub fn scroll_following_cursor(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> Self{
+    /// # Panics
+    ///     - if `selection` is invalid.
+    #[must_use] pub fn scroll_following_cursor(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> Self{
         assert!(selection.cursor(text, semantics) <= text.len_chars());
 
         let cursor = selection.selection_to_selection2d(text, semantics);
@@ -133,6 +151,11 @@ impl View{
     }
 
     /// Returns an instance of [`View`] vertically centered around specified cursor.
+    /// # Errors
+    ///     - if function output would return a `View` with the same state.
+    /// # Panics
+    ///     - if `selection` is invalid.
+    ///     - if `text` is invalid.
     pub fn center_vertically_around_cursor(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> Result<Self, ViewError>{
         assert!(selection.cursor(text, semantics) <= text.len_chars());    //ensure selection is valid
         assert!(text.len_lines() > 0);  //ensure text is not empty
@@ -193,11 +216,11 @@ impl View{
     //    client_view_text
     //}
     // returns text using view blocks, but may be harder to implement hard tab handling, or other wide characters
-    pub fn text(&self, text: &Rope) -> String{
+    #[must_use] pub fn text(&self, text: &Rope) -> String{
         let view_blocks = self.view_blocks(text, false);
         let mut client_view_text = String::new();
     
-        for view_block in view_blocks.iter(){
+        for view_block in &view_blocks{ //view_blocks.iter(){   //change suggested by clippy lint
             client_view_text.push_str(&text.slice(view_block.start..view_block.end).to_string());
             client_view_text.push('\n');
         }
@@ -207,7 +230,7 @@ impl View{
     
 
     /// Returns a `String` containing the line numbers of the text that can be contained within [`View`] boundaries.
-    pub fn line_numbers(&self, text: &Rope) -> String{
+    #[must_use] pub fn line_numbers(&self, text: &Rope) -> String{
         //enhance performance by building the string using a vector and then joining it at the end
         let mut line_numbers_vec = Vec::with_capacity(self.height);
 
@@ -225,7 +248,7 @@ impl View{
     /// Returns a [`Vec`] of [`Selection2d`]s that represent [`Selection`]s with any portion of itself within the boundaries of [`View`].
     /// Returned selections should be in screen space coordinates.
     /// Assumes selections are already sorted and merged.
-    pub fn selections(&self, selections: &Selections, text: &Rope) -> Vec<Selection2d>{
+    #[must_use] pub fn selections(&self, selections: &Selections, text: &Rope) -> Vec<Selection2d>{
         let view_blocks = self.view_blocks(text, true); //make sure to adjust tests to include newline
         let mut selections_in_view = Vec::with_capacity(view_blocks.len() * self.width);
 
@@ -256,7 +279,7 @@ impl View{
     // should this include newlines('\n') in its width calculation? maybe pass in include_newline bool?
     // we want to highlight newlines as well
     // but that may mess with the logic for "empty" lines...idk
-    pub fn view_blocks(&self, text: &Rope, include_newline: bool) -> Vec<Range>{
+    #[must_use] pub fn view_blocks(&self, text: &Rope, include_newline: bool) -> Vec<Range>{
         let mut view_blocks = Vec::new();
         let vertical_range = self.vertical_start..self.vertical_start + self.height;
 
@@ -285,7 +308,7 @@ impl View{
     }
     
     // translates a document cursor position to a client view cursor position. if outside client view, returns None
-    fn cursor_position(doc_cursor: Selection2d, client_view: &View) -> Option<Position>{
+    fn cursor_position(doc_cursor: &Selection2d, client_view: &View) -> Option<Position>{
         let head_x = doc_cursor.head().x;
         let head_y = doc_cursor.head().y;
 
@@ -305,15 +328,15 @@ impl View{
         }
     }
     /// Returns [`Position`] of primary cursor if it is within [`View`] boundaries, or None otherwise.
-    pub fn primary_cursor_position(&self, text: &Rope, selections: &Selections, semantics: CursorSemantics) -> Option<Position>{
+    #[must_use] pub fn primary_cursor_position(&self, text: &Rope, selections: &Selections, semantics: CursorSemantics) -> Option<Position>{
         let primary = selections.primary();
-        Self::cursor_position(primary.selection_to_selection2d(text, semantics), self)
+        Self::cursor_position(&primary.selection_to_selection2d(text, semantics), self)
     }
     /// Returns [`Position`]s of cursors that are within [`View`] boundaries, or an empty vec otherwise.
-    pub fn cursor_positions(&self, text: &Rope, selections: &Selections, semantics: CursorSemantics) -> Vec<Position>{
+    #[must_use] pub fn cursor_positions(&self, text: &Rope, selections: &Selections, semantics: CursorSemantics) -> Vec<Position>{
         selections.iter()
             .filter_map(|cursor|{
-                Self::cursor_position(cursor.selection_to_selection2d(text, semantics), self)
+                Self::cursor_position(&cursor.selection_to_selection2d(text, semantics), self)
             })
             .collect()
     }

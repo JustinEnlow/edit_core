@@ -49,7 +49,7 @@ pub struct Selection{
 impl Selection{
     /////////////////////////////////////////////////////////// Only for Testing ////////////////////////////////////////////////////////////////////
     /// Returns a new instance of [`Selection`] with a specified `stored_line_position`.                                                           //
-    /**/pub fn with_stored_line_position(anchor: usize, head: usize, stored_line_position: usize) -> Self{                                         //
+    /**/#[must_use] pub fn with_stored_line_position(anchor: usize, head: usize, stored_line_position: usize) -> Self{                             //
     /**/    //Self{anchor, head, stored_line_position: Some(stored_line_position)}                                                                 //
     /**/    if head >= anchor{                                                                                                                     //
     /**/        Self{                                                                                                                              //
@@ -71,7 +71,7 @@ impl Selection{
     // TODO: maybe should panic if block semantics and head == anchor
     // TODO: maybe take CursorSemantics as an argument and store it in Selection, this way we never have to pass it in again...
     // TODO: address TODOs in selection_tests/new.rs
-    pub fn new(anchor: usize, head: usize) -> Self{
+    #[must_use] pub fn new(anchor: usize, head: usize) -> Self{
         //assert!(anchor >= 0);  //should be ensured by `usize` type
         //assert!(anchor <= text.len_chars().saturating_add(1));            //requires a reference to underlying Rope
         //assert!(head >= 0);   //should be ensured by `usize` type
@@ -101,7 +101,7 @@ impl Selection{
     ///     anchor = |
     ///     head = < or >, depending on selection direction
     ///     cursor(left hand side) = :, if block cursor semantics
-    pub fn debug(&self, text: &Rope, semantics: CursorSemantics) -> String{
+    #[must_use] pub fn debug(&self, text: &Rope, semantics: CursorSemantics) -> String{
         //TODO: return an actual error, instead of a magic string. although, it is kind of nice to not have to .unwrap() for every call...
         if semantics == CursorSemantics::Block && self.head() == self.anchor(){return "Selection head and anchor should not be equal using Block semantics.".to_string()}
         let mut debug_string = String::new();
@@ -126,7 +126,7 @@ impl Selection{
     // TODO: make fn to_string
     
     /// Returns the char index of [`Selection`] anchor. Anchor is the stationary portion of an extended [`Selection`].
-    pub fn anchor(&self) -> usize{
+    #[must_use] pub fn anchor(&self) -> usize{
         match self.direction{
             Direction::Forward => self.range.start,
             Direction::Backward => self.range.end
@@ -134,7 +134,7 @@ impl Selection{
     }
     
     /// Returns the char index of [`Selection`] head. Head is the mobile portion of an extended [`Selection`].
-    pub fn head(&self) -> usize{
+    #[must_use] pub fn head(&self) -> usize{
         match self.direction{
             Direction::Forward => self.range.end,
             Direction::Backward => self.range.start
@@ -143,11 +143,11 @@ impl Selection{
 
     /// Returns the char index of the start of the [`Selection`] from left to right.
     // note: not tested in selection_tests, and i don't think it should be because all relevant tests are done in range_tests module
-    pub fn start(&self) -> usize{self.range.start}      //only needed for Selections::sort. figure out how to make that work without this...
+    #[must_use] pub fn start(&self) -> usize{self.range.start}      //only needed for Selections::sort. figure out how to make that work without this...
 
     /// Returns `true` if [`Selection`] len > 0 with bar cursor semantics, or 
     /// [`Selection`] len > 1 with block cursor semantics, or else returns `false`.
-    pub fn is_extended(&self, semantics: CursorSemantics) -> bool{
+    #[must_use] pub fn is_extended(&self, semantics: CursorSemantics) -> bool{
         match semantics{
             CursorSemantics::Bar => self.range.end.saturating_sub(self.range.start) > 0,
             CursorSemantics::Block => self.range.end.saturating_sub(self.range.start) > 1  //if selection is greater than one grapheme //currently uses char count though...
@@ -161,7 +161,7 @@ impl Selection{
     }
 
     /// Returns a bool indicating whether the selection spans multiple lines.
-    pub fn spans_multiple_lines(&self, text: &Rope, semantics: CursorSemantics) -> bool{
+    #[must_use] pub fn spans_multiple_lines(&self, text: &Rope, semantics: CursorSemantics) -> bool{
         // ensure the selection does not exceed the length of the text
         if self.range.end > text.len_chars(){return false;}
 
@@ -223,7 +223,7 @@ impl Selection{
     ///     In the string "idk\nsome\nshit\n", at char index 5
     ///         bar(using "|" symbol):          i d k \n s|o m e \n s h i t \n
     ///         block(using "[ and ]" symbols): i d k \n s[o]m e \n s h i t \n
-    pub fn cursor(&self, text: &Rope, semantics: CursorSemantics) -> usize{
+    #[must_use] pub fn cursor(&self, text: &Rope, semantics: CursorSemantics) -> usize{
         match semantics{
             CursorSemantics::Bar => self.head(),
             CursorSemantics::Block => {
@@ -237,7 +237,7 @@ impl Selection{
 
     /// Returns a new instance of [`Selection`] with cursor at specified char index in rope.
     /// Will shift `anchor`/`head` positions to accommodate Bar/Block cursor semantics.
-    /// If movement == Movement::Move, returned selection will always be Direction::Forward.
+    /// If movement == `Movement::Move`, returned selection will always be `Direction::Forward`.
     /// Errors if `to`  > `text.len_chars()`.
     pub fn put_cursor(&self, to: usize, text: &Rope, movement: Movement, semantics: CursorSemantics, update_stored_line_position: bool) -> Result<Self, SelectionError>{
         if to <= text.len_chars(){  //TODO: maybe if block semantics, and movement extend, and to == text.len_chars, to should instead be previous_grapheme(text.len_chars)
@@ -650,7 +650,7 @@ impl Selection{
         //Ok(selection)
     }
     
-    /// Returns a new instance of [`Selection`] encompassing the current_line.
+    /// Returns a new instance of [`Selection`] encompassing the current line.
     //TODO: make pub fn select_line //should this include newline at end of line? //should this include indentation at start of line? //vscode includes both, as does kakoune
     //TODO: if called on empty last line, this moves the selection to second to last line end, instead it should error
     pub fn select_line(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
@@ -681,18 +681,24 @@ impl Selection{
     //TODO: make pub fn split           //split current selection at specified input string. error if input string not contained, empty, etc.
     
     /// Returns a [`Vec`] of [`Selection`]s where the underlying text is a match for the `input` search string.
-    pub fn search(&self, input: &str, text: &Rope) -> Vec<Selection>{   //text should be the text within a selection, not the whole document text       //TODO: -> Result<Vec<Selection>>
+    #[must_use] pub fn search(&self, input: &str, text: &Rope) -> Vec<Selection>{   //text should be the text within a selection, not the whole document text       //TODO: -> Result<Vec<Selection>>
         let mut selections = Vec::new();
         let start = self.range.start;
 
-        match Regex::new(input){
-            Ok(regex) => {
-                for search_match in regex.find_iter(&text.to_string()[start..self.range.end.min(text.len_chars())]){
-                    selections.push(Selection::new(search_match.start().saturating_add(start), search_match.end().saturating_add(start)));
-                }
+        //match Regex::new(input){
+        //    Ok(regex) => {
+        //        for search_match in regex.find_iter(&text.to_string()[start..self.range.end.min(text.len_chars())]){
+        //            selections.push(Selection::new(search_match.start().saturating_add(start), search_match.end().saturating_add(start)));
+        //        }
+        //    }
+        //    Err(_) => {}    //return error FailedToParseRegex
+        //}
+        if let Ok(regex) = Regex::new(input){
+            for search_match in regex.find_iter(&text.to_string()[start..self.range.end.min(text.len_chars())]){
+                selections.push(Selection::new(search_match.start().saturating_add(start), search_match.end().saturating_add(start)));
             }
-            Err(_) => {}    //return error FailedToParseRegex
         }
+        //else{/*return error FailedToParseRegex*/}
 
         if selections.is_empty(){
             //return NoMatch error      //this error is not strictly necessary since caller can just check for an empty return vec
@@ -737,7 +743,7 @@ impl Selection{
     }
 
     /// Translates a [`Selection`] to a [Selection2d].
-    pub fn selection_to_selection2d(&self, text: &Rope, semantics: CursorSemantics) -> Selection2d{
+    #[must_use] pub fn selection_to_selection2d(&self, text: &Rope, semantics: CursorSemantics) -> Selection2d{
         let line_number_head = text.char_to_line(self.cursor(text, semantics));
         let line_number_anchor = text.char_to_line(self.anchor());
 

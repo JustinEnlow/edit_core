@@ -18,6 +18,7 @@ pub struct Change{
     inverse_operation: Operation,
 }
 impl Change{
+    #[must_use]
     pub fn new(operation: Operation, old_selection: Selection, new_selection: Selection, inverse_operation: Operation) -> Self{
         Self{
             operation,
@@ -26,21 +27,24 @@ impl Change{
             inverse_operation,
         }
     }
+    #[must_use]
     pub fn operation(&self) -> Operation{
         self.operation.clone()
     }
     //pub fn selection_after_change(&self) -> Selection{    //this doesn't appear to be needed just yet...
     //    self.selection_after_change.clone()
     //}
+    #[must_use]
     pub fn selection_before_change(&self) -> Selection{
         self.selection_before_change.clone()
     }
+    #[must_use]
     pub fn inverse(&self) -> Operation{
         self.inverse_operation.clone()
     }
 }
 
-/// ChangeSet holds a vec of Changes that should coinside with the vec of Selection in Selections(so the change at changes[0], should be associated with the selection at selections[0])
+/// `ChangeSet` holds a vec of Changes that should coinside with the vec of Selection in Selections(so the change at changes[0], should be associated with the selection at selections[0])
 #[derive(Clone, Debug, PartialEq)]
 pub struct ChangeSet{
     changes: Vec<Change>,
@@ -48,15 +52,19 @@ pub struct ChangeSet{
     selections_after_changes: Selections,  //this is prob the same as selection_after_change from Change
 }
 impl ChangeSet{
+    #[must_use]
     pub fn new(changes: Vec<Change>, selections_before_changes: Selections, selections_after_changes: Selections) -> Self{
         Self{changes, selections_before_changes, selections_after_changes}
     }
+    #[must_use]
     pub fn changes(&self) -> Vec<Change>{
         self.changes.clone()
     }
+    #[must_use]
     pub fn selections_before_changes(&self) -> Selections{
         self.selections_before_changes.clone()
     }
+    #[must_use]
     pub fn selections_after_changes(self) -> Selections{
         self.selections_after_changes.clone()
     }

@@ -40,7 +40,7 @@ impl Selections{
     /// 
     /// # Panics
     /// `new` panics if `selections` input param is empty.
-    pub fn new(selections: Vec<Selection>, primary_selection_index: usize, _text: &Rope) -> Self{
+    #[must_use] pub fn new(selections: Vec<Selection>, primary_selection_index: usize, _text: &Rope) -> Self{
         assert!(!selections.is_empty());
         //if selections.is_empty(){
         //    selections = vec![Selection::new(0, 0)];
@@ -65,11 +65,11 @@ impl Selections{
     }
     /// Returns the number of [`Selection`]s in [`Selections`].
     // note: not tested in selections_tests module
-    pub fn count(&self) -> usize{
+    #[must_use] pub fn count(&self) -> usize{
         self.selections.len()
     }
     // note: not tested in selections_tests module
-    pub fn primary_selection_index(&self) -> usize{
+    #[must_use] pub fn primary_selection_index(&self) -> usize{
         self.primary_selection_index
     }
     // note: not tested in selections_tests module
@@ -81,7 +81,7 @@ impl Selections{
         self.selections.iter_mut()
     }
     /// Returns a new instance of [`Selections`] with the last element removed.
-    pub fn pop(&self) -> Self{
+    #[must_use] pub fn pop(&self) -> Self{
         let mut new_selections = self.selections.clone();
         // Guarantee at least one selection
         if new_selections.len() > 1{new_selections.pop();}
@@ -97,7 +97,7 @@ impl Selections{
     }
 
     /// Prepends a [`Selection`] to the front of [Self], updating `primary_selection_index` if desired.
-    pub fn push_front(&self, selection: Selection, update_primary: bool) -> Self{
+    #[must_use] pub fn push_front(&self, selection: Selection, update_primary: bool) -> Self{
         let mut new_selections = self.selections.clone();
         new_selections.insert(0, selection);
         Self{
@@ -107,7 +107,7 @@ impl Selections{
     }
     
     /// Appends a [`Selection`] to the back of [Self], updating `primary_selection_index` if desired.
-    pub fn push(&self, selection: Selection, update_primary: bool) -> Self{
+    #[must_use] pub fn push(&self, selection: Selection, update_primary: bool) -> Self{
         let mut new_selections = self.selections.clone();
         new_selections.push(selection);
         let primary_selection_index = new_selections.len().saturating_sub(1);
@@ -119,7 +119,7 @@ impl Selections{
     
     /// Returns a reference to the [`Selection`] at `primary_selection_index`.
     // note: not tested in selections_tests module
-    pub fn primary(&self) -> &Selection{
+    #[must_use] pub fn primary(&self) -> &Selection{
         &self.selections[self.primary_selection_index]
     }
     /// Returns a mutable reference to the [`Selection`] at `primary_selection_index`.
@@ -128,7 +128,7 @@ impl Selections{
         &mut self.selections[self.primary_selection_index]
     }
     // note: not tested in selections_tests module
-    pub fn first(&self) -> &Selection{
+    #[must_use] pub fn first(&self) -> &Selection{
         // unwrapping because we ensure at least one selection is always present
         self.selections.first().unwrap()
     }
@@ -136,7 +136,7 @@ impl Selections{
     //    self.selections.first_mut().unwrap()
     //}
     // note: not tested in selections_tests module
-    pub fn last(&self) -> &Selection{
+    #[must_use] pub fn last(&self) -> &Selection{
         // unwrapping because we ensure at least one selection is always present
         self.selections.last().unwrap()
     }
@@ -167,7 +167,7 @@ impl Selections{
     /// Sorts each [`Selection`] in [Selections] by position.
     /// #### Invariants:
     /// - preserves primary selection through the sorting process
-    pub fn sort(&self) -> Self{ //TODO: return error instead...
+    #[must_use] pub fn sort(&self) -> Self{ //TODO: return error instead...
         if self.count() < 2{return self.clone();}
 
         let primary = self.primary().clone();
@@ -197,10 +197,12 @@ impl Selections{
                 //    Ok(val) => val,
                 //    Err(_) => {return false;}
                 //};
-                let merged_selection = match current_selection.merge_overlapping(prev_selection, text, semantics){
-                    Ok(val) => val,
-                    Err(_) => {return false;}
-                };
+                //let merged_selection = match current_selection.merge_overlapping(prev_selection, text, semantics){
+                //    Ok(val) => val,
+                //    Err(_) => {return false;}
+                //};
+                let Ok(merged_selection) = current_selection.merge_overlapping(prev_selection, text, semantics) //change suggested by clippy lint
+                else{return false;};
 
                 // Update primary selection to track index in next code block // Only clone if necessary
                 if prev_selection == &primary || current_selection == &primary{
@@ -248,7 +250,7 @@ impl Selections{
         let top_selection_line = text.char_to_line(top_selection.range.start);
         if top_selection_line == 0{return Err(SelectionsError::CannotAddSelectionAbove);}
         // should error if any selection spans multiple lines. //callee can determine appropriate response behavior in this case        //vscode behavior is to extend topmost selection up one line if any selection spans multiple lines
-        for selection in self.selections.iter(){
+        for selection in &self.selections{  //self.selections.iter(){   //change suggested by clippy lint
             if selection.spans_multiple_lines(text, semantics){return Err(SelectionsError::SpansMultipleLines);}
         }
 
@@ -301,7 +303,7 @@ impl Selections{
         //bottom_selection_line must be zero based, and text.len_lines() one based...   //TODO: verify
         if bottom_selection_line >= text.len_lines().saturating_sub(1){return Err(SelectionsError::CannotAddSelectionBelow);}
         // should error if any selection spans multiple lines. //callee can determine appropriate response behavior in this case        //vscode behavior is to extend topmost selection down one line if any selection spans multiple lines
-        for selection in self.selections.iter(){
+        for selection in &self.selections{  //self.selections.iter(){   //change suggested by clippy lint
             if selection.spans_multiple_lines(text, semantics){return Err(SelectionsError::SpansMultipleLines);}
         }
 
@@ -344,6 +346,9 @@ impl Selections{
         }
     }
 
+    /// Returns a new instance of [`Selections`] with the current primary selection removed, if possible.
+    /// # Errors
+    /// errors if `self` containts only a single `Selection`.
     pub fn remove_primary_selection(&self) -> Result<Self, SelectionsError>{
         if self.count() < 2{return Err(SelectionsError::SingleSelection);}
         
@@ -378,6 +383,9 @@ impl Selections{
     }
 
     //TODO: maybe. if no selection extended, search whole text
+    /// 
+    /// # Errors
+    ///     - if no matches.
     pub fn search(&self, input: &str, text: &Rope) -> Result<Self, SelectionsError>{
         if input.is_empty(){return Err(SelectionsError::NoSearchMatches);}
         let mut new_selections = Vec::new();
@@ -386,7 +394,7 @@ impl Selections{
         //let mut primary_selection_index = self.primary_selection_index;
         let mut primary_selection_index = 0;
         
-        for selection in self.selections.iter(){
+        for selection in &self.selections{  //self.selections.iter(){   //change suggested by clippy lint
             let matches = selection.search(input, text);
             if selection == primary_selection{
                 primary_selection_index = num_pushed.saturating_sub(1);
