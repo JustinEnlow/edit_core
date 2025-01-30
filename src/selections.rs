@@ -1,5 +1,5 @@
 use ropey::Rope;
-use crate::selection::{Selection, CursorSemantics, Direction};
+use crate::selection::{Selection, CursorSemantics, Direction, SelectionError};
 use crate::text_util;
 
 
@@ -437,4 +437,73 @@ impl Selections{
     }
 
     //TODO: impl multiselection movement/extend functions
+    pub fn move_cursor_potentially_overlapping<F>(&self, text: &Rope, semantics: CursorSemantics, move_fn: F) -> Result<Self, SelectionsError>
+        where F: Fn(&Selection, &Rope, CursorSemantics) -> Result<Selection, SelectionError>
+    {
+        let mut new_selections = Vec::new();
+        let mut should_error = false;
+        for selection in self.iter(){
+            match move_fn(selection, &text, semantics){
+                Ok(new_selection) => {
+                    //*selection = new_selection;
+                    new_selections.push(new_selection);
+                }
+                Err(e) => {
+                    match e{
+                        //SelectionError::ResultsInSameState => {if selection_count == 1 && SHOW_SAME_STATE_WARNINGS{self.mode = Mode::Warning(WarningKind::SameState);}}
+                        SelectionError::ResultsInSameState => {new_selections.push(selection.clone());}
+                        //_ => self.mode = Mode::Warning(WarningKind::UnhandledError(format!("{e:#?} at {this_file}::{line_number}. This Error shouldn't be possible here.")))    //TODO: figure out how to make this use new set_mode method...
+                        SelectionError::DirectionMismatch |
+                        SelectionError::InvalidInput |
+                        SelectionError::NoOverlap => {
+                            /*figure out what to do with other errors, if they can even happen...*/
+                            should_error = true;
+                        }
+                    }
+                }
+            }
+        }
+        let mut new_selections = Selections::new(new_selections, self.primary_selection_index, text);
+        if new_selections.count() > 1{
+            //*self.document.selections_mut() = if let Ok(val) = self.document.selections().merge_overlapping(&text, CURSOR_SEMANTICS){val}else{panic!()};
+            if let Ok(merged_selections) = new_selections.merge_overlapping(text, semantics){
+                new_selections = merged_selections;
+            }
+        }
+        if should_error{
+            return Err(SelectionsError::CannotAddSelectionAbove);   //TODO: figure out a reasonable error to return...
+        }
+        Ok(new_selections)
+    }
+    pub fn move_cursor_non_overlapping<F>(&self, text: &Rope, semantics: CursorSemantics, move_fn: F) -> Result<Self, SelectionsError>
+        where F: Fn(&Selection, &Rope, CursorSemantics) -> Result<Selection, SelectionError>
+    {
+        let mut new_selections = Vec::new();
+        let mut movement_succeeded = false;
+        for selection in self.iter(){//self.document.selections_mut().iter_mut(){
+            match move_fn(selection, &text, semantics){
+                Ok(new_selection) => {
+                    //*selection = new_selection;
+                    new_selections.push(new_selection);
+                    movement_succeeded = true;
+                }
+                Err(e) => {
+                    match e{
+                        //SelectionError::ResultsInSameState => {/*same state handled later in fn*/}
+                        SelectionError::ResultsInSameState => {new_selections.push(selection.clone());}
+                        //_ => self.mode = Mode::Warning(WarningKind::UnhandledError(format!("{e:#?} at {this_file}::{line_number}. This Error shouldn't be possible here.")))    //TODO: figure out how to make this use new set_mode method...
+                        SelectionError::DirectionMismatch |
+                        SelectionError::InvalidInput |
+                        SelectionError::NoOverlap => {/*figure out what to do with other errors, if they can even happen...*/}
+                    }
+                }
+            }
+        }
+        //if !movement_succeeded && SHOW_SAME_STATE_WARNINGS{self.set_mode(Mode::Warning(WarningKind::SameState));}
+        if !movement_succeeded{/*error*/}
+        let new_selections = Selections::new(new_selections, self.primary_selection_index, text);
+        Ok(new_selections)
+    }
+    //TODO: move_cursor_clearing_non_primary
+    //TODO: move_cursor_page
 }

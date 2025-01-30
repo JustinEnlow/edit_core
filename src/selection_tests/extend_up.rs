@@ -4,6 +4,8 @@ use crate::selection::{Selection, CursorSemantics};
 #[test]
 fn extend_up(){
     let text = Rope::from("idk\nsomething\nelse");
+    // idk test //i think this fails because of how `with_stored_line_position` is currently implemented
+    assert_eq!(Selection::with_stored_line_position(5, 1, 0), Selection::new(4, 5).extend_up(&text, CursorSemantics::Block).unwrap());
     
     // to shorter line
     assert_eq!(Selection::with_stored_line_position(13, 3, 9), Selection::new(13, 13).extend_up(&text, CursorSemantics::Bar).unwrap());

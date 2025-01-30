@@ -13,3 +13,4 @@ mod remove_primary_selection;
 mod shift_subsequent_selections_forward;
 mod shift_subsequent_selections_backward;
 mod search;
+mod move_cursor_potentially_overlapping;

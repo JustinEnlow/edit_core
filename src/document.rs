@@ -521,4 +521,13 @@ impl Document{
 
     //TODO: make pub fn align_selected_text_vertically
     //TODO: make pub fn rotate_selected_text
+
+    //TODO: impl movement fns
+    pub fn move_cursor_left(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, Selection::move_left){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(_) => {}
+        }
+        Ok(())
+    }
 }

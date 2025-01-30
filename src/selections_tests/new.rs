@@ -14,10 +14,11 @@ use crate::selections::Selections;
 }
 
 #[test] fn overlapping_selections_are_merged(){
-    let text = Rope::from("idk\nsome\nshit\n");
-    let selections = Selections::new(vec![Selection::new(0, 5), Selection::new(2, 4), Selection::new(3, 6)], 1, &text);
-    let expected = Selections::new(vec![Selection::with_stored_line_position(0, 6, 2)], 0, &text);
-    assert_eq!(expected, selections);
+    //let text = Rope::from("idk\nsome\nshit\n");
+    //let selections = Selections::new(vec![Selection::new(0, 5), Selection::new(2, 4), Selection::new(3, 6)], 1, &text);
+    //let expected = Selections::new(vec![Selection::with_stored_line_position(0, 6, 2)], 0, &text);
+    //assert_eq!(expected, selections);
+    unimplemented!()
 }
 
 #[test]#[should_panic] fn ensures_all_selections_are_within_doc_bounds(){

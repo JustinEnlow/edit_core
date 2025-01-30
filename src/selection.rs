@@ -59,7 +59,7 @@ impl Selection{
     /**/        }                                                                                                                                  //
     /**/    }else{                                                                                                                                 //
     /**/        Self{                                                                                                                              //
-    /**/            range: Range::new(head, anchor),                                                                                    //
+    /**/            range: Range::new(head, anchor),    //TODO: Range::new(text_util::previous_grapheme_index(head, text), anchor)      //
     /**/            direction: Direction::Backward,                                                                                                //
     /**/            stored_line_position: Some(stored_line_position)                                                                               //
     /**/        }                                                                                                                                  //
@@ -87,7 +87,7 @@ impl Selection{
         }
         else{
             Self{
-                range: Range::new(head, anchor), 
+                range: Range::new(head, anchor), //TODO: Range::new(text_util::previous_grapheme_index(head, text), anchor),
                 direction: Direction::Backward, 
                 stored_line_position: None
             }
@@ -677,7 +677,69 @@ impl Selection{
     }
 
     //TODO: make pub fn select_inside   //for bracket pairs and the like
-    //TODO: make pub fn select_until    //extend selection until provided character is selected (should have one for forwards and one for backwards)
+    //TODO: impl and test
+    //TODO: future improvement: for each char search loop, spawn a thread to do the search, so we can process them simultaneously.
+    pub fn select_inside_instances_of_single_char(&self, input: char, text: &Rope) -> Result<Self, SelectionError>{
+        let mut new_selection = self.clone();
+        
+        //second version
+        let mut found_backward = false;
+        //for (i, current_char) in text.slice(0..self.range.start).to_string().chars().rev().enumerate(){ //can this be done without converting to string?...
+        for (i, &current_char) in text.slice(0..self.range.start).chars().collect::<Vec<_>>().iter().rev().enumerate(){
+            if current_char == input{
+                new_selection.range.start = new_selection.range.start.saturating_sub(i);// - (i+1);
+                found_backward = true;
+                break;
+            }
+        }
+        
+        let mut found_forward = false;
+        for (i, current_char) in text.slice(self.range.end..).chars().enumerate(){
+            if current_char == input{
+                new_selection.range.end = new_selection.range.end.saturating_add(i);// + (i-1);
+                found_forward = true;
+                break;
+            }
+        }
+
+        if found_forward && found_backward{
+            Ok(new_selection)
+        }else{
+            Err(SelectionError::ResultsInSameState)
+        }
+    }
+    //fn select_inside_pair(){}             //search between any 2 chars, frontend can determine how pairs are defined
+    pub fn select_inside_pair(&self, leading_char: char, trailing_char: char, text: &Rope) -> Result<Self, SelectionError>{
+        let mut new_selection = self.clone();
+
+        let mut found_backward = false;
+        for (i, &current_char) in text.slice(0..self.range.start).chars().collect::<Vec<_>>().iter().rev().enumerate(){
+            println!("backward: {} at {}", current_char, i);
+            if current_char == leading_char{
+                new_selection.range.start = new_selection.range.start.saturating_sub(i);// - (i+1);
+                found_backward = true;
+                break;
+            }
+        }
+        let mut found_forward = false;
+        for (i, current_char) in text.slice(self.range.end..).chars().enumerate(){
+            println!("forward: {} at {}", current_char, i);
+            if current_char == trailing_char{
+                new_selection.range.end = new_selection.range.end.saturating_add(i);// + (i-1);
+                found_forward = true;
+                break;
+            }
+        }
+
+        if found_forward && found_backward{
+            Ok(new_selection)
+        }else{
+            Err(SelectionError::ResultsInSameState)
+        }
+    }
+    //fn select_inside_text_object(){}    //for paragraphs, words, and the like
+    
+    //TODO: make pub fn select_until    //extend selection until provided character/string is selected (should have one for forwards and one for backwards)
     //TODO: make pub fn split           //split current selection at specified input string. error if input string not contained, empty, etc.
     
     /// Returns a [`Vec`] of [`Selection`]s where the underlying text is a match for the `input` search string.
