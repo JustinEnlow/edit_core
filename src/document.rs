@@ -6,7 +6,8 @@
 //! - Handling of different tab styles and file paths
 
 use crate::view::View;
-use crate::selection::{CursorSemantics, Movement, Selection};
+use crate::range::Range;
+use crate::selection::{CursorSemantics, Movement, Selection, Direction};
 use crate::selections::{Selections, SelectionsError};
 use crate::history::{Operation, Change, ChangeSet};
 use std::fs::{self, File};
@@ -99,8 +100,10 @@ impl Document{
         cursor_semantics: CursorSemantics,
     ) -> Self{
         let selections = match cursor_semantics{
-            CursorSemantics::Bar => Selections::new(vec![Selection::new(0, 0)], 0, text),
-            CursorSemantics::Block => Selections::new(vec![Selection::new(0, 1)], 0, text),
+            //CursorSemantics::Bar => Selections::new(vec![Selection::new(0, 0)], 0, text),
+            CursorSemantics::Bar => Selections::new(vec![Selection::new(Range::new(0, 0), Direction::Forward)], 0, text),
+            //CursorSemantics::Block => Selections::new(vec![Selection::new(0, 1)], 0, text),
+            CursorSemantics::Block => Selections::new(vec![Selection::new(Range::new(0, 1), Direction::Forward)], 0, text)
         };
         Self{
             text: text.clone(),

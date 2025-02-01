@@ -24,3 +24,8 @@ Selection:
     [ ] add move to paragraph end       //ctrl + end    (mode doc end will need to become ctrl + page down)
     [ ] add extend to paragraph start   //ctrl + shift + home
     [ ] add extend to paragraph end     //ctrl + shift + end
+
+
+
+
+note: tests for future features are currently ignored and have unimplemented test bodies. use "cargo test -- --ignored" to run the tests to find where they are.

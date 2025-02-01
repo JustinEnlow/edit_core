@@ -1,6 +1,7 @@
 use ropey::Rope;
 use crate::document::Document;
-use crate::selection::{Selection, CursorSemantics};
+use crate::range::Range;
+use crate::selection::{Selection, CursorSemantics, Direction};
 use crate::selections::Selections;
 
 fn paste_test(selection: Selection, string: &str, expected: Rope, expected_selection: Selection, semantics: CursorSemantics) -> bool{
@@ -13,6 +14,8 @@ fn paste_test(selection: Selection, string: &str, expected: Rope, expected_selec
 
 #[test]
 fn paste(){
-    assert!(paste_test(Selection::new(9, 9), "other\n", Rope::from("idk\nsome\nother\nshit\n"), Selection::with_stored_line_position(15, 15, 0), CursorSemantics::Bar));
-    assert!(paste_test(Selection::new(9, 10), "other\n", Rope::from("idk\nsome\nother\nshit\n"), Selection::with_stored_line_position(15, 16, 0), CursorSemantics::Block));
+    //assert!(paste_test(Selection::new(9, 9), "other\n", Rope::from("idk\nsome\nother\nshit\n"), Selection::with_stored_line_position(15, 15, 0), CursorSemantics::Bar));
+    assert!(paste_test(Selection::new(Range::new(9, 9), Direction::Forward), "other\n", Rope::from("idk\nsome\nother\nshit\n"), Selection::with_stored_line_position(Range::new(15, 15), Direction::Forward, 0), CursorSemantics::Bar));
+    //assert!(paste_test(Selection::new(9, 10), "other\n", Rope::from("idk\nsome\nother\nshit\n"), Selection::with_stored_line_position(15, 16, 0), CursorSemantics::Block));
+    assert!(paste_test(Selection::new(Range::new(9, 10), Direction::Forward), "other\n", Rope::from("idk\nsome\nother\nshit\n"), Selection::with_stored_line_position(Range::new(15, 16), Direction::Forward, 0), CursorSemantics::Block));
 }

@@ -1,4 +1,5 @@
 use ropey::Rope;
+use crate::range::Range;
 use crate::selection::{Selection, CursorSemantics, Direction, SelectionError};
 use crate::text_util;
 
@@ -288,8 +289,10 @@ impl Selections{
         };
 
         match self.primary().direction{
-            Direction::Forward => Ok(self.push_front(Selection::new(start, end), false)),
-            Direction::Backward => Ok(self.push_front(Selection::new(end, start), false))
+            //Direction::Forward => Ok(self.push_front(Selection::new(start, end), false)),
+            Direction::Forward => Ok(self.push_front(Selection::new(Range::new(start, end), Direction::Forward), false)),
+            //Direction::Backward => Ok(self.push_front(Selection::new(end, start), false))
+            Direction::Backward => Ok(self.push_front(Selection::new(Range::new(end, start), Direction::Backward), false))
         }
     }
 
@@ -341,8 +344,10 @@ impl Selections{
         };
 
         match self.primary().direction{
-            Direction::Forward => Ok(self.push(Selection::new(start, end), false)),
-            Direction::Backward => Ok(self.push(Selection::new(end, start), false))
+            //Direction::Forward => Ok(self.push(Selection::new(start, end), false)),
+            Direction::Forward => Ok(self.push(Selection::new(Range::new(start, end), Direction::Forward), false)),
+            //Direction::Backward => Ok(self.push(Selection::new(end, start), false))
+            Direction::Backward => Ok(self.push(Selection::new(Range::new(end, start), Direction::Backward), false))
         }
     }
 
@@ -372,13 +377,15 @@ impl Selections{
     pub fn shift_subsequent_selections_forward(&mut self, current_selection_index: usize, amount: usize){
         for subsequent_selection_index in current_selection_index.saturating_add(1)..self.count(){
             let subsequent_selection = self.nth_mut(subsequent_selection_index);
-            *subsequent_selection = Selection::new(subsequent_selection.anchor().saturating_add(amount), subsequent_selection.head().saturating_add(amount));
+            //*subsequent_selection = Selection::new(subsequent_selection.anchor().saturating_add(amount), subsequent_selection.head().saturating_add(amount));
+            *subsequent_selection = Selection::new(Range::new(subsequent_selection.anchor().saturating_add(amount), subsequent_selection.head().saturating_add(amount)), Direction::Forward);   //TODO: figure out how to actually determine direction
         }
     }
     pub fn shift_subsequent_selections_backward(&mut self, current_selection_index: usize, amount: usize){
         for subsequent_selection_index in current_selection_index.saturating_add(1)..self.count(){
             let subsequent_selection = self.nth_mut(subsequent_selection_index);
-            *subsequent_selection = Selection::new(subsequent_selection.anchor().saturating_sub(amount), subsequent_selection.head().saturating_sub(amount));
+            //*subsequent_selection = Selection::new(subsequent_selection.anchor().saturating_sub(amount), subsequent_selection.head().saturating_sub(amount));
+            *subsequent_selection = Selection::new(Range::new(subsequent_selection.anchor().saturating_sub(amount), subsequent_selection.head().saturating_sub(amount)), Direction::Forward);   //TODO: figure out how to actually determine direction
         }
     }
 
@@ -443,7 +450,7 @@ impl Selections{
         let mut new_selections = Vec::new();
         let mut should_error = false;
         for selection in self.iter(){
-            match move_fn(selection, &text, semantics){
+            match move_fn(selection, text, semantics){
                 Ok(new_selection) => {
                     //*selection = new_selection;
                     new_selections.push(new_selection);
@@ -481,7 +488,7 @@ impl Selections{
         let mut new_selections = Vec::new();
         let mut movement_succeeded = false;
         for selection in self.iter(){//self.document.selections_mut().iter_mut(){
-            match move_fn(selection, &text, semantics){
+            match move_fn(selection, text, semantics){
                 Ok(new_selection) => {
                     //*selection = new_selection;
                     new_selections.push(new_selection);
