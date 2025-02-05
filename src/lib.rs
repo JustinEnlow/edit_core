@@ -55,8 +55,8 @@
 
 
 
-pub mod id;
-pub mod editor;
+//pub mod id;
+//pub mod editor;
 pub mod history;
 pub mod document;
 #[cfg(test)] mod document_tests;

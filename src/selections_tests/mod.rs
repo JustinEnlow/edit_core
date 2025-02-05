@@ -14,3 +14,6 @@ mod shift_subsequent_selections_forward;
 mod shift_subsequent_selections_backward;
 mod search;
 mod move_cursor_potentially_overlapping;
+mod move_cursor_non_overlapping;
+mod move_cursor_clearing_non_primary;
+mod move_cursor_page;

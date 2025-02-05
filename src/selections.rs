@@ -1,6 +1,7 @@
 use ropey::Rope;
 use crate::range::Range;
 use crate::selection::{Selection, CursorSemantics, Direction, SelectionError};
+use crate::view::View;
 use crate::text_util;
 
 
@@ -443,74 +444,158 @@ impl Selections{
         }
     }
 
-    //TODO: impl multiselection movement/extend functions
+//TODO: impl multiselection movement/extend functions
+    /// Intended to ease the use of Selection functions, when used over multiple selections, where the returned selections could be overlapping.
+    ///     intended for use with:
+    ///         move up
+    ///         move down
+    ///         move left
+    ///         move right
+    ///         move backward word boundary
+    ///         move forward word boundary
+    ///         move line end
+    ///         move line start
+    ///         move line text start
+    ///         move home (switches between line start and line text start)
+    ///         extend up
+    ///         extend down
+    ///         extend left
+    ///         extend right
+    ///         extend backward word boundary
+    ///         extend forward word boundary
+    ///         extend line end
+    ///         extend line start
+    ///         extend line text start
+    ///         extend home (switches between line start and line text start)
+    ///         extend doc start
+    ///         extend doc end
+    ///         select line
     pub fn move_cursor_potentially_overlapping<F>(&self, text: &Rope, semantics: CursorSemantics, move_fn: F) -> Result<Self, SelectionsError>
         where F: Fn(&Selection, &Rope, CursorSemantics) -> Result<Selection, SelectionError>
     {
-        let mut new_selections = Vec::new();
-        let mut should_error = false;
+        let mut new_selections = Vec::with_capacity(self.count());  //the maximum size this vec should ever be is num selections in self
         for selection in self.iter(){
             match move_fn(selection, text, semantics){
-                Ok(new_selection) => {
-                    //*selection = new_selection;
-                    new_selections.push(new_selection);
-                }
+                Ok(new_selection) => {new_selections.push(new_selection);}
                 Err(e) => {
                     match e{
-                        //SelectionError::ResultsInSameState => {if selection_count == 1 && SHOW_SAME_STATE_WARNINGS{self.mode = Mode::Warning(WarningKind::SameState);}}
-                        SelectionError::ResultsInSameState => {new_selections.push(selection.clone());}
-                        //_ => self.mode = Mode::Warning(WarningKind::UnhandledError(format!("{e:#?} at {this_file}::{line_number}. This Error shouldn't be possible here.")))    //TODO: figure out how to make this use new set_mode method...
+                        SelectionError::ResultsInSameState => {
+                            if self.count() == 1{return Err(SelectionsError::CannotAddSelectionAbove)}  //TODO: impl SameState Error for Selections
+                            new_selections.push(selection.clone()); //retains selections with no change resulting from move_fn
+                        }
+                        //TODO: figure out what to do with other errors, if they can even happen...
+                        //are we guaranteed by fn impls to never have these errors returned?
+                        //what if user passes an unintended move_fn to this one?...
                         SelectionError::DirectionMismatch |
                         SelectionError::InvalidInput |
-                        SelectionError::NoOverlap => {
-                            /*figure out what to do with other errors, if they can even happen...*/
-                            should_error = true;
-                        }
+                        SelectionError::NoOverlap => {unreachable!()}   //if this is reached, move_fn called on one of the selections has probably put us in an unintended state. prob best to panic
                     }
                 }
             }
         }
         let mut new_selections = Selections::new(new_selections, self.primary_selection_index, text);
-        if new_selections.count() > 1{
-            //*self.document.selections_mut() = if let Ok(val) = self.document.selections().merge_overlapping(&text, CURSOR_SEMANTICS){val}else{panic!()};
-            if let Ok(merged_selections) = new_selections.merge_overlapping(text, semantics){
-                new_selections = merged_selections;
-            }
-        }
-        if should_error{
-            return Err(SelectionsError::CannotAddSelectionAbove);   //TODO: figure out a reasonable error to return...
+        if let Ok(merged_selections) = new_selections.merge_overlapping(text, semantics){
+            new_selections = merged_selections;
         }
         Ok(new_selections)
     }
+    
+    /// Intended to ease the use of Selection functions, when used over multiple selections, where the returned selections should definitely not be overlapping.
+    ///     intended for use with:
+    ///         collapse selection
+    ///         maybe others...i thought there would be more use cases, but that hasn't proven to be the case yet
     pub fn move_cursor_non_overlapping<F>(&self, text: &Rope, semantics: CursorSemantics, move_fn: F) -> Result<Self, SelectionsError>
         where F: Fn(&Selection, &Rope, CursorSemantics) -> Result<Selection, SelectionError>
     {
-        let mut new_selections = Vec::new();
+        let mut new_selections = Vec::with_capacity(self.count());  //the maximum size this vec should ever be is num selections in self
         let mut movement_succeeded = false;
-        for selection in self.iter(){//self.document.selections_mut().iter_mut(){
+        for selection in self.iter(){
             match move_fn(selection, text, semantics){
                 Ok(new_selection) => {
-                    //*selection = new_selection;
                     new_selections.push(new_selection);
                     movement_succeeded = true;
                 }
                 Err(e) => {
                     match e{
-                        //SelectionError::ResultsInSameState => {/*same state handled later in fn*/}
-                        SelectionError::ResultsInSameState => {new_selections.push(selection.clone());}
-                        //_ => self.mode = Mode::Warning(WarningKind::UnhandledError(format!("{e:#?} at {this_file}::{line_number}. This Error shouldn't be possible here.")))    //TODO: figure out how to make this use new set_mode method...
+                        SelectionError::ResultsInSameState => {new_selections.push(selection.clone());} //same state handled later in fn
+                        //figure out what to do with other errors, if they can even happen...
                         SelectionError::DirectionMismatch |
                         SelectionError::InvalidInput |
-                        SelectionError::NoOverlap => {/*figure out what to do with other errors, if they can even happen...*/}
+                        SelectionError::NoOverlap => {unreachable!()}   //if this is reached, move_fn called on one of the selections has probably put us in an unintended state. prob best to panic
                     }
                 }
             }
         }
-        //if !movement_succeeded && SHOW_SAME_STATE_WARNINGS{self.set_mode(Mode::Warning(WarningKind::SameState));}
-        if !movement_succeeded{/*error*/}
+        if !movement_succeeded{return Err(SelectionsError::CannotAddSelectionAbove)}    //TODO: impl SameState Error for Selections
         let new_selections = Selections::new(new_selections, self.primary_selection_index, text);
         Ok(new_selections)
     }
-    //TODO: move_cursor_clearing_non_primary
-    //TODO: move_cursor_page
+    
+    /// Intended to ease the use of Selection functions, when used over multiple selections, where movement should result in a single selection.
+    ///     intended for use with:
+    ///         move doc start
+    ///         move doc end
+    ///         select all
+    pub fn move_cursor_clearing_non_primary<F>(&self, text: &Rope, semantics: CursorSemantics, move_fn: F) -> Result<Self, SelectionsError>
+    where
+        F: Fn(&Selection, &Rope, CursorSemantics) -> Result<Selection, SelectionError>
+    {
+        let mut new_selections = self.clone();
+        if let Ok(primary_only) = self.clear_non_primary_selections(){new_selections = primary_only;}   //intentionally ignoring any errors
+        match move_fn(&new_selections.primary().clone(), text, semantics){
+            Ok(new_selection) => {
+                new_selections = Selections::new(vec![new_selection], 0, text);
+            }
+            Err(e) => {
+                match e{
+                    SelectionError::ResultsInSameState => {return Err(SelectionsError::CannotAddSelectionAbove);}   //TODO: impl SameState Error for Selections
+                    //figure out what to do with other errors, if they can even happen...
+                    SelectionError::DirectionMismatch |
+                    SelectionError::InvalidInput |
+                    SelectionError::NoOverlap => {unreachable!()}   //if this is reached, move_fn called on one of the selections has probably put us in an unintended state. prob best to panic
+                }
+            }
+        }
+        Ok(new_selections)
+    }
+    
+    //TODO: move_cursor_page    //should this be like move_cursor_clearing_non_primary or move_cursor_potentially_overlapping?...   vscode behavior seems to be equivalent to move_cursor_potentially_overlapping
+    /// Intended to ease the use of Selection functions, when used over multiple selections, where the returned selections are moved by view height and could be overlapping.
+    ///     intended for use with:
+    ///         move page up
+    ///         move page down
+    ///         extend page up
+    ///         extend page down
+    pub fn move_cursor_page<F>(&self, text: &Rope, view: &View, semantics: CursorSemantics, move_fn: F) -> Result<Self, SelectionsError>
+        where F: Fn(&Selection, &Rope, &View, CursorSemantics) -> Result<Selection, SelectionError>
+    {
+        let mut new_selections = Vec::with_capacity(self.count());  //the maximum size this vec should ever be is num selections in self
+        for selection in self.iter(){
+            match move_fn(selection, text, view, semantics){
+                Ok(new_selection) => {new_selections.push(new_selection);}
+                Err(e) => {
+                    match e{
+                        SelectionError::ResultsInSameState => {
+                            if self.count() == 1{return Err(SelectionsError::CannotAddSelectionAbove)}  //TODO: impl SameState Error for Selections
+                            new_selections.push(selection.clone()); //retains selections with no change resulting from move_fn
+                        }
+                        //TODO: figure out what to do with other errors, if they can even happen...
+                        //are we guaranteed by fn impls to never have these errors returned?
+                        //what if user passes an unintended move_fn to this one?...
+                        SelectionError::DirectionMismatch |
+                        SelectionError::InvalidInput |
+                        SelectionError::NoOverlap => {
+                            //unreachable!()
+                            println!("{:#?}", e)
+                        }   //if this is reached, move_fn called on one of the selections has probably put us in an unintended state. prob best to panic
+                    }
+                }
+            }
+        }
+        let mut new_selections = Selections::new(new_selections, self.primary_selection_index, text);
+        if let Ok(merged_selections) = new_selections.merge_overlapping(text, semantics){
+            new_selections = merged_selections;
+        }
+        Ok(new_selections)
+    }
 }

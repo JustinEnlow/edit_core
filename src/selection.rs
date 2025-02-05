@@ -215,7 +215,7 @@ impl Selection{
     /// If movement == `Movement::Move`, returned selection will always be `Direction::Forward`.
     /// Errors if `to`  > `text.len_chars()`.
     pub fn put_cursor(&self, to: usize, text: &Rope, movement: Movement, semantics: CursorSemantics, update_stored_line_position: bool) -> Result<Self, SelectionError>{
-        if to <= text.len_chars(){  //TODO: maybe if block semantics, and movement extend, and to == text.len_chars, to should instead be previous_grapheme(text.len_chars)
+        if to <= text.len_chars(){  //TODO: maybe if block semantics, and movement extend, and to == text.len_chars, to should instead be previous_grapheme(text.len_chars)     //and this may make sense to be an assert. we want the calling function to ensure any input is valid...
             let mut selection = match (semantics, movement){
                 (CursorSemantics::Bar, Movement::Move) => {
                     //Selection::new(to, to)
@@ -231,7 +231,7 @@ impl Selection{
                 }
                 (CursorSemantics::Block, Movement::Extend) => {
                     //
-                    if to == text.len_chars(){return Err(SelectionError::InvalidInput);}
+                    if to == text.len_chars(){return Err(SelectionError::InvalidInput);}        //and this may make sense to be an assert. we want the calling function to ensure any input is valid...
                     //
                     let new_anchor = if self.head() >= self.anchor() && to < self.anchor(){   //if direction forward and to < self.anchor
                         if let Some(char_at_cursor) = text.get_char(self.cursor(text, semantics)){
@@ -266,13 +266,13 @@ impl Selection{
             };
 
             Ok(selection)
-        }else{Err(SelectionError::InvalidInput)}
+        }else{Err(SelectionError::InvalidInput)}        //and this may make sense to be an assert. we want the calling function to ensure any input is valid...
     }
 
     /// Returns a new instance of [`Selection`] with the cursor moved vertically by specified amount.
     /// Errors if `amount` < 1, or calculated new position is invalid.
     pub fn move_vertically(&self, amount: usize, text: &Rope, movement: Movement, direction: Direction, semantics: CursorSemantics) -> Result<Self, SelectionError>{    //TODO: error if current_line + amount > text.len_lines, or if current_line < amount when moving backward
-        if amount < 1{return Err(SelectionError::InvalidInput);}    // really this should be SelectionError::ResultsInSameState
+        if amount < 1{return Err(SelectionError::InvalidInput);}    // really this should be SelectionError::ResultsInSameState         //and this may make sense to be an assert. we want the calling function to ensure any input is valid...
         
         let mut selection = self.clone();
         
@@ -305,7 +305,7 @@ impl Selection{
     /// Errors if `amount` < 1, or calculated new position is invalid.
     // TODO: should this error instead of saturating at text.len_chars?
     pub fn move_horizontally(&self, amount: usize, text: &Rope, movement: Movement, direction: Direction, semantics: CursorSemantics) -> Result<Self, SelectionError>{
-        if amount < 1{return Err(SelectionError::InvalidInput);}    // really this should be SelectionError::ResultsInSameState
+        if amount < 1{return Err(SelectionError::InvalidInput);}    // really this should be SelectionError::ResultsInSameState     //and this may make sense to be an assert. we want the calling function to ensure any input is valid...
         
         let new_position = match direction{
             //Direction::Forward => self.cursor(semantics).saturating_add(amount).min(text.len_chars()),    //ensures this does not move past text end
@@ -588,6 +588,10 @@ impl Selection{
         || text.char_to_line(self.range.end) == last_line
         || text.char_to_line(self.cursor(text, semantics)) == last_line{return Err(SelectionError::ResultsInSameState);}
 
+        //TODO: ensure amount passed to move_vertically is always valid input       //maybe move_vertically and put_cursor should saturate at 0 or text.len_chars() instead of erroring...
+        //let amount = client_view.height().saturating_sub(1);
+        //let max_amount = last line - current line;
+        //self.move_vertically(amount.min(max_amount), text, Movement::Extend, Direction::Forward, semantics)   //or perform this saturation in move_vertically, and return SameState error if saturated amount == 0
         self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Extend, Direction::Forward, semantics)
     }
 

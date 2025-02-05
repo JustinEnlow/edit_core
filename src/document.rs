@@ -526,10 +526,268 @@ impl Document{
     //TODO: make pub fn rotate_selected_text
 
     //TODO: impl movement fns
+    pub fn move_cursor_up(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, Selection::move_up){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn move_cursor_down(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, Selection::move_down){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
     pub fn move_cursor_left(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
         match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, Selection::move_left){
             Ok(new_selections) => {self.selections = new_selections;}
-            Err(_) => {}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn move_cursor_right(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, Selection::move_right){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn move_cursor_word_boundary_forward(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, Selection::move_right_word_boundary){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn move_cursor_word_boundary_backward(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, Selection::move_left_word_boundary){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn move_cursor_line_end(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, Selection::move_line_text_end){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn move_cursor_line_start(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, Selection::move_line_start){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn move_cursor_line_text_start(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, Selection::move_line_text_start){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn move_cursor_home(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, Selection::move_home){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn move_cursor_document_start(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_clearing_non_primary(&self.text, semantics, Selection::move_doc_start){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn move_cursor_document_end(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_clearing_non_primary(&self.text, semantics, Selection::move_doc_end){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn move_cursor_page_up(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_page(&self.text, self.view(), semantics, Selection::move_page_up){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn move_cursor_page_down(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_page(&self.text, self.view(), semantics, Selection::move_page_down){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    
+    
+    
+    pub fn extend_selection_up(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, Selection::extend_up){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn extend_selection_down(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, Selection::extend_down){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn extend_selection_left(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, Selection::extend_left){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn extend_selection_right(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, Selection::extend_right){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn extend_selection_word_boundary_backward(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, Selection::extend_left_word_boundary){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn extend_selection_word_boundary_forward(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, Selection::extend_right_word_boundary){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn extend_selection_line_end(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, Selection::extend_line_text_end){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn extend_selection_line_start(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, Selection::extend_line_start){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn extend_selection_line_text_start(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, Selection::extend_line_text_start){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn extend_selection_home(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, Selection::extend_home){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn extend_selection_document_start(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, Selection::extend_doc_start){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn extend_selection_document_end(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, Selection::extend_doc_end){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn extend_selection_page_up(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_page(&self.text, self.view(), semantics, Selection::extend_page_up){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn extend_selection_page_down(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_page(&self.text, self.view(), semantics, Selection::extend_page_down){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn select_line(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, Selection::select_line){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+
+    pub fn select_all(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_clearing_non_primary(&self.text, semantics, Selection::select_all){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+
+    pub fn collapse_selections(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.move_cursor_non_overlapping(&self.text, semantics, Selection::collapse){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+
+    pub fn clear_non_primary_selections(&mut self) -> Result<(), DocumentError>{
+        match self.selections.clear_non_primary_selections(){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn add_selection_above(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.add_selection_above(&self.text, semantics){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn add_selection_below(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.add_selection_below(&self.text, semantics){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn remove_primary_selection(&mut self) -> Result<(), DocumentError>{
+        match self.selections.remove_primary_selection(){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn increment_primary_selection(&mut self) -> Result<(), DocumentError>{
+        match self.selections.increment_primary_selection(){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn decrement_primary_selection(&mut self) -> Result<(), DocumentError>{
+        match self.selections.decrement_primary_selection(){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
         }
         Ok(())
     }
