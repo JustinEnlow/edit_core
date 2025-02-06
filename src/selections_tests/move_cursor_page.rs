@@ -51,12 +51,12 @@ use crate::view::View;
         selections.move_cursor_page(&text, &view, CursorSemantics::Block, Selection::extend_page_up).unwrap()
     );
 }
-#[test] fn works_with_extend_page_down_block_semantics(){   //enters unreachable code, for some reason...   not sure if invalid input in move_vertically fn or put_cursor fn...
+#[test] fn works_with_extend_page_down_block_semantics(){
     let text = Rope::from("idk\nsome\nshit\nsomething\nelse\nand\nyet\nmore\n");
     let view = View::new(0, 6, 3, 3);
     let selections = Selections::new(vec![Selection::new(Range::new(37, 38), Direction::Forward), Selection::new(Range::new(41, 42), Direction::Forward)], 0, &text);
     assert_eq!(
-        Selections::new(vec![Selection::with_stored_line_position(Range::new(37, 42), Direction::Forward, 0)], 0, &text),
+        Selections::new(vec![Selection::with_stored_line_position(Range::new(37, 42), Direction::Forward, 4)], 0, &text),
         selections.move_cursor_page(&text, &view, CursorSemantics::Block, Selection::extend_page_down).unwrap()
     );
 }

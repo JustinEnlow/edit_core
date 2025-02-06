@@ -45,14 +45,16 @@ fn put_cursor(){
     //assert_eq!(Selection::new(0, 1).put_cursor(13, &text, Movement::Extend, CursorSemantics::Block, true).unwrap(), Selection::with_stored_line_position(0, 14, 4));
     assert_eq!(Selection::new(Range::new(0, 1), Direction::Forward).put_cursor(13, &text, Movement::Extend, CursorSemantics::Block, true).unwrap(), Selection::with_stored_line_position(Range::new(0, 14), Direction::Forward, 4));
 }
-#[test]
-fn put_cursor_errors_if_to_out_of_text_bounds(){
-    let text = Rope::from("idk\nsome\nshit\n"); //len 14
-    //assert!(Selection::new(0, 0).put_cursor(15, &text, Movement::Move, CursorSemantics::Bar, true).is_err());
-    assert!(Selection::new(Range::new(0, 0), Direction::Forward).put_cursor(15, &text, Movement::Move, CursorSemantics::Bar, true).is_err());
-    //assert!(Selection::new(0, 1).put_cursor(14, &text, Movement::Extend, CursorSemantics::Block, true).is_err());
-    assert!(Selection::new(Range::new(0, 1), Direction::Forward).put_cursor(14, &text, Movement::Extend, CursorSemantics::Block, true).is_err());
-    //assert!(Selection::new(0, 1).put_cursor(15, &text, Movement::Move, CursorSemantics::Block, true).is_err());
-    assert!(Selection::new(Range::new(0, 1), Direction::Forward).put_cursor(15, &text, Movement::Move, CursorSemantics::Block, true).is_err());
-    // TODO: test extend as well
-}
+
+// now saturates at doc/text bounds
+//#[test]
+//fn put_cursor_errors_if_to_out_of_text_bounds(){
+//    let text = Rope::from("idk\nsome\nshit\n"); //len 14
+//    //assert!(Selection::new(0, 0).put_cursor(15, &text, Movement::Move, CursorSemantics::Bar, true).is_err());
+//    assert!(Selection::new(Range::new(0, 0), Direction::Forward).put_cursor(15, &text, Movement::Move, CursorSemantics::Bar, true).is_err());
+//    //assert!(Selection::new(0, 1).put_cursor(14, &text, Movement::Extend, CursorSemantics::Block, true).is_err());
+//    assert!(Selection::new(Range::new(0, 1), Direction::Forward).put_cursor(14, &text, Movement::Extend, CursorSemantics::Block, true).is_err());
+//    //assert!(Selection::new(0, 1).put_cursor(15, &text, Movement::Move, CursorSemantics::Block, true).is_err());
+//    assert!(Selection::new(Range::new(0, 1), Direction::Forward).put_cursor(15, &text, Movement::Move, CursorSemantics::Block, true).is_err());
+//    // TODO: test extend as well
+//}

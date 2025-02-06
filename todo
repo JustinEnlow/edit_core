@@ -25,6 +25,10 @@ Selection:
     [ ] add extend to paragraph start   //ctrl + shift + home
     [ ] add extend to paragraph end     //ctrl + shift + end
 
+Selections:
+    [ ] add selection above/below, when cursor moved to line text end and then moved up/down, has strange stored line position(possibly because vertical movement does not update stored line position).
+        //we may need to update stored line position in add selection above/below, before actually adding the new selection...
+
 
 
 

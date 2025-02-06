@@ -36,11 +36,13 @@ fn set_from_line_number(){
     //assert_eq!(Selection::new(19, 20).set_from_line_number(2, &text, Movement::Move, CursorSemantics::Block).unwrap(), Selection::with_stored_line_position(14, 15, 0));
     assert_eq!(Selection::new(Range::new(19, 20), Direction::Forward).set_from_line_number(2, &text, Movement::Move, CursorSemantics::Block).unwrap(), Selection::with_stored_line_position(Range::new(14, 15), Direction::Forward, 0));
 }
-#[test]
-fn set_from_line_number_should_error_when_goal_line_number_greater_than_len_lines(){
-    let text = Rope::from("idk\nsomething\nelse\n");    //num lines 4
-    //assert!(Selection::new(0, 0).set_from_line_number(5, &text, Movement::Move, CursorSemantics::Bar).is_err());
-    assert!(Selection::new(Range::new(0, 0), Direction::Forward).set_from_line_number(5, &text, Movement::Move, CursorSemantics::Bar).is_err());
-    //assert!(Selection::new(0, 1).set_from_line_number(5, &text, Movement::Move, CursorSemantics::Block).is_err());
-    assert!(Selection::new(Range::new(0, 1), Direction::Forward).set_from_line_number(5, &text, Movement::Move, CursorSemantics::Block).is_err());
-}
+
+// now saturates at doc/text bounds
+//#[test]
+//fn set_from_line_number_should_error_when_goal_line_number_greater_than_len_lines(){
+//    let text = Rope::from("idk\nsomething\nelse\n");    //num lines 4
+//    //assert!(Selection::new(0, 0).set_from_line_number(5, &text, Movement::Move, CursorSemantics::Bar).is_err());
+//    assert!(Selection::new(Range::new(0, 0), Direction::Forward).set_from_line_number(5, &text, Movement::Move, CursorSemantics::Bar).is_err());
+//    //assert!(Selection::new(0, 1).set_from_line_number(5, &text, Movement::Move, CursorSemantics::Block).is_err());
+//    assert!(Selection::new(Range::new(0, 1), Direction::Forward).set_from_line_number(5, &text, Movement::Move, CursorSemantics::Block).is_err());
+//}

@@ -55,7 +55,8 @@ use crate::selection::{Selection, CursorSemantics, Direction};
     #[test] fn errors_if_cursor_at_doc_end_or_doc_text_end_block_semantics(){
         let text = Rope::from("idk\nsome\nshit\n");
         //assert!(Selection::new(14, 14).extend_down(&text, CursorSemantics::Block).is_err());
-        assert!(Selection::new(Range::new(14, 14), Direction::Forward).extend_down(&text, CursorSemantics::Block).is_err());
+        assert!(Selection::new(Range::new(13, 14), Direction::Forward).extend_down(&text, CursorSemantics::Block).is_err());
+        assert!(Selection::new(Range::new(14, 15), Direction::Forward).extend_down(&text, CursorSemantics::Block).is_err());
     }
     #[test] fn errors_if_already_extended_forward_at_doc_text_end_block_semantics(){
         let text = Rope::from("idk\nsome\nshit\n");

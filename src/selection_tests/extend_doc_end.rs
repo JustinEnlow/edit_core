@@ -34,7 +34,7 @@ use crate::selection::{Selection, CursorSemantics, Direction};
     #[test] fn extends_to_doc_text_end_block_semantics(){
         let text = Rope::from("idk\nsome\nshit\n");
         //assert_eq!(Selection::with_stored_line_position(0, 14, 4), Selection::new(0, 0).extend_doc_end(&text, CursorSemantics::Block).unwrap());
-        assert_eq!(Selection::with_stored_line_position(Range::new(0, 14), Direction::Forward, 4), Selection::new(Range::new(0, 0), Direction::Forward).extend_doc_end(&text, CursorSemantics::Block).unwrap());
+        assert_eq!(Selection::with_stored_line_position(Range::new(0, 14), Direction::Forward, 4), Selection::new(Range::new(0, 1), Direction::Forward).extend_doc_end(&text, CursorSemantics::Block).unwrap());
     }
     
     #[test] fn errors_if_cursor_at_doc_end_or_doc_text_end_block_semantics(){

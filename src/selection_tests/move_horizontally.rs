@@ -42,8 +42,9 @@ fn move_horizontally(){
     assert_eq!(Selection::new(Range::new(19, 20), Direction::Forward).move_horizontally(19, &text, Movement::Extend, Direction::Backward, CursorSemantics::Block).unwrap(), Selection::with_stored_line_position(Range::new(0, 19), Direction::Backward, 0)); //:<idk\nsomething\nelse\n|
 }
 
-#[test] fn errors_if_extended_outside_text_bounds(){
-    let text = Rope::from("idk\nsomething\nelse\n");    //len 19
-    //assert!(Selection::new(0, 1).move_horizontally(19, &text, Movement::Extend, Direction::Forward, CursorSemantics::Block).is_err());
-    assert!(Selection::new(Range::new(0, 1), Direction::Forward).move_horizontally(19, &text, Movement::Extend, Direction::Forward, CursorSemantics::Block).is_err());
-}
+// now saturates at doc/text bounds
+//#[test] fn errors_if_extended_outside_text_bounds(){
+//    let text = Rope::from("idk\nsomething\nelse\n");    //len 19
+//    //assert!(Selection::new(0, 1).move_horizontally(19, &text, Movement::Extend, Direction::Forward, CursorSemantics::Block).is_err());
+//    assert!(Selection::new(Range::new(0, 1), Direction::Forward).move_horizontally(19, &text, Movement::Extend, Direction::Forward, CursorSemantics::Block).is_err());
+//}

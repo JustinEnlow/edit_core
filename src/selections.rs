@@ -487,7 +487,7 @@ impl Selections{
                         //are we guaranteed by fn impls to never have these errors returned?
                         //what if user passes an unintended move_fn to this one?...
                         SelectionError::DirectionMismatch |
-                        SelectionError::InvalidInput |
+                        SelectionError::SpansMultipleLines |//InvalidInput |
                         SelectionError::NoOverlap => {unreachable!()}   //if this is reached, move_fn called on one of the selections has probably put us in an unintended state. prob best to panic
                     }
                 }
@@ -497,6 +497,7 @@ impl Selections{
         if let Ok(merged_selections) = new_selections.merge_overlapping(text, semantics){
             new_selections = merged_selections;
         }
+        if &new_selections == self{return Err(SelectionsError::CannotAddSelectionAbove);}    //TODO: impl SameState Error for Selections     //this should handle multicursor at doc end and another extend all the way right at text and, and no same state error
         Ok(new_selections)
     }
     
@@ -520,7 +521,7 @@ impl Selections{
                         SelectionError::ResultsInSameState => {new_selections.push(selection.clone());} //same state handled later in fn
                         //figure out what to do with other errors, if they can even happen...
                         SelectionError::DirectionMismatch |
-                        SelectionError::InvalidInput |
+                        SelectionError::SpansMultipleLines |//InvalidInput |
                         SelectionError::NoOverlap => {unreachable!()}   //if this is reached, move_fn called on one of the selections has probably put us in an unintended state. prob best to panic
                     }
                 }
@@ -551,7 +552,7 @@ impl Selections{
                     SelectionError::ResultsInSameState => {return Err(SelectionsError::CannotAddSelectionAbove);}   //TODO: impl SameState Error for Selections
                     //figure out what to do with other errors, if they can even happen...
                     SelectionError::DirectionMismatch |
-                    SelectionError::InvalidInput |
+                    SelectionError::SpansMultipleLines |//InvalidInput |
                     SelectionError::NoOverlap => {unreachable!()}   //if this is reached, move_fn called on one of the selections has probably put us in an unintended state. prob best to panic
                 }
             }
@@ -583,7 +584,7 @@ impl Selections{
                         //are we guaranteed by fn impls to never have these errors returned?
                         //what if user passes an unintended move_fn to this one?...
                         SelectionError::DirectionMismatch |
-                        SelectionError::InvalidInput |
+                        SelectionError::SpansMultipleLines |//InvalidInput |
                         SelectionError::NoOverlap => {
                             //unreachable!()
                             println!("{:#?}", e)

@@ -43,7 +43,8 @@ fn extend_page_down(){
         let text = Rope::from("idk\nsome\nshit\n");
         let client_view = View::new(0, 0, 2, 2);
         //assert!(Selection::new(14, 14).extend_page_down(&text, &client_view, CursorSemantics::Block).is_err());
-        assert!(Selection::new(Range::new(14, 14), Direction::Forward).extend_page_down(&text, &client_view, CursorSemantics::Block).is_err());
+        assert!(Selection::new(Range::new(13, 14), Direction::Forward).extend_page_down(&text, &client_view, CursorSemantics::Block).is_err());
+        assert!(Selection::new(Range::new(14, 15), Direction::Forward).extend_page_down(&text, &client_view, CursorSemantics::Block).is_err());
     }
     #[test] fn errors_if_already_extended_forward_at_doc_text_end_block_semantics(){
         let text = Rope::from("idk\nsome\nshit\n");

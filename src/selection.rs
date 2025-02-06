@@ -31,7 +31,8 @@ pub enum Movement{
 pub enum SelectionError{        //or should each fallible fn have its own fn specific Error? this would prevent the calling fn from having to match unused variants in the fallible fn...
     ResultsInSameState,
     NoOverlap,
-    InvalidInput,   //as in put_cursor  //to > text.len_chars()
+    //InvalidInput,   //as in put_cursor  //to > text.len_chars()
+    SpansMultipleLines,
     DirectionMismatch
 }
 /// 1 dimensional representation of a single selection(between anchor and head) within a text rope.
@@ -66,6 +67,28 @@ impl Selection{
         //if block semantics, assert!(anchor != head);                      //requires instance of CursorSemantics
 
         Self{range, direction, stored_line_position: None}
+    }
+
+    fn assert_invariants(&self, text: &Rope, semantics: CursorSemantics){
+        //assert!(self.range.start >= 0);   //already ensured by `usize` type
+        //assert!(self.range.end >= 0);   //already ensured by `usize` type
+        match semantics{
+            CursorSemantics::Bar => {
+                assert!(self.range.start <= text.len_chars());
+                assert!(self.range.end <= text.len_chars());
+                assert!(self.range.start <= self.range.end);
+            }
+            CursorSemantics::Block => {
+                if self.is_extended(semantics){
+                    assert!(self.range.start <= text.len_chars());
+                    assert!(self.range.end <= text.len_chars());
+                }else{
+                    assert!(self.range.start <= text.len_chars().saturating_add(1));    //sat_add(1) for if cursor on last empty line, and direction backwards
+                    assert!(self.range.end <= text.len_chars().saturating_add(1));
+                }
+                assert!(self.range.start < self.range.end);
+            }
+        }
     }
 
     /// Returns a string for debugging selections over a text.
@@ -213,66 +236,70 @@ impl Selection{
     /// Returns a new instance of [`Selection`] with cursor at specified char index in rope.
     /// Will shift `anchor`/`head` positions to accommodate Bar/Block cursor semantics.
     /// If movement == `Movement::Move`, returned selection will always be `Direction::Forward`.
-    /// Errors if `to`  > `text.len_chars()`.
+    /// `to` saturates at doc or text boundaries.
+    //TODO: even if we saturate `to` at boundaries, we should assert it here, to ensure all calling functions are handling this correctly, and catching errors as early as possible
     pub fn put_cursor(&self, to: usize, text: &Rope, movement: Movement, semantics: CursorSemantics, update_stored_line_position: bool) -> Result<Self, SelectionError>{
-        if to <= text.len_chars(){  //TODO: maybe if block semantics, and movement extend, and to == text.len_chars, to should instead be previous_grapheme(text.len_chars)     //and this may make sense to be an assert. we want the calling function to ensure any input is valid...
-            let mut selection = match (semantics, movement){
-                (CursorSemantics::Bar, Movement::Move) => {
-                    //Selection::new(to, to)
-                    Selection::new(Range::new(to, to), Direction::Forward)
-                }
-                (CursorSemantics::Bar, Movement::Extend) => {
-                    //Selection::new(self.anchor(), to)
-                    Selection::new(Range::new(self.anchor(), to), if to < self.anchor(){Direction::Backward}else{Direction::Forward})
-                }
-                (CursorSemantics::Block, Movement::Move) => {
-                    //Selection::new(to, text_util::next_grapheme_index(to, text).min(text.len_chars().saturating_add(1)))
-                    Selection::new(Range::new(to, text_util::next_grapheme_index(to, text).min(text.len_chars().saturating_add(1))), Direction::Forward)
-                }
-                (CursorSemantics::Block, Movement::Extend) => {
-                    //
-                    if to == text.len_chars(){return Err(SelectionError::InvalidInput);}        //and this may make sense to be an assert. we want the calling function to ensure any input is valid...
-                    //
-                    let new_anchor = if self.head() >= self.anchor() && to < self.anchor(){   //if direction forward and to < self.anchor
-                        if let Some(char_at_cursor) = text.get_char(self.cursor(text, semantics)){
-                            if char_at_cursor == '\n'{
-                                self.anchor()
-                            }else{
-                                text_util::next_grapheme_index(self.anchor(), text).min(text.len_chars())
-                            }
-                        }else{
-                            text_util::next_grapheme_index(self.anchor(), text).min(text.len_chars())
-                        }
-                    }else if self.head() < self.anchor() && to >= self.anchor(){  //if direction backward and to >= self.anchor
-                        text_util::previous_grapheme_index(self.anchor(), text)
-                    }else{  //direction forward and to >= self.anchor || if direction backward and to < self.anchor
-                        self.anchor()
-                    };
-    
-                    if new_anchor <= to{//allowing one more char past text.len_chars() for block cursor
-                        //Selection::new(new_anchor, text_util::next_grapheme_index(to, text).min(text.len_chars().saturating_add(1)))
-                        Selection::new(Range::new(new_anchor, text_util::next_grapheme_index(to, text).min(text.len_chars().saturating_add(1))), Direction::Forward)
-                    }else{
-                        //Selection::new(new_anchor, to)
-                        Selection::new(Range::new(to, new_anchor), Direction::Backward)
+        let mut selection = match (semantics, movement){
+            (CursorSemantics::Bar, Movement::Move) => {
+                //assert!(to <= text.len_chars());
+                let to = to.min(text.len_chars());
+                //if self.range.start == to && self.range.end == to{return Err(SelectionError::ResultsInSameState);}
+                Selection::new(Range::new(to, to), Direction::Forward)
+            }
+            (CursorSemantics::Bar, Movement::Extend) => {
+                //assert!(to <= text.len_chars());
+                let to = to.min(text.len_chars());
+                //if self.range.start == self.anchor() && self.range.end == to{return Err(SelectionError::ResultsInSameState);}
+                Selection::new(Range::new(self.anchor(), to), if to < self.anchor(){Direction::Backward}else{Direction::Forward})
+            }
+            (CursorSemantics::Block, Movement::Move) => {
+                //assert!(to <= text.len_chars());
+                let to = to.min(text.len_chars());
+                //if self.range.start == to && self.range.end == text_util::next_grapheme_index(to, text).min(text.len_chars().saturating_add(1)){return Err(SelectionError::ResultsInSameState);}
+                Selection::new(Range::new(to, text_util::next_grapheme_index(to, text).min(text.len_chars().saturating_add(1))), Direction::Forward)
+            }
+            (CursorSemantics::Block, Movement::Extend) => {
+                //assert!(to <= text_util::previous_grapheme_index(text.len_chars(), text));
+                let to = to.min(text_util::previous_grapheme_index(text.len_chars(), text));
+                let new_anchor = match self.direction{
+                    Direction::Forward => {
+                        if to < self.anchor(){  //could also do self.range.start
+                            if let Some(char_at_cursor) = text.get_char(self.cursor(text, semantics)){
+                                if char_at_cursor == '\n'{self.anchor()}
+                                else{text_util::next_grapheme_index(self.anchor(), text).min(text.len_chars())}
+                            }else{text_util::next_grapheme_index(self.anchor(), text).min(text.len_chars())}
+                        }else{self.anchor()}
                     }
+                    Direction::Backward => {
+                        if to >= self.anchor(){text_util::previous_grapheme_index(self.anchor(), text)} //could also do self.range.end
+                        else{self.anchor()}
+                    }
+                };
+
+                if new_anchor <= to{    //allowing one more char past text.len_chars() for block cursor
+                    //if self.range.start == new_anchor && self.range.end == text_util::next_grapheme_index(to, text).min(text.len_chars().saturating_add(1)){return Err(SelectionError::ResultsInSameState);}
+                    Selection::new(Range::new(new_anchor, text_util::next_grapheme_index(to, text).min(text.len_chars().saturating_add(1))), Direction::Forward)
+                }else{
+                    //if self.range.start == to && self.range.end == new_anchor{return Err(SelectionError::ResultsInSameState);}
+                    Selection::new(Range::new(to, new_anchor), Direction::Backward)
                 }
-            };
+            }
+        };
 
-            selection.stored_line_position = if update_stored_line_position{
-                /*selection.stored_line_position = */Some(text_util::offset_from_line_start(selection.cursor(text, semantics), text))
-            }else{
-                /*selection.stored_line_position = */self.stored_line_position
-            };
+        selection.stored_line_position = if update_stored_line_position{    //TODO: this really ought to be handled by calling fn...
+            Some(text_util::offset_from_line_start(selection.cursor(text, semantics), text))
+        }else{
+            self.stored_line_position
+        };
 
-            Ok(selection)
-        }else{Err(SelectionError::InvalidInput)}        //and this may make sense to be an assert. we want the calling function to ensure any input is valid...
+        selection.assert_invariants(text, semantics);
+        Ok(selection)
     }
 
     /// Returns a new instance of [`Selection`] with the cursor moved vertically by specified amount.
-    /// Errors if `amount` < 1, or calculated new position is invalid.
+    /// Errors if `amount` < 1.
     pub fn move_vertically(&self, amount: usize, text: &Rope, movement: Movement, direction: Direction, semantics: CursorSemantics) -> Result<Self, SelectionError>{    //TODO: error if current_line + amount > text.len_lines, or if current_line < amount when moving backward
-        if amount < 1{return Err(SelectionError::InvalidInput);}    // really this should be SelectionError::ResultsInSameState         //and this may make sense to be an assert. we want the calling function to ensure any input is valid...
+        if amount < 1{return Err(SelectionError::ResultsInSameState);}  //and this may make sense to be an assert. we want the calling function to ensure any input is valid...
         
         let mut selection = self.clone();
         
@@ -302,13 +329,11 @@ impl Selection{
     }
 
     /// Returns a new instance of [`Selection`] with the cursor moved horizontally by specified amount.
-    /// Errors if `amount` < 1, or calculated new position is invalid.
-    // TODO: should this error instead of saturating at text.len_chars?
+    /// Errors if `amount` < 1.
     pub fn move_horizontally(&self, amount: usize, text: &Rope, movement: Movement, direction: Direction, semantics: CursorSemantics) -> Result<Self, SelectionError>{
-        if amount < 1{return Err(SelectionError::InvalidInput);}    // really this should be SelectionError::ResultsInSameState     //and this may make sense to be an assert. we want the calling function to ensure any input is valid...
+        if amount < 1{return Err(SelectionError::ResultsInSameState);}     //and this may make sense to be an assert. we want the calling function to ensure any input is valid...
         
         let new_position = match direction{
-            //Direction::Forward => self.cursor(semantics).saturating_add(amount).min(text.len_chars()),    //ensures this does not move past text end
             Direction::Forward => {
                 let mut index = self.cursor(text, semantics);
                 for _ in 0..amount{
@@ -316,7 +341,6 @@ impl Selection{
                 }
                 index.min(text.len_chars()) //ensures this does not move past text end      //could match on semantics, and ensure extend does index.min(previous_grapheme_index(text.len_chars()))
             }
-            //Direction::Backward => self.cursor(semantics).saturating_sub(amount)
             Direction::Backward => {
                 let mut index = self.cursor(text, semantics);
                 for _ in 0..amount{
@@ -330,7 +354,8 @@ impl Selection{
 
     /// Returns a new instance of [`Selection`] with the cursor set to specified 0-based line number.
     pub fn set_from_line_number(&self, line_number: usize, text: &Rope, movement: Movement, semantics: CursorSemantics) -> Result<Self, SelectionError>{
-        if line_number >= text.len_lines(){return Err(SelectionError::InvalidInput);}
+        self.assert_invariants(text, semantics);
+        assert!(line_number < text.len_lines());
         
         let current_line = text.char_to_line(self.cursor(text, semantics));
         let (amount, direction) = if line_number < current_line{
@@ -343,27 +368,29 @@ impl Selection{
 
     /// Returns a new instance of [`Selection`] with `anchor` aligned with cursor.
     pub fn collapse(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        self.assert_invariants(text, semantics);
         if !self.is_extended(semantics){return Err(SelectionError::ResultsInSameState);}
         self.put_cursor(self.cursor(text, semantics), text, Movement::Move, semantics, true)
     }
 
     /// Returns a new instance of [`Selection`] with cursor moved right.
     pub fn move_right(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        self.assert_invariants(text, semantics);
         if self.cursor(text, semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
         self.move_horizontally(1, text, Movement::Move, Direction::Forward, semantics)
     }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended to the right.
     pub fn extend_right(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{    //TODO: ensure this can't extend past doc text end
-        //if self.cursor(text, semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
+        self.assert_invariants(text, semantics);
         if self.range.start == text.len_chars()
         || self.range.end == text.len_chars()
         || self.cursor(text, semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
 
         self.move_horizontally(1, text, Movement::Extend, Direction::Forward, semantics)
     }
-
     /// Returns a new instance of [`Selection`] with cursor moved right to the nearest word boundary.
     pub fn move_right_word_boundary(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        self.assert_invariants(text, semantics);
         if self.cursor(text, semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
         
         let goal_index = text_util::next_word_boundary(self.head(), text);
@@ -382,7 +409,7 @@ impl Selection{
     }
     /// Returns a new instance of [`Selection`] with cursor extended right to the nearest word boundary.
     pub fn extend_right_word_boundary(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{  //TODO: ensure this can't extend past doc text end
-        //if self.cursor(text, semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
+        self.assert_invariants(text, semantics);
         if self.range.start == text.len_chars()
         || self.range.end == text.len_chars()
         || self.cursor(text, semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
@@ -411,17 +438,20 @@ impl Selection{
 
     /// Returns a new instance of [`Selection`] with cursor moved left.
     pub fn move_left(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        self.assert_invariants(text, semantics);
         if self.cursor(text, semantics) == 0{return Err(SelectionError::ResultsInSameState);}
         self.move_horizontally(1, text, Movement::Move, Direction::Backward, semantics)
     }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended to the left.
     pub fn extend_left(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        self.assert_invariants(text, semantics);
         if self.cursor(text, semantics) == 0{return Err(SelectionError::ResultsInSameState);}
         self.move_horizontally(1, text, Movement::Extend, Direction::Backward, semantics)
     }
 
     /// Returns a new instance of [`Selection`] with cursor moved left to the nearest word boundary.
     pub fn move_left_word_boundary(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        self.assert_invariants(text, semantics);
         if self.cursor(text, semantics) == 0{return Err(SelectionError::ResultsInSameState);}
         
         let goal_index = text_util::previous_word_boundary(self.cursor(text, semantics), text);
@@ -429,6 +459,7 @@ impl Selection{
     }
     /// Returns a new instance of [`Selection`] with cursor extended left to the nearest word boundary.
     pub fn extend_left_word_boundary(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        self.assert_invariants(text, semantics);
         if self.cursor(text, semantics) == 0{return Err(SelectionError::ResultsInSameState);}
         
         let goal_index = text_util::previous_word_boundary(self.cursor(text, semantics), text);
@@ -437,22 +468,26 @@ impl Selection{
 
     /// Returns a new instance of [`Selection`] with cursor moved up.
     pub fn move_up(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        self.assert_invariants(text, semantics);
         if text.char_to_line(self.cursor(text, semantics)) == 0{return Err(SelectionError::ResultsInSameState);}
         self.move_vertically(1, text, Movement::Move, Direction::Backward, semantics)
     }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended up.
     pub fn extend_up(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        self.assert_invariants(text, semantics);
         if text.char_to_line(self.cursor(text, semantics)) == 0{return Err(SelectionError::ResultsInSameState);}
         self.move_vertically(1, text, Movement::Extend, Direction::Backward, semantics)
     }
 
     /// Returns a new instance of [`Selection`] with cursor moved down.
     pub fn move_down(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        self.assert_invariants(text, semantics);
         if text.char_to_line(self.cursor(text, semantics)) == text.len_lines().saturating_sub(1){return Err(SelectionError::ResultsInSameState);}
         self.move_vertically(1, text, Movement::Move, Direction::Forward, semantics)
     }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended down.
     pub fn extend_down(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{ //TODO: ensure this can't extend past doc text end
+        self.assert_invariants(text, semantics);
         //if text.char_to_line(self.cursor(text, semantics)) == text.len_lines().saturating_sub(1){return Err(SelectionError::ResultsInSameState);}
         let last_line = text.len_lines().saturating_sub(1);
         if text.char_to_line(self.range.start) == last_line
@@ -464,6 +499,7 @@ impl Selection{
 
     /// Returns a new instance of [`Selection`] with cursor moved to line end.
     pub fn move_line_text_end(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        self.assert_invariants(text, semantics);
         let line_number = text.char_to_line(self.cursor(text, semantics));
         let line = text.line(line_number);
         let line_width = text_util::line_width(line, false);
@@ -475,6 +511,7 @@ impl Selection{
     }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended to the end of the current line.
     pub fn extend_line_text_end(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{    //TODO: ensure this can't extend past doc text end
+        self.assert_invariants(text, semantics);
         let line_number = text.char_to_line(self.cursor(text, semantics));
         let line = text.line(line_number);
         let line_width = text_util::line_width(line, false);    //doesn't include newline
@@ -505,6 +542,7 @@ impl Selection{
 
     /// Returns a new instance of [`Selection`] with cursor moved to absolute start of line, or start of line text, depending on current cursor position.
     pub fn move_home(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        self.assert_invariants(text, semantics);
         let line_number = text.char_to_line(self.cursor(text, semantics));
         let line_start = text.line_to_char(line_number);
         let text_start_offset = text_util::first_non_whitespace_character_offset(text.line(line_number));
@@ -516,6 +554,7 @@ impl Selection{
     }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended to absolute start of line, or line text start, depending on [`Selection`] `head` position.
     pub fn extend_home(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        self.assert_invariants(text, semantics);
         let line_number = text.char_to_line(self.cursor(text, semantics));
         let line_start = text.line_to_char(line_number);
         let text_start_offset = text_util::first_non_whitespace_character_offset(text.line(line_number));
@@ -528,6 +567,7 @@ impl Selection{
     
     /// Returns a new instance of [`Selection`] with the cursor moved to the start of the current line.
     pub fn move_line_start(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        self.assert_invariants(text, semantics);
         let line_number = text.char_to_line(self.cursor(text, semantics));
         let line_start = text.line_to_char(line_number);
 
@@ -536,6 +576,7 @@ impl Selection{
     }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended to the start of the current line.
     pub fn extend_line_start(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        self.assert_invariants(text, semantics);
         let line_number = text.char_to_line(self.cursor(text, semantics));
         let line_start = text.line_to_char(line_number);
 
@@ -545,6 +586,7 @@ impl Selection{
     
     /// Returns a new instance of [`Selection`] with the cursor moved to the start of the text on the current line.
     pub fn move_line_text_start(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        self.assert_invariants(text, semantics);
         let line_number = text.char_to_line(self.cursor(text, semantics));
         let line_start = text.line_to_char(line_number);
         let text_start_offset = text_util::first_non_whitespace_character_offset(text.line(line_number));
@@ -555,6 +597,7 @@ impl Selection{
     }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended to the start of the text on the current line.
     pub fn extend_line_text_start(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        self.assert_invariants(text, semantics);
         let line_number = text.char_to_line(self.cursor(text, semantics));
         let line_start = text.line_to_char(line_number);
         let text_start_offset = text_util::first_non_whitespace_character_offset(text.line(line_number));
@@ -566,53 +609,66 @@ impl Selection{
 
     /// Returns a new instance of [`Selection`] with the cursor moved up by the height of `client_view`.
     pub fn move_page_up(&self, text: &Rope, client_view: &View, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        self.assert_invariants(text, semantics);
         if text.char_to_line(self.cursor(text, semantics)) == 0{return Err(SelectionError::ResultsInSameState);}
         self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Move, Direction::Backward, semantics)
     }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended up by the height of `client_view`.
     pub fn extend_page_up(&self, text: &Rope, client_view: &View, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        self.assert_invariants(text, semantics);
         if text.char_to_line(self.cursor(text, semantics)) == 0{return Err(SelectionError::ResultsInSameState);}
         self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Extend, Direction::Backward, semantics)
     }
 
     /// Returns a new instance of [`Selection`] with the cursor moved down by the height of `client_view`.
     pub fn move_page_down(&self, text: &Rope, client_view: &View, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        self.assert_invariants(text, semantics);
         if text.char_to_line(self.cursor(text, semantics)) == text.len_lines().saturating_sub(1){return Err(SelectionError::ResultsInSameState);}
         self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Move, Direction::Forward, semantics)
     }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended down by the height of `client_view`.
     pub fn extend_page_down(&self, text: &Rope, client_view: &View, semantics: CursorSemantics) -> Result<Self, SelectionError>{    //TODO: ensure this can't extend past doc text end
+        self.assert_invariants(text, semantics);
         //if text.char_to_line(self.cursor(text, semantics)) == text.len_lines().saturating_sub(1){return Err(SelectionError::ResultsInSameState);}
-        let last_line = text.len_lines().saturating_sub(1);
+        let last_line = text.len_lines().saturating_sub(1);    //do we need to satsub 2, so that we are checking last viable extend line, not last empty line?...
         if text.char_to_line(self.range.start) == last_line
         || text.char_to_line(self.range.end) == last_line
         || text.char_to_line(self.cursor(text, semantics)) == last_line{return Err(SelectionError::ResultsInSameState);}
 
-        //TODO: ensure amount passed to move_vertically is always valid input       //maybe move_vertically and put_cursor should saturate at 0 or text.len_chars() instead of erroring...
-        //let amount = client_view.height().saturating_sub(1);
-        //let max_amount = last line - current line;
-        //self.move_vertically(amount.min(max_amount), text, Movement::Extend, Direction::Forward, semantics)   //or perform this saturation in move_vertically, and return SameState error if saturated amount == 0
-        self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Extend, Direction::Forward, semantics)
+        //let last_line = text.len_lines().saturating_sub(1);
+        let current_line = text.char_to_line(self.cursor(text, semantics));
+        
+        //ensure amount passed to move_vertically is always valid input
+        let amount = client_view.height().saturating_sub(1);
+        let max_amount = last_line.saturating_sub(current_line);
+        let saturated_amount = amount.min(max_amount);
+        if saturated_amount == 0{Err(SelectionError::ResultsInSameState)}
+        else{self.move_vertically(saturated_amount, text, Movement::Extend, Direction::Forward, semantics)}
+        //self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Extend, Direction::Forward, semantics)
     }
 
     /// Returns a new instance of [`Selection`] with the cursor moved to the start of the document.
     pub fn move_doc_start(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        self.assert_invariants(text, semantics);
         if self.cursor(text, semantics) == 0{return Err(SelectionError::ResultsInSameState);}
         self.put_cursor(0, text, Movement::Move, semantics, true)
     }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended to doc start.
     pub fn extend_doc_start(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        self.assert_invariants(text, semantics);
         if self.cursor(text, semantics) == 0{return Err(SelectionError::ResultsInSameState);}
         self.put_cursor(0, text, Movement::Extend, semantics, true)
     }
 
     /// Returns a new instance of [`Selection`] with the cursor moved to the end of the document.
     pub fn move_doc_end(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        self.assert_invariants(text, semantics);
         if self.cursor(text, semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
         self.put_cursor(text.len_chars(), text, Movement::Move, semantics, true)
     }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended to doc end.
     pub fn extend_doc_end(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{  //TODO: ensure this can't extend past doc text end
+        self.assert_invariants(text, semantics);
         if self.range.start == text.len_chars()
         || self.range.end == text.len_chars()
         || self.cursor(text, semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
@@ -638,8 +694,9 @@ impl Selection{
     //TODO: make pub fn select_line //should this include newline at end of line? //should this include indentation at start of line? //vscode includes both, as does kakoune
     //TODO: if called on empty last line, this moves the selection to second to last line end, instead it should error
     pub fn select_line(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
+        self.assert_invariants(text, semantics);
         //vs code selects all spanned lines...  maybe caller can make that determination...
-        if self.spans_multiple_lines(text, semantics){return Err(SelectionError::InvalidInput);}    //make specific error. SpansMultipleLines or something...
+        if self.spans_multiple_lines(text, semantics){return Err(SelectionError::SpansMultipleLines);}    //make specific error. SpansMultipleLines or something...
         if text.char_to_line(self.cursor(text, semantics)) == text.len_lines().saturating_sub(1){return Err(SelectionError::ResultsInSameState);}
 
         let line = text.char_to_line(self.range.start);
@@ -655,6 +712,7 @@ impl Selection{
 
     /// Returns a new instance of [`Selection`] with [`Selection`] extended to encompass all text.
     pub fn select_all(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{  //TODO: ensure this can't extend past doc text end
+        self.assert_invariants(text, semantics);
         if self.range.start == 0 && (self.range.end == text.len_chars() || self.range.end == text.len_chars().saturating_add(1)){return Err(SelectionError::ResultsInSameState);}
         let selection = self.put_cursor(0, text, Movement::Move, semantics, true)?;
         //selection.put_cursor(text.len_chars(), text, Movement::Extend, semantics, true)

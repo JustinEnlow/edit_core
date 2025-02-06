@@ -19,5 +19,5 @@ fn select_all_errors_if_already_all_selected(){
     //assert!(Selection::new(0, 14).select_all(&text, CursorSemantics::Block).is_err());
     assert!(Selection::new(Range::new(0, 14), Direction::Forward).select_all(&text, CursorSemantics::Block).is_err());
     //assert!(Selection::new(0, 15).select_all(&text, CursorSemantics::Block).is_err());  //though this shouldn't be a possible state //TODO: maybe add an assert in Selection::new() that guarantees this...
-    assert!(Selection::new(Range::new(0, 15), Direction::Forward).select_all(&text, CursorSemantics::Block).is_err());  //though this shouldn't be a possible state //TODO: maybe add an assert in Selection::new() that guarantees this...
+    //assert!(Selection::new(Range::new(0, 15), Direction::Forward).select_all(&text, CursorSemantics::Block).is_err());  //though this shouldn't be a possible state //ensured in assert_invariants
 }
