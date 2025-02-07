@@ -571,7 +571,7 @@ impl Selection{
         let line_number = text.char_to_line(self.cursor(text, semantics));
         let line_start = text.line_to_char(line_number);
 
-        if self.cursor(text, semantics) == line_start{return Err(SelectionError::ResultsInSameState);}    //TODO: test
+        if self.cursor(text, semantics) == line_start && !self.is_extended(semantics){return Err(SelectionError::ResultsInSameState);}    //TODO: test
         self.put_cursor(line_start, text, Movement::Move, semantics, true)
     }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended to the start of the current line.
@@ -592,7 +592,7 @@ impl Selection{
         let text_start_offset = text_util::first_non_whitespace_character_offset(text.line(line_number));
         let text_start = line_start.saturating_add(text_start_offset);  //nth_next_grapheme_index(line_start, text_start_offset, text)?
 
-        if self.cursor(text, semantics) == text_start{return Err(SelectionError::ResultsInSameState);}    //TODO: test
+        if self.cursor(text, semantics) == text_start && !self.is_extended(semantics){return Err(SelectionError::ResultsInSameState);}    //TODO: test
         self.put_cursor(text_start, text, Movement::Move, semantics, true)
     }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended to the start of the text on the current line.
