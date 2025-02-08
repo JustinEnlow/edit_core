@@ -13,7 +13,8 @@ pub enum SelectionsError{
     SpansMultipleLines,
     CannotAddSelectionAbove,
     CannotAddSelectionBelow,
-    NoSearchMatches
+    NoSearchMatches,
+    ResultsInSameState
 }
 /// A collection of [`Selection`]s. 
 /// used in place of [Vec]<[`Selection`]> to ensure certain guarantees are enforced
@@ -480,7 +481,7 @@ impl Selections{
                 Err(e) => {
                     match e{
                         SelectionError::ResultsInSameState => {
-                            if self.count() == 1{return Err(SelectionsError::CannotAddSelectionAbove)}  //TODO: impl SameState Error for Selections
+                            if self.count() == 1{return Err(SelectionsError::ResultsInSameState)}
                             new_selections.push(selection.clone()); //retains selections with no change resulting from move_fn
                         }
                         //TODO: figure out what to do with other errors, if they can even happen...
@@ -497,7 +498,7 @@ impl Selections{
         if let Ok(merged_selections) = new_selections.merge_overlapping(text, semantics){
             new_selections = merged_selections;
         }
-        if &new_selections == self{return Err(SelectionsError::CannotAddSelectionAbove);}    //TODO: impl SameState Error for Selections     //this should handle multicursor at doc end and another extend all the way right at text and, and no same state error
+        if &new_selections == self{return Err(SelectionsError::ResultsInSameState);}    //this should handle multicursor at doc end and another extend all the way right at text and, and no same state error
         Ok(new_selections)
     }
     
@@ -527,7 +528,7 @@ impl Selections{
                 }
             }
         }
-        if !movement_succeeded{return Err(SelectionsError::CannotAddSelectionAbove)}    //TODO: impl SameState Error for Selections
+        if !movement_succeeded{return Err(SelectionsError::ResultsInSameState)}
         let new_selections = Selections::new(new_selections, self.primary_selection_index, text);
         Ok(new_selections)
     }
@@ -549,7 +550,7 @@ impl Selections{
             }
             Err(e) => {
                 match e{
-                    SelectionError::ResultsInSameState => {return Err(SelectionsError::CannotAddSelectionAbove);}   //TODO: impl SameState Error for Selections
+                    SelectionError::ResultsInSameState => {return Err(SelectionsError::ResultsInSameState);}
                     //figure out what to do with other errors, if they can even happen...
                     SelectionError::DirectionMismatch |
                     SelectionError::SpansMultipleLines |//InvalidInput |
@@ -577,7 +578,7 @@ impl Selections{
                 Err(e) => {
                     match e{
                         SelectionError::ResultsInSameState => {
-                            if self.count() == 1{return Err(SelectionsError::CannotAddSelectionAbove)}  //TODO: impl SameState Error for Selections
+                            if self.count() == 1{return Err(SelectionsError::ResultsInSameState)}
                             new_selections.push(selection.clone()); //retains selections with no change resulting from move_fn
                         }
                         //TODO: figure out what to do with other errors, if they can even happen...
