@@ -719,6 +719,9 @@ impl Selection{
         selection.put_cursor(match semantics{CursorSemantics::Bar => text.len_chars(), CursorSemantics::Block => text_util::previous_grapheme_index(text.len_chars(), text)}, text, Movement::Extend, semantics, true)
     }
 
+    //TODO: make smart_select_grow  //grows selection to ecompass next largest text object(word -> long_word -> long_word+surrounding punctuation or whitespace -> inside brackets -> line -> paragraph -> all)
+    //TODO: make smart_select_shrink    //opposite of above
+
     //TODO: make pub fn select_inside   //for bracket pairs and the like
     //TODO: impl and test
     //TODO: future improvement: for each char search loop, spawn a thread to do the search, so we can process them simultaneously.
