@@ -436,10 +436,12 @@ impl Selection{
         }
     }
 
+    //TODO: maybe all movement functions need to check for extension for same state check. like move left
+
     /// Returns a new instance of [`Selection`] with cursor moved left.
     pub fn move_left(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
         self.assert_invariants(text, semantics);
-        if self.cursor(text, semantics) == 0{return Err(SelectionError::ResultsInSameState);}
+        if !self.is_extended(semantics) && self.cursor(text, semantics) == 0{return Err(SelectionError::ResultsInSameState);}
         self.move_horizontally(1, text, Movement::Move, Direction::Backward, semantics)
     }
     /// Returns a new instance of [`Selection`] with the [`Selection`] extended to the left.
@@ -725,7 +727,10 @@ impl Selection{
     //TODO: make pub fn select_inside   //for bracket pairs and the like
     //TODO: impl and test
     //TODO: future improvement: for each char search loop, spawn a thread to do the search, so we can process them simultaneously.
-    pub fn select_inside_instances_of_single_char(&self, input: char, text: &Rope) -> Result<Self, SelectionError>{
+    //TODO: error if searching backwards and reach previous selection range end, or if searching forward and reach next selection range start   //maybe this logic needs to be in selections
+        //should operate over a rope slice from (start of doc if no previous selection, or previous selection end) to (end of doc text if no next selection, or next selection start)
+    /// Returns a new [`Selection`] inside but excluding specified input char.
+    pub fn select_inside_instances_of_single_char(&self, input: char, text: &Rope) -> Result<Self, SelectionError>{     //TODO: this is really more of a "search around selection for instances of single char"
         let mut new_selection = self.clone();
         
         //second version
@@ -754,8 +759,8 @@ impl Selection{
             Err(SelectionError::ResultsInSameState)
         }
     }
-    //fn select_inside_pair(){}             //search between any 2 chars, frontend can determine how pairs are defined
-    pub fn select_inside_pair(&self, leading_char: char, trailing_char: char, text: &Rope) -> Result<Self, SelectionError>{
+    /// Returns a new [`Selection`] inside but excluding specified char pair.
+    pub fn select_inside_pair(&self, leading_char: char, trailing_char: char, text: &Rope) -> Result<Self, SelectionError>{     //TODO: this is really more of a "search around selection for char pair"
         let mut new_selection = self.clone();
 
         let mut found_backward = false;
@@ -786,7 +791,6 @@ impl Selection{
     //fn select_inside_text_object(){}    //for paragraphs, words, and the like
     
     //TODO: make pub fn select_until    //extend selection until provided character/string is selected (should have one for forwards and one for backwards)
-    //TODO: make pub fn split           //split current selection at specified input string. error if input string not contained, empty, etc.
     
     /// Returns a [`Vec`] of [`Selection`]s where the underlying text is a match for the `input` search string.
     #[must_use] pub fn search(&self, input: &str, text: &Rope) -> Vec<Selection>{   //text should be the text within a selection, not the whole document text       //TODO: -> Result<Vec<Selection>>
@@ -815,9 +819,7 @@ impl Selection{
         selections
     }
 
-    //           1         2
-    // 012345678901234567890123456789
-    // fn idk(idk: Idk, shit: Shit){        test string
+    /// Returns a [`Vec`] of [`Selection`]s containing each part of the current selection except the split pattern.
     pub fn split(&self, pattern: &str, text: &Rope) -> Vec<Selection>{
         let mut selections = Vec::new();
         if let Ok(regex) = Regex::new(pattern){

@@ -2,7 +2,7 @@ use ropey::Rope;
 use crate::range::Range;
 use crate::selection::{Selection, Direction};
 
-#[test] fn idk(){
+#[test] fn select_inside_instances_of_single_char(){
                                //0123456789012
     let text = Rope::from("  something  ");
     //let selection = Selection::new(5, 6);
