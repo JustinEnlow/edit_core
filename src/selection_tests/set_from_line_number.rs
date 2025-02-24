@@ -46,3 +46,8 @@ fn set_from_line_number(){
 //    //assert!(Selection::new(0, 1).set_from_line_number(5, &text, Movement::Move, CursorSemantics::Block).is_err());
 //    assert!(Selection::new(Range::new(0, 1), Direction::Forward).set_from_line_number(5, &text, Movement::Move, CursorSemantics::Block).is_err());
 //}
+
+#[test] fn should_error_if_results_in_same_state(){
+    let text = Rope::from("idk\nsome\nshit\n");
+    assert!(Selection::new(Range::new(0, 1), Direction::Forward).set_from_line_number(0, &text, Movement::Move, CursorSemantics::Block).is_err());
+}

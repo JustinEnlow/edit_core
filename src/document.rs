@@ -1,7 +1,7 @@
-//! Defines a `Document` structure, representing a text document with support for text manipulation.
+//! Defines a `Document` structure, representing a text document with support for text manipulation.        //TODO: this should prob be buffer instead, to express the idea that we are working on a virtual representation of the file, and not the file itself, at least until changes are saved.
 //!
 //! This module contains constants, types, and functions for manipulating text within a document, including:
-//! - Basic document operations like insert, delete, replace, undo, redo
+//! - Basic document operations like insert, delete, replace, undo, redo    //undo/redo just use insert/delete/replace also, so this may be redundant/unnecessary...
 //! - Management of selections and cursor positioning
 //! - Handling of different tab styles and file paths
 
@@ -526,6 +526,25 @@ impl Document{
     //TODO: make pub fn rotate_selected_text
 
     //TODO: impl movement fns
+    //pub fn flip_selections_direction(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+    //    match self.selections.move_cursor_non_overlapping(&self.text, semantics, Selection::flip_direction){
+    //        Ok(new_selections) => {self.selections = new_selections;}
+    //        Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+    //    }
+    //    Ok(())
+    //}
+    pub fn move_to_line_number(&mut self, line_number: usize, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        //assert!(line_number > 0);
+        //let line_number = line_number.saturating_sub(1);    //convert to zero based //should this conversion really be happening on the back end?
+        if line_number >= self.text.len_lines(){return Err(DocumentError::InvalidInput);}
+        
+        if let Ok(()) = self.clear_non_primary_selections(){};
+        match self.selections.primary().set_from_line_number(line_number, &self.text, Movement::Move, semantics){
+            Ok(new_selection) => {*self.selections_mut().primary_mut() = new_selection;}
+            Err(_) => {return Err(DocumentError::InvalidInput);}    //should be same state error
+        }
+        Ok(())
+    }
     pub fn move_cursor_up(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
         match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, Selection::move_up){
             Ok(new_selections) => {self.selections = new_selections;}

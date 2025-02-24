@@ -356,6 +356,8 @@ impl Selection{
     pub fn set_from_line_number(&self, line_number: usize, text: &Rope, movement: Movement, semantics: CursorSemantics) -> Result<Self, SelectionError>{
         self.assert_invariants(text, semantics);
         assert!(line_number < text.len_lines());
+
+        if line_number == text.char_to_line(self.cursor(text, semantics)){return Err(SelectionError::ResultsInSameState);}
         
         let current_line = text.char_to_line(self.cursor(text, semantics));
         let (amount, direction) = if line_number < current_line{

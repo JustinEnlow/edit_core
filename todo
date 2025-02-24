@@ -3,6 +3,7 @@ always ensure:
     make movements/edits that result in the same state return an error. this allows the front end application to decide whether to display a warning message, giving visual feedback
 
 all:
+    //maybe usize is fine...
     [ ] determine a reasonable unsigned integer size to be used throughout, instead of usize.
 
 Document:
@@ -26,10 +27,41 @@ Selection:
     [ ] add extend to paragraph end     //ctrl + shift + end
 
 Selections:
-    [ ] add selection above/below, when cursor moved to line text end and then moved up/down, has strange stored line position(possibly because vertical movement does not update stored line position).
+    // i think this has been resolved...
+    [x] add selection above/below, when cursor moved to line text end and then moved up/down, has strange stored line position(possibly because vertical movement does not update stored line position).
         //we may need to update stored line position in add selection above/below, before actually adding the new selection...
 
 
 
 
 note: tests for future features are currently ignored and have unimplemented test bodies. use "cargo test -- --ignored" to run the tests to find where they are.
+
+
+
+
+
+// considerations for future shit
+    rope can be built from segment/sum tree to allow for summation of various data points, or we could just store all of those in selection?...
+        byte coordinates
+        char coordinates
+        utf-8 grapheme coordinates  (this should be our default)
+        utf-16 grapheme coordinates (for lsp?)
+        screen(terminal?) coordinates       //sum unicode width of graphemes, or user defined width if hard tabs
+            what happens when non extended block cursor is over grapheme wider than single terminal cell?...
+
+            range could be coordinate agnostic
+            selection would use utf-8 grapheme coordinates by default, but other coordinate system conversions could be called.
+                could hold coordinates for all coordinate systems in selection
+
+                what do i want the use of this to look like?
+                    selections.primary().head.indexed_by_utf8_grapheme()        or head.as_utf8_grapheme_index()    or really, this would just be .head, since this is the default
+                    selections.primary().anchor.indexed_by_utf16_grapheme()     or anchor.as_utf16_grapheme_index()
+                    selections.primary().range.start.indexed_by_byte()          or start.as_byte_index()
+                    selections.primary().range.end.indexed_by_char()            or end.as_char_index()
+
+    we want to operate on unicode graphemes
+    single grapheme can be made up of multiple code points, chars, or bytes
+    single grapheme can be more than one terminal cell
+
+
+    view.rs line_numbers fn should have toggle/flag for absolute/relative line numbers
