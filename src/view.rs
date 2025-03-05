@@ -182,6 +182,9 @@ impl View{
 
         Ok(Self::new(self.horizontal_start, new_vertical_start, self.width, self.height))
     }
+    //TODO: pub fn center_horizontally_around_cursor
+    //TODO: pub fn align_with_cursor_at_top
+    //TODO: pub fn align_with_cursor_at_bottom
 
     /// Returns a `String` containing the text that can be contained within [`View`] boundaries.
     // TODO: need to handle displaying TAB_WIDTH spaces instead of a "\t" character.
@@ -243,6 +246,10 @@ impl View{
         }
 
         line_numbers_vec.join("\n") // Join with newline
+    }
+    /// Returns a `String` containing the line numbers, relative to the primary cursor, of the text that can be contained within [`View`] boundaries.
+    #[must_use] pub fn relative_line_numbers(&self, text: &Rope) -> String{
+        String::new()
     }
 
     /// Returns a [`Vec`] of [`Selection2d`]s that represent [`Selection`]s with any portion of itself within the boundaries of [`View`].

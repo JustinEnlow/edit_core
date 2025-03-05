@@ -419,6 +419,7 @@ impl Selections{
             Ok(Selections::new(new_selections, primary_selection_index, text))
         }
     }
+    //TODO: pub fn search_whole_text
 
     //TODO: impl tests in src/selections_tests
     pub fn split(&self, input: &str, text: &Rope) -> Result<Self, SelectionsError>{
