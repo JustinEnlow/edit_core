@@ -7,8 +7,12 @@ use crate::{
 
 
 
-//TODO: extension fns should not extend to 1 past doc end, because there are no selectable graphemes there.
-// this is ok for movement fns, because the cursor needs to be able to move there to insert new graphemes.
+//TODO: can any of this functionality be implemented outside of this crate? 
+//user could implement new functionality using core primitives, or exclude any undesired functionality
+//should still be useable with `Selections` as long as custom impls retain this structure:
+    //Fn(&Selection, &Rope, CursorSemantics) -> Result<Selection, SelectionError>   //move_fn(selection, text, semantics)
+    //or
+    //Fn(&Selection, &Rope, &View, CursorSemantics) -> Result<Selection, SelectionError>    //move_fn(selection, text, view, semantics)
 
 
 
@@ -368,6 +372,7 @@ impl Selection{
         self.move_vertically(amount, text, movement, direction, semantics)
     }
 
+    //TODO: we should allow collapsing to cursor, or collapse to anchor
     /// Returns a new instance of [`Selection`] with `anchor` aligned with cursor.
     pub fn collapse(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
         self.assert_invariants(text, semantics);

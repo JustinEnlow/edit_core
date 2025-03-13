@@ -7,6 +7,10 @@ all:
     [ ] determine a reasonable unsigned integer size to be used throughout, instead of usize.
 
 Document:
+    [ ] implement undo grouping:
+        if several characters are typed consecutively without repositioning the cursor, they must be treated as a unit for undo and redo
+        a single undo must undo all of the characters.
+        if several characters are deleted with backspace or delete, all of these must also be treated as a unit for undo and redo
     [ ] determine what to do when current file tab width is different than desired tab width, if we do anything at all
         - hard tabs shouldn't change anything we do, but soft tabs might
     [ ] handle auto-indent on newline insertion
@@ -22,8 +26,8 @@ Selection:
     [ ] select inside inclusive (instances of single char, or matched pair of chars)    //does this have to be triggered when primary cursor is inside match, or can we select next/previous match pair
     [ ] select inside exclusive (instances of single char, or matched pair of chars)    //does this have to be triggered when primary cursor is inside match, or can we select next/previous match pair
     [ ] select surrounding (instances of single char, matched pair of chars, text object)   //does this have to be triggered when primary cursor is inside match, or can we select next/previous match pair
-    [ ] add search forward  (match and select a single next instance of search input, but can be used with multiselections)
-    [ ] add search backward (match and select a single previous instance of search input, but can be used with multiselections)
+        //may not implement [ ] add search forward  (match and select a single next instance of search input, but can be used with multiselections)
+        //may not implement [ ] add search backward (match and select a single previous instance of search input, but can be used with multiselections)
     // paragraph is a newline delimited block of text   (example: idk\nsome\nshit\n\nsomething\nelse\n) (paragraphs are "idk\nsome\nshit\n" and "something\nelse\n")
     [ ] add move to paragraph start     //ctrl + home   (move doc start will need to become ctrl + page up)
     [ ] add move to paragraph end       //ctrl + end    (mode doc end will need to become ctrl + page down)

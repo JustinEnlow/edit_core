@@ -243,7 +243,7 @@ impl Selections{
         })
     }
 
-    //TODO: add selection above/below fns don't work as expected when multipled selections on same line. only adds primary selection range above/below
+    //TODO: add selection above/below fns don't work as expected when multiple selections on same line. only adds primary selection range above/below
 
     /// Adds a new [`Selection`] directly above the top-most [`Selection`], with the same start and end offsets from line start, if possible.
     pub fn add_selection_above(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionsError>{
