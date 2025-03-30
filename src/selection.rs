@@ -731,6 +731,151 @@ impl Selection{
     //TODO: make smart_select_grow  //grows selection to ecompass next largest text object(word -> long_word -> long_word+surrounding punctuation or whitespace -> inside brackets -> sentence -> line -> paragraph -> all)
     //TODO: make smart_select_shrink    //opposite of above
 
+    //TODO: this will have to change. this allows us to surround with the same character(like ""), but not with different characters(like {})
+    pub fn surround(&self, text: &Rope) -> Vec<Selection>{
+        let mut surround_selections = Vec::new();
+        if self.range.start == text.len_chars(){return surround_selections;}
+        let first_selection = Selection::new(Range::new(self.range.start, text_util::next_grapheme_index(self.range.start, text)), Direction::Forward);
+        let second_selection = Selection::new(Range::new(self.range.end, text_util::next_grapheme_index(self.range.end, text)), Direction::Forward);
+        surround_selections.push(first_selection);
+        surround_selections.push(second_selection);
+        surround_selections
+    }
+
+    //TODO: maybe front end should pass in their view of what is a valid surrounding pair, then we can match those...to make this as flexible as possible
+    //TODO: think about how surrounding quotation pairs should be handled
+    /// Returns a new pair of [`Selection`]s with each selection over the nearest surrounding grapheme pair, if possible
+    /// valid pairs:    //maybe add ':', '*'
+    /// { }
+    /// ( )
+    /// [ ]
+    /// < >
+    /// ' '
+    /// " "
+    /// test string: "idk(some[] thing {}else) idk"
+    ///|i>d k ( s o m e [ ] _ t h i n g _ { } e l s e ) _ i d k     //no surrounding pair with cursor at this location
+    /// i d k ( s|o>m e [ ] _ t h i n g _ { } e l s e ) _ i d k     //paren surrounding pair with cursor at this location
+    /// i d k ( s o m e|[>] _ t h i n g _ { } e l s e ) _ i d k     //square bracket surrounding pair with cursor at this location
+    /// i d k ( s o m e [ ] _ t h|i>n g _ { } e l s e ) _ i d k     //paren surrounding pair with cursor at this location
+    /// i d k ( s o m e [ ] _ t h i n g _ {|}>e l s e ) _ i d k     //curly bracket surrounding pair with cursor at this location
+    /// i d k ( s o m e [ ] _ t h i n g _ { } e l s e ) _ i|d>k     //no surrounding pair with cursor at this location
+    pub fn nearest_surrounding_pair(&self, text: &Rope) -> Vec<Selection>{
+        //idk(some[] thing {}else) idk
+        //idk(some()t(h(i)n)g()else)    //test from multiple levels of same surrounding pair
+        //test with non balanced brackets
+            //(bracket at start
+            //bracket at end)
+        let mut rev_search_index = self.range.start;
+        'outer: loop{
+            let current_char = text.char(rev_search_index);
+            if Self::is_opening_bracket(current_char){
+                let opening_char = current_char;
+                let closing_char = Self::get_matching_closing_bracket(opening_char);
+                let mut match_stack = Vec::new();
+                let mut search_index = rev_search_index;
+                'inner: loop{
+                    let current_char = text.char(search_index);
+                    //if opening_char == closing_char{  //search before cursor for previous instance of char, then after cursor for next instance. ignore hierarchy because i'm not sure we can parse that...
+                    //    if current_char == closing_char{
+                    //        if match_stack.is_empty(){
+                    //            match_stack.push(current_char);
+                    //        }
+                    //        else{
+                    //            return vec![
+                    //                Selection::new(Range::new(rev_search_index, text_util::next_grapheme_index(rev_search_index, text)), Direction::Forward),
+                    //                Selection::new(Range::new(search_index, text_util::next_grapheme_index(search_index, text)), Direction::Forward)
+                    //            ];
+                    //        }
+                    //    }
+                    //    else{/*do nothing. index will be incremented below...*/}
+                    //}
+                    //else{
+                        if current_char == opening_char{
+                            match_stack.push(current_char);
+                        }
+                        else if current_char == closing_char{
+                            match_stack.pop();
+                            if match_stack.is_empty(){
+                                if search_index >= self.range.start{
+                                    return vec![
+                                        Selection::new(Range::new(rev_search_index, text_util::next_grapheme_index(rev_search_index, text)), Direction::Forward),
+                                        Selection::new(Range::new(search_index, text_util::next_grapheme_index(search_index, text)), Direction::Forward)
+                                    ];
+                                }
+                                else{break 'inner;}
+                            }
+                            else{/*do nothing. index will be incremented below...*/}
+                        }
+                    //}
+                    
+                    search_index = search_index + 1;
+
+                    if search_index >= text.len_chars(){break 'outer;}
+                }
+            }
+            //else{ //is else really needed here?...
+                rev_search_index = rev_search_index.saturating_sub(1);
+            //}
+
+            if rev_search_index == 0{break 'outer;}
+        }
+
+        Vec::new()
+    }
+    fn is_opening_bracket(char: char) -> bool{  //TODO: this should prob be in text_util.rs
+        char == '{'
+        || char == '('
+        || char == '['
+        || char == '<'
+        //|| char == '\''
+        //|| char == '"'
+    }
+    fn get_matching_closing_bracket(char: char) -> char{    //TODO: this should prob be in text_util.rs
+        if char == '{'{'}'}
+        else if char == '('{')'}
+        else if char == '['{']'}
+        //else if char == '\''{'\''}
+        //else if char == '"'{'"'}
+        else{panic!();} //TODO: maybe return None, or an error?...
+    }
+
+    //may still have this be a part of nearest_surrounding_pair instead...
+    pub fn nearest_quote_pair(&self, text: &Rope) -> Vec<Selection>{
+        //something"idk"else
+        let mut rev_search_index = self.range.start;
+        'outer: loop{
+            let current_char = text.char(rev_search_index);
+            if Self::is_quote_char(current_char){
+                let quote_char = current_char;
+                let mut match_stack = Vec::new();
+                let mut search_index = rev_search_index;
+                'inner: loop{
+                    let current_char = text.char(search_index);
+                    if current_char == quote_char{
+                        if match_stack.is_empty(){
+                            match_stack.push(current_char);
+                        }
+                        else{
+                            return vec![
+                                Selection::new(Range::new(rev_search_index, text_util::next_grapheme_index(rev_search_index, text)), Direction::Forward),
+                                Selection::new(Range::new(search_index, text_util::next_grapheme_index(search_index, text)), Direction::Forward)
+                            ];
+                        }
+                    }
+                    search_index = search_index + 1;
+                    if search_index >= text.len_chars(){break 'outer;}
+                }
+            }
+            rev_search_index = rev_search_index.saturating_sub(1);
+            if rev_search_index == 0{break 'outer;}
+        }
+        Vec::new()
+    }
+    fn is_quote_char(char: char) -> bool{
+        char == '\''
+        || char == '"'
+    }
+
     //TODO: impl and test
     //TODO: future improvement: for each char search loop, spawn a thread to do the search, so we can process them simultaneously.
     //TODO: error if searching backwards and reach previous selection range end, or if searching forward and reach next selection range start   //maybe this logic needs to be in selections

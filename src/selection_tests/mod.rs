@@ -48,6 +48,8 @@ mod move_doc_end;
 mod extend_doc_end;
 mod select_line;
 mod select_all;
+mod surround;
+mod nearest_surrounding_pair;
 mod select_inside;
 mod search;
 mod split;

@@ -391,6 +391,56 @@ impl Selections{
         }
     }
 
+    pub fn surround(&self, text: &Rope) -> Result<Self, SelectionsError>{
+        let mut new_selections = Vec::with_capacity(2*self.count());
+        let mut num_pushed: usize = 0;
+        let primary_selection = self.primary();
+        let mut primary_selection_index = self.primary_selection_index;
+        for selection in &self.selections{
+            let surrounds = selection.surround(text);
+            if selection == primary_selection{
+                primary_selection_index = num_pushed;//.saturating_sub(1);
+            }
+            for surround in surrounds{
+                new_selections.push(surround);
+                num_pushed = num_pushed + 1;
+            }
+        }
+        if new_selections.is_empty(){Err(SelectionsError::ResultsInSameState)} //TODO: create better error?...
+        else{
+            Ok(Selections::new(new_selections, primary_selection_index, text))
+        }
+    }
+
+    //TODO: for some reason, repeated calls after successfully selecting bracket pair do not return same state error...
+    pub fn nearest_surrounding_pair(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionsError>{
+        let mut new_selections = Vec::with_capacity(2*self.count());
+        let mut num_pushed: usize = 0;
+        let primary_selection = self.primary();
+        let mut primary_selection_index = self.primary_selection_index;
+        for selection in &self.selections{
+            let surrounds = selection.nearest_surrounding_pair(text);
+            if selection == primary_selection{
+                primary_selection_index = num_pushed;
+            }
+            if surrounds.is_empty(){//push selection
+                new_selections.push(selection.clone());
+                num_pushed = num_pushed + 1;
+            }
+            else{//push surrounds
+                for surround in surrounds{
+                    new_selections.push(surround);
+                    num_pushed = num_pushed + 1;
+                }
+            }
+        }
+        if new_selections.is_empty() || new_selections == self.selections{Err(SelectionsError::ResultsInSameState)}
+        else{
+            //Ok(Selections::new(new_selections, primary_selection_index, text))
+            Selections::new(new_selections, primary_selection_index, text).merge_overlapping(text, semantics)
+        }
+    }
+
     //TODO: maybe. if no selection extended, search whole text
     /// 
     /// # Errors

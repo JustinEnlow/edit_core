@@ -50,7 +50,7 @@ pub struct Document{
     file_path: Option<PathBuf>,
     //modified: bool,
     selections: Selections, //Hashmap<ClientID, Selections>
-    client_view: View,      //Hashmap<ClientID, View>
+    client_view: View,      //Hashmap<ClientID, View>       //TODO: client should pass view as param where needed, instead of storing this. this ensures a single source of truth (the client)
     undo_stack: Vec<ChangeSet>,
     redo_stack: Vec<ChangeSet>,
     last_saved_text: Rope,
@@ -807,6 +807,20 @@ impl Document{
         match self.selections.decrement_primary_selection(){
             Ok(new_selections) => {self.selections = new_selections;}
             Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
+        }
+        Ok(())
+    }
+    pub fn surround(&mut self) -> Result<(), DocumentError>{
+        match self.selections.surround(&self.text){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e));}
+        }
+        Ok(())
+    }
+    pub fn nearest_surrounding_pair(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
+        match self.selections.nearest_surrounding_pair(&self.text, semantics){
+            Ok(new_selections) => {self.selections = new_selections;}
+            Err(e) => {return Err(DocumentError::SelectionsError(e));}
         }
         Ok(())
     }
