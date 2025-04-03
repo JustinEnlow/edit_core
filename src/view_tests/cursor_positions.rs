@@ -4,7 +4,7 @@ use crate::selection::{Selection, CursorSemantics, Direction};
 use crate::selections::Selections;
 use crate::view::View;
 use crate::document::Document;
-use crate::Position;
+use crate::position::Position;
 
 fn test(selection: Selection, expected: Vec<Position>, view: View, semantics: CursorSemantics) -> bool{
     let text = Rope::from("idk\nsome\nshit\n");

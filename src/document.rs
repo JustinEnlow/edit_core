@@ -44,9 +44,9 @@ pub enum DocumentError{
     InvalidInput,
     SelectionsError(SelectionsError)
 }
-/// Holds the document's text, selection data, and other state like undo/redo stacks and clipboard.
+/// Holds the document instance's text, selection data, and other state like undo/redo stacks and clipboard.
 pub struct Document{
-    text: Rope,
+    text: Rope, //the actual text buffer being edited
     file_path: Option<PathBuf>,
     //modified: bool,
     selections: Selections, //Hashmap<ClientID, Selections>
@@ -568,6 +568,7 @@ impl Document{
     }
     pub fn move_cursor_right(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
         match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, Selection::move_right){
+        //match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, crate::selection::movement::move_right){
             Ok(new_selections) => {self.selections = new_selections;}
             Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
         }
@@ -629,6 +630,7 @@ impl Document{
         }
         Ok(())
     }
+    //TODO: maybe functions that use self.view() should take an area(height + width) instead?...
     pub fn move_cursor_page_up(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
         match self.selections.move_cursor_page(&self.text, self.view(), semantics, Selection::move_page_up){
             Ok(new_selections) => {self.selections = new_selections;}

@@ -3,9 +3,11 @@ use crate::range::Range;
 use crate::selection::{CursorSemantics, Selection};
 use crate::selection2d::Selection2d;
 use crate::selections::Selections;
-use crate::Position;
+use crate::position::Position;
 
-
+// note: not relevant to current implementation. just my intuition regarding how this ought to be considered
+// in the context of a view(or view block), a range should represent an index pair over terminal cells.
+// this may conflict with the buffers idea of a range representing an index pair over graphemes(which can span multiple terminal cells)
 
 #[derive(Debug, PartialEq)]
 pub enum ViewError{
@@ -14,6 +16,10 @@ pub enum ViewError{
 }
 /// The dimensions of the area a client has for displaying a document
 /// origin is top left
+/// 
+/// the client should be the single source of truth for width + height, so maybe those should be passed in to relevant functions instead...
+/// however, horizontal_start + vertical_start need to be held in core, because the client does not have a full view of the
+/// text buffer, and some core functionality needs to modify these values
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct View{
     /// from left to right
@@ -222,7 +228,7 @@ impl View{
     #[must_use] pub fn text(&self, text: &Rope) -> String{
         let view_blocks = self.view_blocks(text, false);
         let mut client_view_text = String::new();
-    
+
         for view_block in &view_blocks{ //view_blocks.iter(){   //change suggested by clippy lint
             client_view_text.push_str(&text.slice(view_block.start..view_block.end).to_string());
             client_view_text.push('\n');
@@ -282,7 +288,8 @@ impl View{
         selections_in_view
     }
 
-    /// Maps a [`View`] as a [`Vec`] of [`Selection`]s over a text rope.
+    /// Maps a [`View`] as a [`Vec`] of [`Range`]s over a text rope.
+    /// This transforms the idea of a view from 2d to 1d, one view block per terminal row, and trims excess empty cells from each row.
     // should this include newlines('\n') in its width calculation? maybe pass in include_newline bool?
     // we want to highlight newlines as well
     // but that may mess with the logic for "empty" lines...idk

@@ -2,7 +2,7 @@
 use ropey::Rope;
 use regex::Regex;
 use crate::{
-    text_util, view::View, Position, selection2d::Selection2d, range::Range
+    text_util, view::View, position::Position, selection2d::Selection2d, range::Range
 };
 
 
@@ -42,6 +42,8 @@ pub enum SelectionError{        //or should each fallible fn have its own fn spe
 /// 1 dimensional representation of a single selection(between anchor and head) within a text rope.
 /// a cursor is a selection with an anchor/head difference of 0 or 1(depending on cursor semantics)
 /// Should ensure head/anchor are always within text bounds
+/// Ideally, ranges within a selection would represent the index over graphemes in the underlying text.
+/// Currently, ranges represent the index over characters in the underlying text.
 #[derive(PartialEq, Clone, Debug)]
 pub struct Selection{
     pub range: Range,
@@ -372,12 +374,14 @@ impl Selection{
         self.move_vertically(amount, text, movement, direction, semantics)
     }
 
-    //TODO: we should allow collapsing to cursor, or collapse to anchor
+    //TODO: we should allow collapsing to anchor, or collapse to anchor collapse(&self, text: &Rope, semantics: CursorSemantics, collapse_target: Anchor)
     /// Returns a new instance of [`Selection`] with `anchor` aligned with cursor.
     pub fn collapse(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
         self.assert_invariants(text, semantics);
         if !self.is_extended(semantics){return Err(SelectionError::ResultsInSameState);}
         self.put_cursor(self.cursor(text, semantics), text, Movement::Move, semantics, true)
+        //if we want collapse to anchor:
+        //self.put_cursor(self.anchor, text, Movement::Move, semantics, true)
     }
 
     /// Returns a new instance of [`Selection`] with cursor moved right.
@@ -742,6 +746,7 @@ impl Selection{
         surround_selections
     }
 
+    //TODO: maybe this should be implemented with treesitter, so irrelevant pairs(like ' characters inside words(like don't)) aren't matched
     //TODO: maybe front end should pass in their view of what is a valid surrounding pair, then we can match those...to make this as flexible as possible
     //TODO: think about how surrounding quotation pairs should be handled
     /// Returns a new pair of [`Selection`]s with each selection over the nearest surrounding grapheme pair, if possible
@@ -775,21 +780,21 @@ impl Selection{
                 let mut search_index = rev_search_index;
                 'inner: loop{
                     let current_char = text.char(search_index);
-                    //if opening_char == closing_char{  //search before cursor for previous instance of char, then after cursor for next instance. ignore hierarchy because i'm not sure we can parse that...
-                    //    if current_char == closing_char{
-                    //        if match_stack.is_empty(){
-                    //            match_stack.push(current_char);
-                    //        }
-                    //        else{
-                    //            return vec![
-                    //                Selection::new(Range::new(rev_search_index, text_util::next_grapheme_index(rev_search_index, text)), Direction::Forward),
-                    //                Selection::new(Range::new(search_index, text_util::next_grapheme_index(search_index, text)), Direction::Forward)
-                    //            ];
-                    //        }
-                    //    }
-                    //    else{/*do nothing. index will be incremented below...*/}
-                    //}
-                    //else{
+                    if opening_char == closing_char{  //search before cursor for previous instance of char, then after cursor for next instance. ignore hierarchy because i'm not sure we can parse that...
+                        if current_char == closing_char{
+                            if match_stack.is_empty(){
+                                match_stack.push(current_char);
+                            }
+                            else{
+                                return vec![
+                                    Selection::new(Range::new(rev_search_index, text_util::next_grapheme_index(rev_search_index, text)), Direction::Forward),
+                                    Selection::new(Range::new(search_index, text_util::next_grapheme_index(search_index, text)), Direction::Forward)
+                                ];
+                            }
+                        }
+                        else{/*do nothing. index will be incremented below...*/}
+                    }
+                    else{
                         if current_char == opening_char{
                             match_stack.push(current_char);
                         }
@@ -806,7 +811,7 @@ impl Selection{
                             }
                             else{/*do nothing. index will be incremented below...*/}
                         }
-                    //}
+                    }
                     
                     search_index = search_index + 1;
 
@@ -827,54 +832,54 @@ impl Selection{
         || char == '('
         || char == '['
         || char == '<'
-        //|| char == '\''
-        //|| char == '"'
+        || char == '\''
+        || char == '"'
     }
     fn get_matching_closing_bracket(char: char) -> char{    //TODO: this should prob be in text_util.rs
         if char == '{'{'}'}
         else if char == '('{')'}
         else if char == '['{']'}
-        //else if char == '\''{'\''}
-        //else if char == '"'{'"'}
+        else if char == '\''{'\''}
+        else if char == '"'{'"'}
         else{panic!();} //TODO: maybe return None, or an error?...
     }
 
     //may still have this be a part of nearest_surrounding_pair instead...
-    pub fn nearest_quote_pair(&self, text: &Rope) -> Vec<Selection>{
-        //something"idk"else
-        let mut rev_search_index = self.range.start;
-        'outer: loop{
-            let current_char = text.char(rev_search_index);
-            if Self::is_quote_char(current_char){
-                let quote_char = current_char;
-                let mut match_stack = Vec::new();
-                let mut search_index = rev_search_index;
-                'inner: loop{
-                    let current_char = text.char(search_index);
-                    if current_char == quote_char{
-                        if match_stack.is_empty(){
-                            match_stack.push(current_char);
-                        }
-                        else{
-                            return vec![
-                                Selection::new(Range::new(rev_search_index, text_util::next_grapheme_index(rev_search_index, text)), Direction::Forward),
-                                Selection::new(Range::new(search_index, text_util::next_grapheme_index(search_index, text)), Direction::Forward)
-                            ];
-                        }
-                    }
-                    search_index = search_index + 1;
-                    if search_index >= text.len_chars(){break 'outer;}
-                }
-            }
-            rev_search_index = rev_search_index.saturating_sub(1);
-            if rev_search_index == 0{break 'outer;}
-        }
-        Vec::new()
-    }
-    fn is_quote_char(char: char) -> bool{
-        char == '\''
-        || char == '"'
-    }
+    //pub fn nearest_quote_pair(&self, text: &Rope) -> Vec<Selection>{
+    //    //something"idk"else
+    //    let mut rev_search_index = self.range.start;
+    //    'outer: loop{
+    //        let current_char = text.char(rev_search_index);
+    //        if Self::is_quote_char(current_char){
+    //            let quote_char = current_char;
+    //            let mut match_stack = Vec::new();
+    //            let mut search_index = rev_search_index;
+    //            'inner: loop{
+    //                let current_char = text.char(search_index);
+    //                if current_char == quote_char{
+    //                    if match_stack.is_empty(){
+    //                        match_stack.push(current_char);
+    //                    }
+    //                    else{
+    //                        return vec![
+    //                            Selection::new(Range::new(rev_search_index, text_util::next_grapheme_index(rev_search_index, text)), Direction::Forward),
+    //                            Selection::new(Range::new(search_index, text_util::next_grapheme_index(search_index, text)), Direction::Forward)
+    //                        ];
+    //                    }
+    //                }
+    //                search_index = search_index + 1;
+    //                if search_index >= text.len_chars(){break 'outer;}
+    //            }
+    //        }
+    //        rev_search_index = rev_search_index.saturating_sub(1);
+    //        if rev_search_index == 0{break 'outer;}
+    //    }
+    //    Vec::new()
+    //}
+    //fn is_quote_char(char: char) -> bool{
+    //    char == '\''
+    //    || char == '"'
+    //}
 
     //TODO: impl and test
     //TODO: future improvement: for each char search loop, spawn a thread to do the search, so we can process them simultaneously.
@@ -1068,5 +1073,30 @@ impl Selection{
                 line_number_head
             ) 
         )
+    }
+}
+
+pub mod movement{
+    use crate::selection::{Selection, SelectionError, Direction, CursorSemantics, Movement};
+    use ropey::Rope;
+
+    //can def move implementations outside of Selection if desired...
+    //only downside is that call would repeat "selection": selection::move_right(&selection, &text, semantics)
+    // vs                                                  selection.move_right(&text, semantics)
+    ///
+    /// ```
+    /// # use edit_core::selection::{Selection, Direction, CursorSemantics};
+    /// # use edit_core::range::Range;
+    /// # use ropey::Rope;
+    /// 
+    /// // errors if at doc end
+    /// let text = Rope::from("idk\nsome\nshit\n");
+    /// assert!(Selection::new(Range::new(14, 14), Direction::Forward).move_right(&text, CursorSemantics::Bar).is_err());
+    /// assert!(Selection::new(Range::new(14, 15), Direction::Forward).move_right(&text, CursorSemantics::Block).is_err());
+    /// ```
+    pub fn move_right(selection: &Selection, text: &Rope, semantics: CursorSemantics) -> Result<Selection, SelectionError>{
+        selection.assert_invariants(text, semantics);
+        if selection.cursor(text, semantics) == text.len_chars(){return Err(SelectionError::ResultsInSameState);}
+        selection.move_horizontally(1, text, Movement::Move, Direction::Forward, semantics)
     }
 }

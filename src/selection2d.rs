@@ -1,4 +1,4 @@
-use crate::Position;
+use crate::position::Position;
 
 /// 2 dimensional representation of a single selection(between anchor and head) within document text
 #[derive(Default, PartialEq, Debug, Clone)]

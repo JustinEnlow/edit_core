@@ -1,0 +1,54 @@
+edit_core: primitives for implementing a simple terminal text editor for linux
+
+Features:
+    [ ] multi-cursor/multi-selection editing    (cursor is the mobile part of an extended selection, or a non extended selection)
+        [ ] move cursor(UTF-8 is WIP)
+            [x] up, down, left, right
+            [x] line start/end
+            [x] page up/down
+            [x] doc start/end
+            [x] word boundaries
+            [x] to line number
+            [ ] to matching surround (like ( to ), or " to ")
+        [ ] extend selection(UTF-8 is WIP)
+            [x] up, down, left, right
+            [x] line start/end
+            [x] page up/down
+            [x] doc start/end
+            [x] word boundaries
+            [x] merge overlapping
+            [x] collapse selection to cursor
+            [ ] collapse selection to anchor
+        [ ] add selection
+            [x] above(and make view follow top selection)
+            [x] below(and make view follow bottom selection)
+            [ ] at mouse cursor?
+            [ ] surround selection (2 cursors around current selection(s))  may need something different for adding brackets. maybe keep this and add something in Text Insertion section...
+        [x] remove selection
+        [ ] text object selection
+            [ ] word
+            [ ] sentence
+            [ ] paragraph
+            [ ] surrounding pair
+            [ ] exclusive surrounding pair
+            [ ] inclusive surrounding pair
+        [ ] selection history   (like undo/redo but for selection changes instead of text changes)
+    [ ] Text Insertion
+        [ ] Single grapheme
+            [x] ascii
+            [ ] UTF-8
+        [ ] Multi grapheme
+            [x] ascii
+            [ ] UTF-8
+    [ ] Text Deletion
+        [x] Directionally(ascii, UTF-8 WIP)
+        [x] Whole Selection(ascii, UTF-8 WIP)
+        [ ] Word Boundaries(ascii, UTF-8 WIP)
+    [ ] Cut/Copy/Paste
+        [x] internally
+            [ ] maybe add vim style registers
+        [ ] externally using system wide tools
+    [x] History/Undo/Redo
+    [ ] Text alignment
+    [ ] auto indentation (is this really desired?...)
+    [ ] suggestions (from previously used words)

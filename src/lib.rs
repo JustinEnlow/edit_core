@@ -1,13 +1,12 @@
-//! This library implements the core, non-graphical logic for a simple text editor on Linux.
-//!
-//! This crate provides the essential building blocks for text manipulation, file handling, and
-//! other editor functionality. It is designed to be used as the backend for a text editor,
-//! and can be integrated with various graphical frontends or used in command-line applications.
+//! This library implements the data structures and associated algorithms 
+//! needed for the core logic of a simple text editor for linux.
+//! It can be integrated with a graphical frontend or a command-line 
+//! application.
 //!
 //! ### Features
 //! - **Selection Manipulation**: Provides operations such as selection extension, addition, and removal, 
 //!     as well as operations for cursor movement. The `Selections` structure provides an API to handle 
-//!     these operations, with suport for handling multiple selections simultaneously.
+//!     these operations, with support for handling multiple selections simultaneously.
 //! 
 //! - **Text Manipulation**: Allows basic editing operations such as inserting, deleting, and replacing text.
 //!     The `Document` structure provides an API to handle these operations, with support for handling
@@ -55,6 +54,7 @@
 
 
 
+pub mod position;
 //pub mod id;
 //pub mod editor;
 pub mod history;
@@ -72,22 +72,3 @@ pub mod view;
 #[cfg(test)] mod view_tests;
 pub mod text_util;
 #[cfg(test)] mod text_util_tests;
-
-
-
-#[derive(Debug, Default, Clone)]    //TODO: move position into its own module
-pub struct Position{
-    pub x: usize,
-    pub y: usize,
-}
-impl Position{
-    #[must_use] pub fn new(x: usize, y: usize) -> Self{
-        Self{x, y}
-    }
-}
-impl PartialEq for Position{
-    fn eq(&self, other: &Self) -> bool {
-        self.x == other.x && self.y == other.y
-    }
-}
-impl Eq for Position{}

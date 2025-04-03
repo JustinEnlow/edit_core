@@ -1,6 +1,6 @@
 use ropey::Rope;
 use crate::view::View;
-use crate::Position;
+use crate::position::Position;
 use crate::range::Range;
 use crate::selection::{Selection, CursorSemantics, Direction};
 use crate::selections::Selections;

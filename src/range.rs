@@ -3,6 +3,7 @@ pub enum RangeError{
     NoOverlap
 }
 
+/// A Range is a pair of indexes(indices?...) over any kind of underlying (linear? single dimensional) collection. (chars, graphemes, terminal cells, etc.)
 #[derive(Debug, PartialEq, Clone)]
 pub struct Range{
     pub start: usize,   // start should always be <= end

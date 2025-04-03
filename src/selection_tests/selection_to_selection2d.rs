@@ -1,5 +1,5 @@
 use ropey::Rope;
-use crate::Position;
+use crate::position::Position;
 use crate::range::Range;
 use crate::selection::{Selection, CursorSemantics, Direction};
 use crate::selection2d::Selection2d;
