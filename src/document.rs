@@ -525,6 +525,66 @@ impl Document{
     //TODO: make pub fn align_selected_text_vertically
     //TODO: make pub fn rotate_selected_text
 
+    //TODO: make pub fn add_surrounding_pair
+    ///
+    /// ```
+    /// use ropey::Rope;
+    /// use edit_core::document::Document;
+    /// use edit_core::range::Range;
+    /// use edit_core::selection::{Selection, CursorSemantics, Direction};
+    /// use edit_core::selections::Selections;
+    /// 
+    /// let text = Rope::from("some\nshit\n");
+    /// let semantics = CursorSemantics::Block;
+    /// let mut doc = Document::new(semantics)
+    ///     .with_text(text.clone())
+    ///     .with_selections(
+    ///         Selections::new(
+    ///             vec![
+    ///                 Selection::new(Range::new(0, 2/*1*/), Direction::Forward),
+    ///                 Selection::new(Range::new(5, 7/*6*/), Direction::Forward)
+    ///             ], 
+    ///             0, 
+    ///             &text
+    ///         )
+    ///     );
+    /// let _ = doc.add_surrounding_pair('{', '}');
+    ///// assert_eq!("{s}ome\n{s}hit\n", doc.text());
+    /// assert_eq!("{so}me\n{sh}it\n", doc.text());
+    ///// assert_eq!(
+    /////     &Selections::new(
+    /////         vec![
+    /////             Selection::with_stored_line_position(Range::new(1, 2), Direction::Forward, 1),
+    /////             Selection::with_stored_line_position(Range::new(7, 8), Direction::Forward, 1)
+    /////         ], 
+    /////         0, 
+    /////         &text
+    /////     ),
+    /////     doc.selections()
+    ///// );
+    ///// assert!(doc.is_modified());
+    /// ```
+    pub fn add_surrounding_pair(&mut self, leading_char: char, trailing_char: char) -> Result<(), DocumentError>{
+        //how can goal behavior be accomplished?...
+        //we could just replace each selection with its text contents + leading and trailing char added
+        let selections_before_changes = self.selections.clone();
+        let mut changes = Vec::new();
+        for i in 0..self.selections.count(){
+            let selection = self.selections.nth_mut(i);
+            let mut contents = selection.contents_as_string(&self.text);
+            contents.insert(0, leading_char);
+            contents.push_str(&trailing_char.to_string());
+            let change = Document::apply_replace(&mut self.text, &contents, selection, CursorSemantics::Block);
+            changes.push(change);
+            self.selections.shift_subsequent_selections_forward(i, 2);    //can't borrow as mutable
+        }
+        // push change set to undo stack
+        self.undo_stack.push(ChangeSet::new(changes, selections_before_changes, self.selections.clone()));
+        // clear redo stack. new actions invalidate the redo history
+        self.redo_stack.clear();
+        Ok(())
+    }
+
     //TODO: impl movement fns
     //pub fn flip_selections_direction(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
     //    match self.selections.move_cursor_non_overlapping(&self.text, semantics, Selection::flip_direction){

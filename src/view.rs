@@ -225,7 +225,7 @@ impl View{
     //    client_view_text
     //}
     // returns text using view blocks, but may be harder to implement hard tab handling, or other wide characters
-    #[must_use] pub fn text(&self, text: &Rope) -> String{
+    #[must_use] pub fn text(&self, text: &Rope) -> String{  //TODO: take args space_replacement: Option<char>, newline_replacement: Option<char>, tab_replacement: Option<char>  //this would allow us to display a different character in place of tabs/spaces/newlines so their use is more obvious in the frontend app
         let view_blocks = self.view_blocks(text, false);
         let mut client_view_text = String::new();
 

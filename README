@@ -16,6 +16,8 @@ Features:
             [x] page up/down
             [x] doc start/end
             [x] word boundaries
+            [ ] select line
+            [ ] select all
             [x] merge overlapping
             [x] collapse selection to cursor
             [ ] collapse selection to anchor

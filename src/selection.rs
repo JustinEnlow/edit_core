@@ -179,6 +179,20 @@ impl Selection{
         // all other cases
         true
     }
+
+    ///
+    /// ```
+    /// use edit_core::selection::{Selection, Direction};
+    /// use edit_core::range::Range;
+    /// use ropey::Rope;
+    /// 
+    /// let text = Rope::from("idk\nsome\nshit\n");
+    /// let selection = Selection::new(Range::new(0, 3), Direction::Forward);
+    /// assert_eq!("idk".to_string(), selection.contents_as_string(&text));
+    /// ```
+    #[must_use] pub fn contents_as_string(&self, text: &Rope) -> String{
+        text.slice(self.range.start..self.range.end).to_string()
+    }
     
     /// Returns a new [`Selection`] from the overlapping [`Range`]s of `self` and `other`, with a reasonable `stored_line_position` calculated.
     pub fn merge_overlapping(&self, other: &Selection, text: &Rope, semantics: CursorSemantics) -> Result<Selection, SelectionError>{
@@ -839,6 +853,7 @@ impl Selection{
         if char == '{'{'}'}
         else if char == '('{')'}
         else if char == '['{']'}
+        else if char == '<'{'>'}
         else if char == '\''{'\''}
         else if char == '"'{'"'}
         else{panic!();} //TODO: maybe return None, or an error?...
