@@ -565,6 +565,8 @@ impl Document{
     ///// assert!(doc.is_modified());
     /// ```
     pub fn add_surrounding_pair(&mut self, leading_char: char, trailing_char: char) -> Result<(), DocumentError>{
+        //TODO: need to return error if cursor at doc end (i don't think a selection can contain doc end. might assert that as well)
+        
         //how can goal behavior be accomplished?...
         //we could just replace each selection with its text contents + leading and trailing char added
         let selections_before_changes = self.selections.clone();

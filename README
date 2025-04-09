@@ -16,8 +16,8 @@ Features:
             [x] page up/down
             [x] doc start/end
             [x] word boundaries
-            [ ] select line
-            [ ] select all
+            [x] select line
+            [x] select all
             [x] merge overlapping
             [x] collapse selection to cursor
             [ ] collapse selection to anchor
@@ -25,13 +25,13 @@ Features:
             [x] above(and make view follow top selection)
             [x] below(and make view follow bottom selection)
             [ ] at mouse cursor?
-            [ ] surround selection (2 cursors around current selection(s))  may need something different for adding brackets. maybe keep this and add something in Text Insertion section...
+            [x] surround selection (2 cursors around current selection(s))  may need something different for adding brackets. maybe keep this and add something in Text Insertion section...
         [x] remove selection
         [ ] text object selection
             [ ] word
             [ ] sentence
             [ ] paragraph
-            [ ] surrounding pair
+            [x] surrounding pair
             [ ] exclusive surrounding pair
             [ ] inclusive surrounding pair
         [ ] selection history   (like undo/redo but for selection changes instead of text changes)
@@ -42,6 +42,7 @@ Features:
         [ ] Multi grapheme
             [x] ascii
             [ ] UTF-8
+        [x] add surrounding pair
     [ ] Text Deletion
         [x] Directionally(ascii, UTF-8 WIP)
         [x] Whole Selection(ascii, UTF-8 WIP)
@@ -53,4 +54,6 @@ Features:
     [x] History/Undo/Redo
     [ ] Text alignment
     [ ] auto indentation (is this really desired?...)
-    [ ] suggestions (from previously used words)
+    [ ] suggestions/completion (from previously used words)
+
+//to be able to understand how to compose a system of programs, you need to understand each program's interface
