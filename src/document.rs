@@ -575,7 +575,7 @@ impl Document{
             let selection = self.selections.nth_mut(i);
             let mut contents = selection.contents_as_string(&self.text);
             contents.insert(0, leading_char);
-            contents.push_str(&trailing_char.to_string());
+            contents.push(trailing_char);
             let change = Document::apply_replace(&mut self.text, &contents, selection, CursorSemantics::Block);
             changes.push(change);
             self.selections.shift_subsequent_selections_forward(i, 2);    //can't borrow as mutable
@@ -887,5 +887,29 @@ impl Document{
             Err(e) => {return Err(DocumentError::SelectionsError(e));}
         }
         Ok(())
+    }
+    pub fn incremental_search_in_selection(&mut self, search_text: &str, selections_before_search: &Selections, /* TODO: semantics: CursorSemantics */) -> Result<(), DocumentError>{
+        match selections_before_search.search(search_text, &self.text){
+            Ok(new_selections) => {
+                self.selections = new_selections;
+                Ok(())
+            }
+            Err(_) => {
+                self.selections = selections_before_search.clone();
+                Err(DocumentError::InvalidInput)
+            }
+        }
+    }
+    pub fn incremental_split_in_selection(&mut self, search_text: &str, selections_before_split: &Selections, /* TODO: semantics: CursorSemantics */) -> Result<(), DocumentError>{
+        match selections_before_split.split(search_text, &self.text){
+            Ok(new_selections) => {
+                self.selections = new_selections;
+                Ok(())
+            }
+            Err(_) => {
+                self.selections = selections_before_split.clone();
+                Err(DocumentError::InvalidInput)
+            }
+        }
     }
 }

@@ -18,7 +18,7 @@ pub enum ViewError{
 /// origin is top left
 /// 
 /// the client should be the single source of truth for width + height, so maybe those should be passed in to relevant functions instead...
-/// however, horizontal_start + vertical_start need to be held in core, because the client does not have a full view of the
+/// however, `horizontal_start` + `vertical_start` need to be held in core, because the client does not have a full view of the
 /// text buffer, and some core functionality needs to modify these values
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct View{
@@ -254,7 +254,7 @@ impl View{
         line_numbers_vec.join("\n") // Join with newline
     }
     /// Returns a `String` containing the line numbers, relative to the primary cursor, of the text that can be contained within [`View`] boundaries.
-    #[must_use] pub fn relative_line_numbers(&self, text: &Rope) -> String{
+    #[must_use] pub fn relative_line_numbers(&self, _text: &Rope) -> String{
         String::new()
     }
 

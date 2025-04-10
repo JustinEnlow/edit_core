@@ -432,6 +432,8 @@ impl Selection{
             }
         }
     }
+    //TODO: this seems to be misbehaving when selection already extend left word boundary, and then extend right word boundary triggered.
+    //only when cursor over character that can be a beginning or ending word boundary...
     /// Returns a new instance of [`Selection`] with cursor extended right to the nearest word boundary.
     pub fn extend_right_word_boundary(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{  //TODO: ensure this can't extend past doc text end
         self.assert_invariants(text, semantics);
@@ -750,7 +752,7 @@ impl Selection{
     //TODO: make smart_select_shrink    //opposite of above
 
     //TODO: this will have to change. this allows us to surround with the same character(like ""), but not with different characters(like {})
-    pub fn surround(&self, text: &Rope) -> Vec<Selection>{
+    #[must_use] pub fn surround(&self, text: &Rope) -> Vec<Selection>{
         let mut surround_selections = Vec::new();
         if self.range.start == text.len_chars(){return surround_selections;}
         let first_selection = Selection::new(Range::new(self.range.start, text_util::next_grapheme_index(self.range.start, text)), Direction::Forward);
@@ -778,7 +780,7 @@ impl Selection{
     /// i d k ( s o m e [ ] _ t h|i>n g _ { } e l s e ) _ i d k     //paren surrounding pair with cursor at this location
     /// i d k ( s o m e [ ] _ t h i n g _ {|}>e l s e ) _ i d k     //curly bracket surrounding pair with cursor at this location
     /// i d k ( s o m e [ ] _ t h i n g _ { } e l s e ) _ i|d>k     //no surrounding pair with cursor at this location
-    pub fn nearest_surrounding_pair(&self, text: &Rope) -> Vec<Selection>{
+    #[must_use] pub fn nearest_surrounding_pair(&self, text: &Rope) -> Vec<Selection>{
         //idk(some[] thing {}else) idk
         //idk(some()t(h(i)n)g()else)    //test from multiple levels of same surrounding pair
         //test with non balanced brackets
@@ -936,7 +938,7 @@ impl Selection{
 
         let mut found_backward = false;
         for (i, &current_char) in text.slice(0..self.range.start).chars().collect::<Vec<_>>().iter().rev().enumerate(){
-            println!("backward: {} at {}", current_char, i);
+            println!("backward: {current_char} at {i}");
             if current_char == leading_char{
                 new_selection.range.start = new_selection.range.start.saturating_sub(i);// - (i+1);
                 found_backward = true;
@@ -945,7 +947,7 @@ impl Selection{
         }
         let mut found_forward = false;
         for (i, current_char) in text.slice(self.range.end..).chars().enumerate(){
-            println!("forward: {} at {}", current_char, i);
+            println!("forward: {current_char} at {i}");
             if current_char == trailing_char{
                 new_selection.range.end = new_selection.range.end.saturating_add(i);// + (i-1);
                 found_forward = true;
@@ -979,7 +981,7 @@ impl Selection{
         if let Ok(regex) = Regex::new(input){
             for search_match in regex.find_iter(&text.to_string()[start..self.range.end.min(text.len_chars())]){
                 //selections.push(Selection::new(search_match.start().saturating_add(start), search_match.end().saturating_add(start)));
-                selections.push(Selection::new(Range::new(search_match.start().saturating_add(start), search_match.end().saturating_add(start)), Direction::Forward))
+                selections.push(Selection::new(Range::new(search_match.start().saturating_add(start), search_match.end().saturating_add(start)), Direction::Forward));
             }
         }
         //else{/*return error FailedToParseRegex*/}
@@ -991,7 +993,7 @@ impl Selection{
     }
 
     /// Returns a [`Vec`] of [`Selection`]s containing each part of the current selection except the split pattern.
-    pub fn split(&self, pattern: &str, text: &Rope) -> Vec<Selection>{
+    #[must_use] pub fn split(&self, pattern: &str, text: &Rope) -> Vec<Selection>{
         let mut selections = Vec::new();
         if let Ok(regex) = Regex::new(pattern){
             let mut start = self.range.start; //0;
@@ -1002,7 +1004,7 @@ impl Selection{
                 let selection_range = Range::new(start, split.start().saturating_add(self.range.start));
                 if selection_range.start < selection_range.end{
                     //selections.push(Selection::new(selection_range.start, selection_range.end));
-                    selections.push(Selection::new(Range::new(selection_range.start, selection_range.end), Direction::Forward))
+                    selections.push(Selection::new(Range::new(selection_range.start, selection_range.end), Direction::Forward));
                 }
                 start = split.end().saturating_add(self.range.start);
             }

@@ -639,7 +639,7 @@ impl Selections{
                         SelectionError::SpansMultipleLines |//InvalidInput |
                         SelectionError::NoOverlap => {
                             //unreachable!()
-                            println!("{:#?}", e)
+                            println!("{e:#?}");
                         }   //if this is reached, move_fn called on one of the selections has probably put us in an unintended state. prob best to panic
                     }
                 }
