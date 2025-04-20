@@ -72,3 +72,4 @@ pub mod view;
 #[cfg(test)] mod view_tests;
 pub mod text_util;
 #[cfg(test)] mod text_util_tests;
+pub mod utilities;  //This is a placeholder for behavior extension utilities that will be made external utils later...

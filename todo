@@ -2,10 +2,6 @@ always ensure:
     full doctests or unit tests for each item before moving on to the next
     make movements/edits that result in the same state return an error. this allows the front end application to decide whether to display a warning message, giving visual feedback
 
-all:
-    //maybe usize is fine...
-    [ ] determine a reasonable unsigned integer size to be used throughout, instead of usize.
-
 Document:
     [ ] implement undo grouping:
         if several characters are typed consecutively without repositioning the cursor, they must be treated as a unit for undo and redo
@@ -81,3 +77,21 @@ note: tests for future features are currently ignored and have unimplemented tes
 
 
     should source code patches be preferred for adding new behavior instead of plugins? what are the positives/negatives of a plugin system?
+
+
+
+
+
+
+
+    TODO: bug fix:
+        put cursor at end of longer line
+        extend selection up to shorter line
+        extend back down to longer line
+        resultant selection is not the original cursor, but the original cursor + a left extension
+        this only gets worse if repeated...
+
+    TODO: bug fix:
+        extend selection word boundary backward until over a non alpha_numeric and non whitespace grapheme
+        extend selection word boundary forward
+        returns an error, when there shouldn't be

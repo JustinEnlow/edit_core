@@ -11,7 +11,7 @@ pub struct Range{
 }
 impl Range{
     #[must_use] pub fn new(start: usize, end: usize) -> Self{   //or should this error if start > end instead?... maybe an assert makes sense here?
-        //TODO: assert!(end >= start);      //this will help us weed out unnecessary tests. just comment them out as addressed here
+        //TODO: assert!(end >= start);      //this will help us weed out unnecessary tests. just comment them out as addressed here     //actually, this is failing some tests that seem valid. idk wtf is going on...
         if start >= end{
             Self{start: end, end: start}
         }else{

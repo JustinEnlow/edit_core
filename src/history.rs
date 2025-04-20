@@ -8,6 +8,9 @@ pub enum Operation{
     Insert{inserted_text: String},  //should this be Insert(String), so that when destructuring, the variable name can be assigned to make its intended more clear?
     Delete,
     Replace{replacement_text: String},  //should this be Replace(String), so that when destructuring, the variable name can be assigned to make its intended use more clear?
+    ///useful for edits where one selection cannot perform the action, but still need a "change" 
+    ///operation associated with it, so that vec of changes and vec of selections are always same len
+    NoOp,
 }
 
 #[derive(Clone, Debug, PartialEq)]
