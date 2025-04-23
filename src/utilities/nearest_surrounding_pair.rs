@@ -41,7 +41,7 @@ fn selections_impl(selections: &Selections, text: &Rope, semantics: CursorSemant
     if new_selections.is_empty() || new_selections == selections.selections{Err(SelectionsError::ResultsInSameState)}
     else{
         //Ok(Selections::new(new_selections, primary_selection_index, text))
-        Selections::new(new_selections, primary_selection_index, text).sort().merge_overlapping(text, semantics)
+        Selections::new(new_selections, primary_selection_index, text, semantics).sort().merge_overlapping(text, semantics)
     }
 }
 
@@ -147,10 +147,10 @@ mod tests{
         let text = Rope::from(text);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
-            .with_selections(Selections::new(selections, primary, &text));
+            .with_selections(Selections::new(selections, primary, &text, semantics));
         let result = nearest_surrounding_pair::document_impl(&mut doc, semantics);
         assert!(!result.is_err());
-        let expected_selections = Selections::new(expected_selections, expected_primary, &text);
+        let expected_selections = Selections::new(expected_selections, expected_primary, &text, semantics);
         assert_eq!(expected_selections, doc.selections);
         assert!(!doc.is_modified());
     }
@@ -158,7 +158,7 @@ mod tests{
         let text = Rope::from(text);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
-            .with_selections(Selections::new(selections, primary, &text));
+            .with_selections(Selections::new(selections, primary, &text, semantics));
         assert!(nearest_surrounding_pair::document_impl(&mut doc, semantics).is_err());
         assert!(!doc.is_modified());
     }

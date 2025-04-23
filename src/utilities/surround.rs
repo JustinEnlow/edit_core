@@ -1,7 +1,7 @@
 use crate::{
     document::{Document, DocumentError},
     selections::{Selections, SelectionsError},
-    selection::{Selection, Direction},
+    selection::{Selection, Direction, CursorSemantics},
     range::Range,
     text_util
 };
@@ -9,15 +9,15 @@ use ropey::Rope;
 
 //TODO: take CursorSemantics as arg, and handle
 
-pub fn document_impl(document: &mut Document) -> Result<(), DocumentError>{
-    match selections_impl(&document.selections, &document.text){
+pub fn document_impl(document: &mut Document, semantics: CursorSemantics) -> Result<(), DocumentError>{
+    match selections_impl(&document.selections, &document.text, semantics){
         Ok(new_selections) => {document.selections = new_selections;}
         Err(e) => {return Err(DocumentError::SelectionsError(e));}
     }
     Ok(())
 }
 
-pub fn selections_impl(selections: &Selections, text: &Rope) -> Result<Selections, SelectionsError>{
+pub fn selections_impl(selections: &Selections, text: &Rope, semantics: CursorSemantics) -> Result<Selections, SelectionsError>{
     let mut new_selections = Vec::with_capacity(2 * selections.count());
     let mut num_pushed: usize = 0;
     let primary_selection = selections.primary();
@@ -52,7 +52,7 @@ pub fn selections_impl(selections: &Selections, text: &Rope) -> Result<Selection
     assert!(!new_selections.is_empty());
     //if new_selections.is_empty(){Err(SelectionsError::ResultsInSameState)} //TODO: create better error?...
     //else{
-        Ok(Selections::new(new_selections, primary_selection_index, text))
+        Ok(Selections::new(new_selections, primary_selection_index, text, semantics))
     //}
 }
 
@@ -82,10 +82,10 @@ mod tests{
         let text = Rope::from(text);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
-            .with_selections(Selections::new(selections, primary, &text));
-        let result = surround::document_impl(&mut doc);
+            .with_selections(Selections::new(selections, primary, &text, semantics));
+        let result = surround::document_impl(&mut doc, semantics);
         assert!(!result.is_err());
-        let expected_selections = Selections::new(expected_selections, expected_primary, &text);
+        let expected_selections = Selections::new(expected_selections, expected_primary, &text, semantics);
         assert_eq!(expected_selections, doc.selections);
         assert!(!doc.is_modified());
     }
@@ -93,8 +93,8 @@ mod tests{
         let text = Rope::from(text);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
-            .with_selections(Selections::new(selections, primary, &text));
-        assert!(surround::document_impl(&mut doc).is_err());
+            .with_selections(Selections::new(selections, primary, &text, semantics));
+        assert!(surround::document_impl(&mut doc, semantics).is_err());
         assert!(!doc.is_modified());
     }
 

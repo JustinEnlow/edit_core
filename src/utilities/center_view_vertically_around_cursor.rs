@@ -70,7 +70,7 @@ mod tests{
         let text = Rope::from(text);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
-            .with_selections(Selections::new(selections, primary, &text))
+            .with_selections(Selections::new(selections, primary, &text, semantics))
             .with_view(view);
         let result = center_view_vertically_around_cursor::document_impl(&mut doc, semantics);
         assert!(!result.is_err());
@@ -81,7 +81,7 @@ mod tests{
         let text = Rope::from(text);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
-            .with_selections(Selections::new(selections, primary, &text))
+            .with_selections(Selections::new(selections, primary, &text, semantics))
             .with_view(view);
         assert!(center_view_vertically_around_cursor::document_impl(&mut doc, semantics).is_err());
     }

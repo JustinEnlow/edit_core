@@ -8,7 +8,7 @@ use crate::position::Position;
 
 fn test(selection: Selection, expected: Vec<Position>, view: View, semantics: CursorSemantics) -> bool{
     let text = Rope::from("idk\nsome\nshit\n");
-    let /*mut */doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![selection], 0, &text)).with_view(view);
+    let /*mut */doc = Document::new(semantics).with_text(text.clone()).with_selections(Selections::new(vec![selection], 0, &text, semantics)).with_view(view);
     println!("expected: {:#?}\ngot: {:#?}\n", expected, doc.client_view.cursor_positions(&text, &doc.selections, semantics));
     doc.client_view.cursor_positions(&text, &doc.selections, semantics) == expected
 }

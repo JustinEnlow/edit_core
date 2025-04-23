@@ -91,8 +91,8 @@ impl Document{
         cursor_semantics: CursorSemantics,
     ) -> Self{
         let selections = match cursor_semantics{
-            CursorSemantics::Bar => Selections::new(vec![Selection::new(Range::new(0, 0), Direction::Forward)], 0, text),
-            CursorSemantics::Block => Selections::new(vec![Selection::new(Range::new(0, 1), Direction::Forward)], 0, text)
+            CursorSemantics::Bar => Selections::new(vec![Selection::new(Range::new(0, 0), Direction::Forward)], 0, text, cursor_semantics),
+            CursorSemantics::Block => Selections::new(vec![Selection::new(Range::new(0, 1), Direction::Forward)], 0, text, cursor_semantics)
         };
         Self{
             text: text.clone(),

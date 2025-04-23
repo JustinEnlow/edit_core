@@ -40,10 +40,10 @@ mod tests{
         let text = Rope::from(text);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
-            .with_selections(Selections::new(selections, primary, &text));
+            .with_selections(Selections::new(selections, primary, &text, semantics));
         let result = clear_non_primary_selections::document_impl(&mut doc);
         assert!(!result.is_err());
-        let expected_selections = Selections::new(expected_selections, expected_primary, &text);
+        let expected_selections = Selections::new(expected_selections, expected_primary, &text, semantics);
         assert_eq!(expected_selections, doc.selections);
         assert!(!doc.is_modified());
     }
@@ -51,7 +51,7 @@ mod tests{
         let text = Rope::from(text);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
-            .with_selections(Selections::new(selections, primary, &text));
+            .with_selections(Selections::new(selections, primary, &text, semantics));
         assert!(clear_non_primary_selections::document_impl(&mut doc).is_err());
     }
 

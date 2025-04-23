@@ -32,10 +32,14 @@ pub struct Selections{
     pub primary_selection_index: usize,
 }
 impl Selections{
+    pub fn unverified(selections: Vec<Selection>, primary_selection_index: usize) -> Self{
+        Self{selections, primary_selection_index}
+    }
+
     /// Returns new instance of [`Selections`] from provided input.
     /// # Panics
     /// `new` panics if `selections` input param is empty.
-    #[must_use] pub fn new(selections: Vec<Selection>, primary_selection_index: usize, _text: &Rope) -> Self{
+    #[must_use] pub fn new(selections: Vec<Selection>, primary_selection_index: usize, text: &Rope, semantics: CursorSemantics) -> Self{
         assert!(!selections.is_empty());
         assert!(primary_selection_index < selections.len());
 
@@ -46,9 +50,9 @@ impl Selections{
 
         //TODO: selections.grapheme_align();
         selections = selections.sort();
-        //TODO: if let Ok(merged_selections) = selections.merge_overlapping(text, semantics){
-        //    selections = merged_selections;
-        //}
+        if let Ok(merged_selections) = selections.merge_overlapping(text, semantics){
+            selections = merged_selections;
+        }
 
         assert!(!selections.selections.is_empty());
         assert!(selections.primary_selection_index < selections.selections.len());
@@ -247,7 +251,7 @@ impl Selections{
                 }
             }
         }
-        let mut new_selections = Selections::new(new_selections, self.primary_selection_index, text);
+        let mut new_selections = Selections::new(new_selections, self.primary_selection_index, text, semantics);
         if let Ok(merged_selections) = new_selections.merge_overlapping(text, semantics){
             new_selections = merged_selections;
         }
@@ -279,7 +283,7 @@ impl Selections{
             }
         }
         if !movement_succeeded{return Err(SelectionsError::ResultsInSameState)}
-        let new_selections = Selections::new(new_selections, self.primary_selection_index, text);
+        let new_selections = Selections::new(new_selections, self.primary_selection_index, text, semantics);
         Ok(new_selections)
     }
     
@@ -293,7 +297,7 @@ impl Selections{
         if let Ok(primary_only) = crate::utilities::clear_non_primary_selections::selections_impl(self){new_selections = primary_only;}
         match move_fn(&new_selections.primary().clone(), text, semantics){
             Ok(new_selection) => {
-                new_selections = Selections::new(vec![new_selection], 0, text);
+                new_selections = Selections::new(vec![new_selection], 0, text, semantics);
             }
             Err(e) => {
                 match e{
@@ -335,7 +339,7 @@ impl Selections{
                 }
             }
         }
-        let mut new_selections = Selections::new(new_selections, self.primary_selection_index, text);
+        let mut new_selections = Selections::new(new_selections, self.primary_selection_index, text, semantics);
         if let Ok(merged_selections) = new_selections.merge_overlapping(text, semantics){
             new_selections = merged_selections;
         }

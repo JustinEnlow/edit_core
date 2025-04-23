@@ -62,11 +62,11 @@ mod tests{
         let text = Rope::from(text);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
-            .with_selections(Selections::new(selections, primary, &text));
+            .with_selections(Selections::new(selections, primary, &text, semantics));
         let _ = add_surrounding_pair::document_impl(&mut doc, leading_char, trailing_char, semantics);
         let expected_text = Rope::from(expected_text);
         assert_eq!(expected_text, doc.text);
-        let expected_selections = Selections::new(expected_selections, expected_primary, &text);
+        let expected_selections = Selections::new(expected_selections, expected_primary, &text, semantics);
         assert_eq!(expected_selections, doc.selections);
         assert!(doc.is_modified());
     }
@@ -74,7 +74,7 @@ mod tests{
         let text = Rope::from(text);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
-            .with_selections(Selections::new(selections, primary, &text));
+            .with_selections(Selections::new(selections, primary, &text, semantics));
         assert!(add_surrounding_pair::document_impl(&mut doc, leading_char, trailing_char, semantics).is_err());
         assert!(!doc.is_modified());
     }

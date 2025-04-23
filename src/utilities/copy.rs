@@ -30,7 +30,7 @@ mod tests{
         let text = Rope::from(text);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
-            .with_selections(Selections::new(selections, primary, &text));
+            .with_selections(Selections::new(selections, primary, &text, semantics));
         let _ = copy::document_impl(&mut doc);
         assert_eq!(expected_clipboard.to_string(), doc.clipboard);
     }
@@ -38,7 +38,7 @@ mod tests{
         let text = Rope::from(text);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
-            .with_selections(Selections::new(selections, primary, &text));
+            .with_selections(Selections::new(selections, primary, &text, semantics));
         assert!(copy::document_impl(&mut doc).is_err());
     }
 

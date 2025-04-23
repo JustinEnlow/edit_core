@@ -20,19 +20,19 @@ mod tests{
         let text = Rope::from(text);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
-            .with_selections(Selections::new(selections, primary, &text))
+            .with_selections(Selections::new(selections, primary, &text, semantics))
             .with_clipboard(clipboard.to_string());
         let _ = crate::utilities::paste::document_impl(&mut doc, false, 4, semantics);
         let expected_text = Rope::from(expected_text);
         assert_eq!(expected_text, doc.text);
-        let expected_selections = Selections::new(expected_selections, expected_primary, &text);
+        let expected_selections = Selections::new(expected_selections, expected_primary, &text, semantics);
         assert_eq!(expected_selections, doc.selections);
     }
     fn test_error(text: &str, selections: Vec<Selection>, primary: usize, clipboard: &str, semantics: CursorSemantics){
         let text = Rope::from(text);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
-            .with_selections(Selections::new(selections, primary, &text))
+            .with_selections(Selections::new(selections, primary, &text, semantics))
             .with_clipboard(clipboard.to_string());
         assert!(crate::utilities::paste::document_impl(&mut doc, false, 4, semantics).is_err());
     }

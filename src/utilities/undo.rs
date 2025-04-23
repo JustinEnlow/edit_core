@@ -71,13 +71,13 @@ mod tests{
         let last_saved_text = Rope::from(last_saved_text);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
-            .with_selections(Selections::new(selections, primary, &text))
+            .with_selections(Selections::new(selections, primary, &text, semantics))
             .with_undo_stack(undo_stack)
             .with_last_saved_text(last_saved_text);
         let _ = undo::document_impl(&mut doc, semantics);
         let expected_text = Rope::from(expected_text);
         assert_eq!(expected_text, doc.text);
-        let expected_selections = Selections::new(expected_selections, expected_primary, &text);
+        let expected_selections = Selections::new(expected_selections, expected_primary, &text, semantics);
         assert_eq!(expected_selections, doc.selections);
         assert!(!doc.is_modified());
     }
@@ -98,8 +98,8 @@ mod tests{
                         Selection::new(Range::new(9, 10), Direction::Forward), 
                         Operation::Delete
                     )], 
-                    Selections::new(vec![Selection::new(Range::new(4, 5), Direction::Forward)], 0, &Rope::from("idk\nshit\n")), 
-                    Selections::new(vec![Selection::new(Range::new(9, 10), Direction::Forward)], 0, &Rope::from("idk\nsome\nshit\n"))
+                    Selections::new(vec![Selection::new(Range::new(4, 5), Direction::Forward)], 0, &Rope::from("idk\nshit\n"), CursorSemantics::Block), 
+                    Selections::new(vec![Selection::new(Range::new(9, 10), Direction::Forward)], 0, &Rope::from("idk\nsome\nshit\n"), CursorSemantics::Block)
                 )
             ], 
             "idk\nshit\n", 

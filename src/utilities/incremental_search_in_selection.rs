@@ -1,14 +1,14 @@
 use crate::{
     document::{Document, DocumentError},
     selections::{Selections, SelectionsError},
-    selection::{Selection, Direction},
+    selection::{Selection, Direction, CursorSemantics},
     range::Range
 };
 use ropey::Rope;
 use regex::Regex;
 
-pub fn document_impl(document: &mut Document, search_text: &str, selections_before_search: &Selections, /* TODO: semantics: CursorSemantics */) -> Result<(), DocumentError>{
-    match selections_impl(selections_before_search, search_text, &document.text){
+pub fn document_impl(document: &mut Document, search_text: &str, selections_before_search: &Selections, semantics: CursorSemantics) -> Result<(), DocumentError>{
+    match selections_impl(selections_before_search, search_text, &document.text, semantics){
         Ok(new_selections) => {
             document.selections = new_selections;
             Ok(())
@@ -24,7 +24,7 @@ pub fn document_impl(document: &mut Document, search_text: &str, selections_befo
 /// 
 /// # Errors
 ///     //if no matches.
-pub fn selections_impl(selections: &Selections, input: &str, text: &Rope) -> Result<Selections, SelectionsError>{
+pub fn selections_impl(selections: &Selections, input: &str, text: &Rope, semantics: CursorSemantics) -> Result<Selections, SelectionsError>{
     if input.is_empty(){return Err(SelectionsError::NoSearchMatches);}
     let mut new_selections = Vec::new();
     let mut num_pushed: usize = 0;
@@ -45,7 +45,7 @@ pub fn selections_impl(selections: &Selections, input: &str, text: &Rope) -> Res
 
     if new_selections.is_empty(){Err(SelectionsError::NoSearchMatches)}
     else{
-        Ok(Selections::new(new_selections, primary_selection_index, text))
+        Ok(Selections::new(new_selections, primary_selection_index, text, semantics))
     }
 }
 
@@ -89,23 +89,23 @@ mod tests{
 
     fn test(semantics: CursorSemantics, text: &str, search_text: &str, selections: Vec<Selection>, primary: usize, expected_selections: Vec<Selection>, expected_primary: usize){
         let text = Rope::from(text);
-        let selections = Selections::new(selections, primary, &text);
+        let selections = Selections::new(selections, primary, &text, semantics);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
             .with_selections(selections.clone());
-        let result = incremental_search_in_selection::document_impl(&mut doc, search_text, &selections);
+        let result = incremental_search_in_selection::document_impl(&mut doc, search_text, &selections, semantics);
         assert!(!result.is_err());
-        let expected_selections = Selections::new(expected_selections, expected_primary, &text);
+        let expected_selections = Selections::new(expected_selections, expected_primary, &text, semantics);
         assert_eq!(expected_selections, doc.selections);
         assert!(!doc.is_modified());
     }
     fn test_error(semantics: CursorSemantics, text: &str, search_text: &str, selections: Vec<Selection>, primary: usize){
         let text = Rope::from(text);
-        let selections = Selections::new(selections, primary, &text);
+        let selections = Selections::new(selections, primary, &text, semantics);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
             .with_selections(selections.clone());
-        assert!(incremental_search_in_selection::document_impl(&mut doc, search_text, &selections).is_err());
+        assert!(incremental_search_in_selection::document_impl(&mut doc, search_text, &selections, semantics).is_err());
         assert!(!doc.is_modified());
     }
 
