@@ -119,6 +119,16 @@ mod tests{
         );
     }
 
+    #[test] fn when_at_line_start_appends_current_line_to_previous_line(){
+        test(
+            CursorSemantics::Block, 
+            "idk\nsome\nshit\n", 
+            vec![Selection::new(Range::new(4, 5), Direction::Forward)], 0, 
+            "idksome\nshit\n", 
+            vec![Selection::with_stored_line_position(Range::new(3, 4), Direction::Forward, 3)], 0
+        );
+    }
+
     #[test] fn with_valid_selection_and_cursor_at_doc_start(){
         test(
             CursorSemantics::Block, 

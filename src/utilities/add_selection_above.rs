@@ -66,7 +66,7 @@ fn selections_impl(selections: &Selections, text: &Rope, semantics: CursorSemant
         //Direction::Forward => Ok(self.push_front(Selection::new(start, end), false)),
         Direction::Forward => Ok(selections.push_front(Selection::new(Range::new(start, end), Direction::Forward), false)),
         //Direction::Backward => Ok(self.push_front(Selection::new(end, start), false))
-        Direction::Backward => Ok(selections.push_front(Selection::new(Range::new(end, start), Direction::Backward), false))
+        Direction::Backward => Ok(selections.push_front(Selection::new(Range::new(start, end), Direction::Backward), false))
     }
 }
 

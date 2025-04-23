@@ -20,8 +20,8 @@ pub fn document_impl(document: &mut Document, amount: usize) -> Result<(), Docum
 
 /// Returns a new instance of [`View`] with `horizontal_start` increased by specified amount.
 /// # Errors
-///     - if `amount` is 0.
-///     - if function would return a `View` with the same state.
+///     //if `amount` is 0.
+///     //if function would return a `View` with the same state.
 fn view_impl(view: &View, amount: usize, text: &Rope) -> Result<View, ViewError>{
     if amount == 0{return Err(ViewError::InvalidInput);}
 
@@ -58,7 +58,7 @@ mod tests{
             .with_text(text.clone())
             .with_view(view);
         let _ = scroll_view_right::document_impl(&mut doc, amount);
-        assert_eq!(expected_text.to_string(), doc.view().text(&text));
+        assert_eq!(expected_text.to_string(), doc.client_view.text(&text));
         assert_eq!(expected_view, doc.client_view);
     }
     fn test_error(text: &str, view: View, amount: usize, semantics: CursorSemantics){

@@ -42,6 +42,10 @@ mod tests{
         assert!(copy::document_impl(&mut doc).is_err());
     }
 
+    //TODO: copy with no selection extension
+        //should fail with bar semantics?...
+        //should copy single char with block semantics
+
     #[test] fn copy_with_selection_direction_forward_block_semantics(){
         test(
             "idk\nsome\nshit\n", 

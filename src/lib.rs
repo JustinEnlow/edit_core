@@ -18,29 +18,8 @@
 //!
 //! - **File I/O**: The library includes functionality for loading and saving text files.
 //!
-//! ### Example Usage
-//! Below is an example of how to use the core functionality of this library:
-//! ```rust
-//! use edit_core::{Document, DocumentError, CursorSemantics};
-//!
-//! // Open a document from a file
-//! let mut doc = Document::open("example.txt", CursorSemantics::Bar).expect("Failed to open file");
-//!
-//! // Insert text into the document at the current cursor position
-//! doc.insert_string("Hello, World!", CursorSemantics::Bar).expect("Failed to insert text");
-//!
-//! // Save the document back to the file
-//! doc.save().expect("Failed to save file");
-//!
-//! // Perform an undo operation
-//! doc.undo(CursorSemantics::Bar).expect("Failed to undo");
-//!
-//! // Perform a redo operation
-//! doc.redo(CursorSemantics::Bar).expect("Failed to redo");
-//! ```
-//!
 //! ### Future Enhancements
-//!     - [ ] idk...
+//! - idk...
 
 
 
@@ -59,7 +38,6 @@ pub mod position;
 //pub mod editor;
 pub mod history;
 pub mod document;
-#[cfg(test)] mod document_tests;
 pub mod range;
 #[cfg(test)] mod range_tests;
 pub mod selection;

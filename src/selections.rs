@@ -15,96 +15,63 @@ pub enum SelectionsError{
     NoSearchMatches,
     ResultsInSameState
 }
+
+
+
 /// A collection of [`Selection`]s. 
 /// used in place of [Vec]<[`Selection`]> to ensure certain guarantees are enforced
 /// ## Goal Guarantees:
-/// - will always contain at least 1 {Selection}
-/// - all {Selection}s are grapheme aligned
-/// - all {Selection}s are sorted by increasing position in document
-/// - all overlapping {Selection}s are merged
-    //should this be handled in {Selection}?
-/// - head and anchor are always within text boundaries for each selection
-    //
+/// - will always contain at least 1 [`Selection`]
+/// - all [`Selection`]s are grapheme aligned
+/// - all [`Selection`]s are sorted by increasing position in document
+/// - all overlapping [`Selection`]s are merged
 /// - ...prob others i haven't thought of yet
 #[derive(Debug, PartialEq, Clone)]
 pub struct Selections{
-    pub selections: Vec<Selection>,
+    pub selections: Vec<Selection>, //TODO: rename to inner_selections
     pub primary_selection_index: usize,
 }
 impl Selections{
-    //TODO: can make an assert_invariants fn like in selection.rs, and call that in all methods/utilities
-    //instead of having to verify that in new(), which requires us to add unnecessary complexity in that fn.
-    pub fn ensure_invariants(&self, text: &Rope, semantics: CursorSemantics) -> Self{
-        //will always contain at least one selection
-        assert!(!self.selections.is_empty());
-        //ensure primary is valid
-        assert!(self.primary_selection_index < self.selections.len());
-        //selections are grapheme aligned
-        
-        //selections are sorted by ascending position in doc
-        //assert_eq!(*self, self.sort());
-        let mut selections = self.sort();
-        //overlapping selections are merged
-        //assert_eq!(Ok(self.clone()), self.merge_overlapping(text, semantics));
-        if let Ok(merged_selections) = self.merge_overlapping(text, semantics){
-            selections = merged_selections;
-        }
-        
-        //all selection are within doc boundaries   //this should already be ensured by assert_invariants in selection.rs
-
-        selections
-    }
-
-    //TODO: remove text: &Rope from fn args
     /// Returns new instance of [`Selections`] from provided input.
-    /// #### Invariants:
-    /// - will alway contain at least one [`Selection`]
-    /// - [`Selection`]s are grapheme aligned
-    /// - [`Selection`]s are sorted by ascending position in doc
-    /// - overlapping [`Selection`]s are merged
-    /// - all [`Selection`]s are within doc boundaries
-    /// 
     /// # Panics
     /// `new` panics if `selections` input param is empty.
     #[must_use] pub fn new(selections: Vec<Selection>, primary_selection_index: usize, _text: &Rope) -> Self{
-        //assert!(!selections.is_empty());
+        assert!(!selections.is_empty());
+        assert!(primary_selection_index < selections.len());
 
         let mut selections = Self{
             selections,
             primary_selection_index,
         };
 
-        // selections.grapheme_align();
+        //TODO: selections.grapheme_align();
         selections = selections.sort();
-        //selections = selections.merge_overlapping(text);  //TODO: fix this to use new merge_overlapping fn
-        //if let Ok(merged_selections) = selections.merge_overlapping(text, semantics){
+        //TODO: if let Ok(merged_selections) = selections.merge_overlapping(text, semantics){
         //    selections = merged_selections;
         //}
 
-        assert!(selections.count() > 0);
-        //TODO: for every selection assert start >= 0 and end <= text.len_chars + 1(for final empty line)
+        assert!(!selections.selections.is_empty());
+        assert!(selections.primary_selection_index < selections.selections.len());
+
         selections
     }
-    #[must_use] pub fn inner_selections(&self) -> &Vec<Selection>{
-        &self.selections
-    }
+    
     /// Returns the number of [`Selection`]s in [`Selections`].
     // note: not tested in selections_tests module
     #[must_use] pub fn count(&self) -> usize{
         self.selections.len()
     }
-    // note: not tested in selections_tests module
-    #[must_use] pub fn primary_selection_index(&self) -> usize{
-        self.primary_selection_index
-    }
+    
     // note: not tested in selections_tests module
     pub fn iter(&self) -> std::slice::Iter<'_, Selection>{
         self.selections.iter()
     }
+    
     // note: not tested in selections_tests module
     pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, Selection>{
         self.selections.iter_mut()
     }
+    
     /// Returns a new instance of [`Selections`] with the last element removed.
     #[must_use] pub fn pop(&self) -> Self{
         let mut new_selections = self.selections.clone();
@@ -152,6 +119,7 @@ impl Selections{
     pub fn primary_mut(&mut self) -> &mut Selection{
         &mut self.selections[self.primary_selection_index]
     }
+    
     // note: not tested in selections_tests module
     #[must_use] pub fn first(&self) -> &Selection{
         // unwrapping because we ensure at least one selection is always present
@@ -160,11 +128,13 @@ impl Selections{
     //pub fn first_mut(&mut self) -> &mut Selection{
     //    self.selections.first_mut().unwrap()
     //}
+    
     // note: not tested in selections_tests module
     #[must_use] pub fn last(&self) -> &Selection{
         // unwrapping because we ensure at least one selection is always present
         self.selections.last().unwrap()
     }
+    
     // note: not tested in selections_tests module
     pub fn nth_mut(&mut self, index: usize) -> &mut Selection{
         self.selections.get_mut(index).unwrap()
@@ -248,34 +218,9 @@ impl Selections{
         }
     }
 
-    //TODO: pub fn search_whole_text
+                //TODO: pub fn search_whole_text
 
-//TODO: impl multiselection movement/extend functions
     /// Intended to ease the use of Selection functions, when used over multiple selections, where the returned selections could be overlapping.
-    ///     intended for use with:
-    ///         move up
-    ///         move down
-    ///         move left
-    ///         move right
-    ///         move backward word boundary
-    ///         move forward word boundary
-    ///         move line end
-    ///         move line start
-    ///         move line text start
-    ///         move home (switches between line start and line text start)
-    ///         extend up
-    ///         extend down
-    ///         extend left
-    ///         extend right
-    ///         extend backward word boundary
-    ///         extend forward word boundary
-    ///         extend line end
-    ///         extend line start
-    ///         extend line text start
-    ///         extend home (switches between line start and line text start)
-    ///         extend doc start
-    ///         extend doc end
-    ///         select line
     pub fn move_cursor_potentially_overlapping<F>(&self, text: &Rope, semantics: CursorSemantics, move_fn: F) -> Result<Self, SelectionsError>
         where F: Fn(&Selection, &Rope, CursorSemantics) -> Result<Selection, SelectionError>
     {
@@ -311,9 +256,6 @@ impl Selections{
     }
     
     /// Intended to ease the use of Selection functions, when used over multiple selections, where the returned selections should definitely not be overlapping.
-    ///     intended for use with:
-    ///         collapse selection
-    ///         maybe others...i thought there would be more use cases, but that hasn't proven to be the case yet
     pub fn move_cursor_non_overlapping<F>(&self, text: &Rope, semantics: CursorSemantics, move_fn: F) -> Result<Self, SelectionsError>
         where F: Fn(&Selection, &Rope, CursorSemantics) -> Result<Selection, SelectionError>
     {
@@ -342,10 +284,6 @@ impl Selections{
     }
     
     /// Intended to ease the use of Selection functions, when used over multiple selections, where movement should result in a single selection.
-    ///     intended for use with:
-    ///         move doc start
-    ///         move doc end
-    ///         select all
     pub fn move_cursor_clearing_non_primary<F>(&self, text: &Rope, semantics: CursorSemantics, move_fn: F) -> Result<Self, SelectionsError>
     where
         F: Fn(&Selection, &Rope, CursorSemantics) -> Result<Selection, SelectionError>
@@ -370,13 +308,7 @@ impl Selections{
         Ok(new_selections)
     }
     
-    //TODO: move_cursor_page    //should this be like move_cursor_clearing_non_primary or move_cursor_potentially_overlapping?...   vscode behavior seems to be equivalent to move_cursor_potentially_overlapping
     /// Intended to ease the use of Selection functions, when used over multiple selections, where the returned selections are moved by view height and could be overlapping.
-    ///     intended for use with:
-    ///         move page up
-    ///         move page down
-    ///         extend page up
-    ///         extend page down
     pub fn move_cursor_page<F>(&self, text: &Rope, view: &View, semantics: CursorSemantics, move_fn: F) -> Result<Self, SelectionsError>
         where F: Fn(&Selection, &Rope, &View, CursorSemantics) -> Result<Selection, SelectionError>
     {

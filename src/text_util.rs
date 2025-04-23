@@ -1,6 +1,5 @@
 use ropey::{Rope, RopeSlice};
 use unicode_segmentation::UnicodeSegmentation;
-use crate::document::TAB_WIDTH;
 use crate::selection::{CursorSemantics, Selection};
 
 
@@ -141,12 +140,13 @@ fn is_whitespace(char: char) -> bool{
 }
 
 /// Returns the grapheme distance to next multiple of user defined tab width.
-#[must_use] pub fn distance_to_next_multiple_of_tab_width(selection: &Selection, text: &Rope, semantics: CursorSemantics) -> usize{
-    let next_tab_distance = offset_from_line_start(selection.cursor(text, semantics), text) % TAB_WIDTH;
+#[must_use] pub fn distance_to_next_multiple_of_tab_width(selection: &Selection, text: &Rope, semantics: CursorSemantics, tab_width: usize) -> usize{
+    let next_tab_distance = offset_from_line_start(selection.cursor(text, semantics), text) % tab_width;//TAB_WIDTH;
     //if offset_from_line_start(selection.cursor(semantics), text) % TAB_WIDTH != 0{
     if next_tab_distance != 0{
         //TAB_WIDTH.saturating_sub(offset_from_line_start(selection.cursor(semantics), text) % TAB_WIDTH)
-        TAB_WIDTH.saturating_sub(next_tab_distance)
+        //TAB_WIDTH.saturating_sub(next_tab_distance)
+        tab_width.saturating_sub(next_tab_distance)
     }else{
         0
     }

@@ -5,7 +5,7 @@ use crate::{
 use ropey::Rope;
 
 pub fn document_impl(document: &mut Document, semantics: CursorSemantics) -> Result<(), DocumentError>{
-    match document.selections.move_cursor_potentially_overlapping(document.text(), semantics, selection_impl){
+    match document.selections.move_cursor_potentially_overlapping(&document.text, semantics, selection_impl){
         Ok(new_selections) => {document.selections = new_selections;}
         Err(e) => {return Err(DocumentError::SelectionsError(e))}   //though, should only return SelectionsError::ResultsInSameState
     }

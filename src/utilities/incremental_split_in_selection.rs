@@ -8,13 +8,13 @@ use ropey::Rope;
 use regex::Regex;
 
 pub fn document_impl(document: &mut Document, search_text: &str, selections_before_split: &Selections, /* TODO: semantics: CursorSemantics */) -> Result<(), DocumentError>{
-    match selections_impl(selections_before_split, search_text, document.text()){
+    match selections_impl(selections_before_split, search_text, &document.text){
         Ok(new_selections) => {
-            *document.selections_mut() = new_selections;
+            document.selections = new_selections;
             Ok(())
         }
         Err(_) => {
-            *document.selections_mut() = selections_before_split.clone();
+            document.selections = selections_before_split.clone();
             Err(DocumentError::InvalidInput)
         }
     }
@@ -28,7 +28,7 @@ fn selections_impl(selections: &Selections, input: &str, text: &Rope) -> Result<
     let primary_selection = selections.primary();
     let mut primary_selection_index = 0;
     
-    for selection in selections.inner_selections(){
+    for selection in &selections.selections{
         let matches = selection_impl(selection, input, text);
         if matches.is_empty(){
             if selections.count() == 1{return Err(SelectionsError::NoSearchMatches);}

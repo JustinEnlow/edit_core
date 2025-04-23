@@ -8,13 +8,13 @@ use ropey::Rope;
 use regex::Regex;
 
 pub fn document_impl(document: &mut Document, search_text: &str, selections_before_search: &Selections, /* TODO: semantics: CursorSemantics */) -> Result<(), DocumentError>{
-    match selections_impl(selections_before_search, search_text, document.text()){
+    match selections_impl(selections_before_search, search_text, &document.text){
         Ok(new_selections) => {
-            *document.selections_mut() = new_selections;
+            document.selections = new_selections;
             Ok(())
         }
         Err(_) => {
-            *document.selections_mut() = selections_before_search.clone();
+            document.selections = selections_before_search.clone();
             Err(DocumentError::InvalidInput)
         }
     }
@@ -23,7 +23,7 @@ pub fn document_impl(document: &mut Document, search_text: &str, selections_befo
 //TODO: maybe. if no selection extended, search whole text
 /// 
 /// # Errors
-///     - if no matches.
+///     //if no matches.
 pub fn selections_impl(selections: &Selections, input: &str, text: &Rope) -> Result<Selections, SelectionsError>{
     if input.is_empty(){return Err(SelectionsError::NoSearchMatches);}
     let mut new_selections = Vec::new();
@@ -32,7 +32,7 @@ pub fn selections_impl(selections: &Selections, input: &str, text: &Rope) -> Res
     //let mut primary_selection_index = self.primary_selection_index;
     let mut primary_selection_index = 0;
     
-    for selection in selections.inner_selections(){  //self.selections.iter(){   //change suggested by clippy lint
+    for selection in &selections.selections{  //self.selections.iter(){   //change suggested by clippy lint
         let matches = selection_impl(selection, input, text);
         if selection == primary_selection{
             primary_selection_index = num_pushed.saturating_sub(1);

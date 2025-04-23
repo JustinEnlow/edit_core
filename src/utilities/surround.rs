@@ -10,8 +10,8 @@ use ropey::Rope;
 //TODO: take CursorSemantics as arg, and handle
 
 pub fn document_impl(document: &mut Document) -> Result<(), DocumentError>{
-    match selections_impl(document.selections(), document.text()){
-        Ok(new_selections) => {*document.selections_mut() = new_selections;}
+    match selections_impl(&document.selections, &document.text){
+        Ok(new_selections) => {document.selections = new_selections;}
         Err(e) => {return Err(DocumentError::SelectionsError(e));}
     }
     Ok(())
@@ -21,8 +21,8 @@ pub fn selections_impl(selections: &Selections, text: &Rope) -> Result<Selection
     let mut new_selections = Vec::with_capacity(2 * selections.count());
     let mut num_pushed: usize = 0;
     let primary_selection = selections.primary();
-    let mut primary_selection_index = selections.primary_selection_index();
-    for selection in selections.inner_selections(){
+    let mut primary_selection_index = selections.primary_selection_index;
+    for selection in &selections.selections{
         let surrounds = selection_impl(selection, text);
         //if selection == primary_selection{
         //    primary_selection_index = num_pushed;//.saturating_sub(1);

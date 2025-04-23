@@ -38,7 +38,7 @@ pub fn document_impl(document: &mut Document, leading_char: char, trailing_char:
     if document.selections.count() == 1 && cannot_add_surrounding_pair{return Err(DocumentError::SelectionAtDocBounds);}
     else{
         // push change set to undo stack
-        document.undo_stack.push(ChangeSet::new(changes, selections_before_changes, document.selections().clone()));
+        document.undo_stack.push(ChangeSet::new(changes, selections_before_changes, document.selections.clone()));
     
         // clear redo stack. new actions invalidate the redo history
         document.redo_stack.clear();

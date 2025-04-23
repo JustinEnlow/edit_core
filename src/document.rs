@@ -17,21 +17,6 @@ use std::path::PathBuf;
 use ropey::Rope;
 
 
-// should these consts be set in the frontend app, and passed in to functions that require them?
-
-
-/// Specifies the display width of a tab character. This value could be adjusted based on user preferences or configuration, though there are currently no per-language settings.
-pub const TAB_WIDTH: usize = 4; //should this be language dependant? on-the-fly configurable?   //TODO: consider what to do with files where the tab width already in use is different than this setting
-
-/// Indicates whether to use hard tabs (e.g., `\t`) or spaces for indentation.
-///     - If `USE_HARD_TAB` is `true`, a literal tab character (`\t`) is inserted.
-///     - If `USE_HARD_TAB` is `false`, spaces are inserted, with the number of spaces determined by the `TAB_WIDTH` setting.
-pub const USE_HARD_TAB: bool = false;   //maybe do enum TabStyle{Hard, Soft, Smart}
-
-/// Determines whether the full file path or just the file name should be displayed when showing the document's name.
-pub const USE_FULL_FILE_PATH: bool = false;
-
-
 
 /// Represents errors that can occur when performing operations on a document.
 #[derive(Debug)]
@@ -46,7 +31,6 @@ pub enum DocumentError{
 pub struct Document{
     pub text: Rope, //the actual text buffer being edited
     pub file_path: Option<PathBuf>,
-    //modified: bool,
     pub selections: Selections, //Hashmap<ClientID, Selections>
     pub client_view: View,      //Hashmap<ClientID, View>       //TODO: client should pass view as param where needed, instead of storing this. this ensures a single source of truth (the client)
     pub undo_stack: Vec<ChangeSet>,
@@ -55,43 +39,42 @@ pub struct Document{
     pub clipboard: String,
 }
 impl Document{
-    // if possible, i would like to implement these elsewhere, and have them still be usable in other test locations
     ////////////////////////////////////////////////////////////////////// Testing Only ///////////////////////////////////////////////////////////////////////////
-    /// Instantiate a new [`Document`]. Only for testing.                                                                                                        //
-    /**/#[must_use] pub fn new(cursor_semantics: CursorSemantics) -> Self{                                                                                       //
-    /**/    Self::initialize_fields(None, &Rope::new(), cursor_semantics)                                                                        //
-    /**/}                                                                                                                                                        //
-    /// Add [Rope]-based text to an existing instance of [Document]. Only for testing.                                                                           //
-    /**/#[must_use] pub fn with_text(mut self, text: Rope) -> Self{                                                                                              //
-    /**/    self.text = text.clone();                                                                                                                            //
-    /**/    self.last_saved_text = text;                                                                                                                         //
-    /**/    self                                                                                                                                                 //
-    /**/}                                                                                                                                                        //
-    /// Add [Selections] to an existing instance of [Document]. Only for testing.                                                                                //
-    /**/#[must_use] pub fn with_selections(mut self, selections: Selections) -> Self{                                                                            //
-    /**/    self.selections = selections;                                                                                                                        //
-    /**/    self                                                                                                                                                 //
-    /**/}                                                                                                                                                        //
-    /// Add a [View] to an existing instance of [Document]. Only for testing.                                                                                    //
-    /**/#[must_use] pub fn with_view(mut self, view: View) -> Self{                                                                                              //
-    /**/    self.client_view = view;                                                                                                                             //
-    /**/    self                                                                                                                                                 //
-    /**/}                                                                                                                                                        //
-    /// Add [String]-based text to an existing instance of [Document]. Clipboard is scoped to the editor only, not the system clipboard. Only for testing.       //
-    /**/#[must_use] pub fn with_clipboard(mut self, clipboard: String) -> Self{                                                                                  //
-    /**/    self.clipboard = clipboard;                                                                                                                          //
-    /**/    self                                                                                                                                                 //
-    /**/}                                                                                                                                                        //
-    /// Add [Vec<ChangeSet>] undo stack to an existing instance of [Document]. Only for testing.                                                                 //
-    /**/#[must_use] pub fn with_undo_stack(mut self, undo_stack: Vec<ChangeSet>) -> Self{                                                                        //
-    /**/    self.undo_stack = undo_stack;                                                                                                                        //
-    /**/    self                                                                                                                                                 //
-    /**/}                                                                                                                                                        //
-    /// Add `last_saved_text` to an existing instance of [Document]. Only for testing.                                                                           //
-    /**/#[must_use] pub fn with_last_saved_text(mut self, last_saved_text: Rope) -> Self{                                                                        //
-    /**/    self.last_saved_text = last_saved_text;                                                                                                              //
-    /**/    self                                                                                                                                                 //
-    /**/}                                                                                                                                                        //
+    /// Instantiate a new [`Document`]. Only for testing. Potentially also useful for opening a scratch buffer
+    #[must_use] pub fn new(cursor_semantics: CursorSemantics) -> Self{
+        Self::initialize_fields(None, &Rope::new(), cursor_semantics)
+    }
+    /// Add [Rope]-based text to an existing instance of [Document]. Only for testing. Potentially also useful for opening a scratch buffer with content from stdin
+    #[must_use] pub fn with_text(mut self, text: Rope) -> Self{
+        self.text = text.clone();
+        self.last_saved_text = text;
+        self
+    }
+    /// Add [Selections] to an existing instance of [Document]. Only for testing. Potentially also useful for opening a buffer with specific selection coordinates
+    #[must_use] pub fn with_selections(mut self, selections: Selections) -> Self{
+        self.selections = selections;
+        self
+    }
+    /// Add a [View] to an existing instance of [Document]. Only for testing.
+    #[must_use] pub fn with_view(mut self, view: View) -> Self{
+        self.client_view = view;
+        self
+    }
+    /// Add [String]-based text to an existing instance of [Document]. Clipboard is scoped to the editor only, not the system clipboard. Only for testing.
+    #[must_use] pub fn with_clipboard(mut self, clipboard: String) -> Self{
+        self.clipboard = clipboard;
+        self
+    }
+    /// Add [Vec<ChangeSet>] undo stack to an existing instance of [Document]. Only for testing.
+    #[must_use] pub fn with_undo_stack(mut self, undo_stack: Vec<ChangeSet>) -> Self{
+        self.undo_stack = undo_stack;
+        self
+    }
+    /// Add `last_saved_text` to an existing instance of [Document]. Only for testing.
+    #[must_use] pub fn with_last_saved_text(mut self, last_saved_text: Rope) -> Self{
+        self.last_saved_text = last_saved_text;
+        self
+    }
     ////////////////////////////////////////////////////////////////////// Testing Only ///////////////////////////////////////////////////////////////////////////
     
     /// Opens a document from a given file path and loads its content. Supports both block and bar cursor semantics.
@@ -114,7 +97,6 @@ impl Document{
         Self{
             text: text.clone(),
             file_path,
-            //modified: false,
             selections,
             client_view: View::default(),
             undo_stack: Vec::new(),
@@ -123,10 +105,12 @@ impl Document{
             clipboard: String::new(),
         }
     }
-    #[must_use] pub fn file_name(&self) -> Option<String>{
+
+    // TODO: document + test
+    #[must_use] pub fn file_name(&self, use_full_file_path: bool) -> Option<String>{
         match &self.file_path{
             Some(path) => {
-                if USE_FULL_FILE_PATH{
+                if use_full_file_path{
                     Some(path.to_string_lossy().to_string())
                 }else{
                     Some(path.file_name().unwrap().to_string_lossy().to_string())
@@ -135,6 +119,7 @@ impl Document{
             None => None
         }
     }
+    
     /// 1-based number of lines
     /// ```
     /// # use ropey::Rope;
@@ -149,45 +134,8 @@ impl Document{
         self.text.len_lines()
     }
 
-    //TODO?: should selections just be made public?
-    #[must_use] pub fn selections(&self) -> &Selections{
-        &self.selections
-    }
-    pub fn selections_mut(&mut self) -> &mut Selections{
-        &mut self.selections
-    }
-    //
-
-    #[must_use] pub fn text(&self) -> &Rope{
-        &self.text
-    }
-    #[must_use] pub fn view(&self) -> &View{
-        &self.client_view
-    }
-    pub fn view_mut(&mut self) -> &mut View{
-        &mut self.client_view
-    }
-    #[must_use] pub fn clipboard(&self) -> &str{
-        &self.clipboard
-    }
-    //#[must_use] pub fn undo_stack(&self) -> Vec<ChangeSet>{ //should this be &Vec?
-    //    self.undo_stack.clone()
-    //}
-    //#[must_use] pub fn redo_stack(&self) -> Vec<ChangeSet>{ //should this be &Vec?
-    //    self.redo_stack.clone()
-    //}
-    /// Saves the document's content to its file path.
-    //pub fn save(&mut self) -> Result<(), Box<dyn Error>>{
-    //    if let Some(path) = &self.file_path{ // does nothing if path is None    //maybe return Err(()) instead?
-    //        self.text.write_to(BufWriter::new(fs::File::create(path)?))?;
-    //        //self.modified = false;
-    //        self.last_saved_text = self.text.clone();
-    //    }
-    //    
-    //    Ok(())
-    //}
+    //TODO: document + test
     #[must_use] pub fn is_modified(&self) -> bool{
-        //self.modified
         self.text != self.last_saved_text
     }
     
@@ -207,7 +155,7 @@ impl Document{
         for _ in 0..string.len(){
             //*selection = selection.move_right(doc_text, semantics);
             //if let Ok(new_selection) = selection.move_right(doc_text, semantics){
-            if let Ok(new_selection) = crate::utilities::move_cursor_right::selection_impl(selection, &doc_text, semantics){
+            if let Ok(new_selection) = crate::utilities::move_cursor_right::selection_impl(selection, doc_text, semantics){
                 *selection = new_selection;
             }
         }
@@ -258,6 +206,7 @@ impl Document{
     
 
     //is the below functionality actually desired?...
+    //should eventually be moved into utilities
     
     //pub fn extend_selection_document_start(&mut self, semantics: CursorSemantics) -> Result<(), DocumentError>{
     //    match self.selections.move_cursor_potentially_overlapping(&self.text, semantics, Selection::extend_doc_start){

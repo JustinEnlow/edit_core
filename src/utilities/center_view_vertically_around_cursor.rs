@@ -21,10 +21,10 @@ pub fn document_impl(document: &mut Document, semantics: CursorSemantics) -> Res
 
 /// Returns an instance of [`View`] vertically centered around specified cursor.
 /// # Errors
-///     - if function output would return a `View` with the same state.
+///     //if function output would return a `View` with the same state.
 /// # Panics
-///     - if `selection` is invalid.
-///     - if `text` is invalid.
+///     //if `selection` is invalid.
+///     //if `text` is invalid.
 fn view_impl(view: &View, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> Result<View, ViewError>{
     assert!(selection.cursor(text, semantics) <= text.len_chars());    //ensure selection is valid
     assert!(text.len_lines() > 0);  //ensure text is not empty

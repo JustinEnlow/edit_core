@@ -1,7 +1,7 @@
 // follow documentation style from https://std-dev-guide.rust-lang.org/development/how-to-write-documentation.html
 use ropey::Rope;
 use crate::{
-    text_util, /*view::View, */position::Position, selection2d::Selection2d, range::Range
+    text_util, position::Position, selection2d::Selection2d, range::Range
 };
 
 
@@ -15,33 +15,22 @@ pub enum CursorSemantics{
 pub enum Direction{
     Forward,
     Backward,
-    //None  //could have variant for bar semantics only. would have to assert
 }
-
-/*
-could create exhaustive cursor semantics and direction enum
-enum SemanticDirection{
-    BarNone,            //when anchor == cursor
-    BarForward,         //when anchor < cursor
-    BarBackward,        //when anchor > cursor
-    BlockForward,       //when anchor < cursor
-    BlockBackward       //when anchor > cursor
-}
-*/
 
 #[derive(PartialEq)]
 pub enum Movement{
     Extend,
     Move,
 }
+
 #[derive(Debug, PartialEq)]
 pub enum SelectionError{        //or should each fallible fn have its own fn specific Error? this would prevent the calling fn from having to match unused variants in the fallible fn...
     ResultsInSameState,
     NoOverlap,
-    //InvalidInput,   //as in put_cursor  //to > text.len_chars()
     SpansMultipleLines,
     DirectionMismatch
 }
+
 /// 1 dimensional representation of a single selection(between anchor and head) within a text rope.
 /// a cursor is a selection with an anchor/head difference of 0 or 1(depending on cursor semantics)
 /// Should ensure head/anchor are always within text bounds
@@ -62,31 +51,36 @@ impl Selection{
     }
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     
-    // use this on new selections to autofill their stored line position
-    // then we can assert that every selection has Some() stored_line_position in assert_invariants
-    // then every function should also return a selection with Some() stored_line_position
-    pub fn determine_stored_line_position(self, text: &Rope, semantics: CursorSemantics) -> Self{
-        Self{range: self.range.clone(), direction: self.direction, stored_line_position: Some(text_util::offset_from_line_start(self.cursor(text, semantics), text))}
-    }
-    
     /// Returns a new instance of [`Selection`].
-    // TODO: maybe should panic if block semantics and head == anchor
-    // TODO: maybe take CursorSemantics as an argument and store it in Selection, this way we never have to pass it in again...
-    // TODO: address TODOs in selection_tests/new.rs
     #[must_use] pub fn new(range: Range, direction: Direction) -> Self{
-        //assert!(anchor >= 0);  //should be ensured by `usize` type
-        //assert!(anchor <= text.len_chars().saturating_add(1));            //requires a reference to underlying Rope
-        //assert!(head >= 0);   //should be ensured by `usize` type
-        //assert!(head <= text.len_chars().saturating_add(1));              //requires a reference to underlying Rope
-        
-    //TODO: definitely enable these, because we want to ensure all test code is using valid selections, although would require instance of CursorSemantics...
-        //if bar semantics, assert!(anchor == head);                        //requires instance of CursorSemantics
-        //if block semantics, assert!(anchor != head);                      //requires instance of CursorSemantics
+        let instance = Self{range, direction, stored_line_position: None};
 
-        Self{range, direction, stored_line_position: None}
+        //assert!(instance.anchor() >= 0);  //should be ensured by `usize` type
+        //assert!(instance.head() >= 0);   //should be ensured by `usize` type
+
+        //match semantics{
+        //    CursorSemantics::Bar => {
+        //        assert!(instance.anchor() <= text.len_chars());
+        //        assert!(instance.head() <= text.len_chars());
+        //    }
+        //    CursorSemantics::Block => {
+        //        if instance.is_extended(semantics){
+        //            assert!(instance.anchor() <= text.len_chars());
+        //            assert!(instance.head() <= text.len_chars());
+        //        }else{    //cursor can be 1 past text end
+        //            assert!(instance.anchor() <= text.len_chars().saturating_add(1));
+        //            assert!(instance.head() <= text.len_chars().saturating_add(1));
+        //        }
+        //        assert!(instance.anchor() != instance.head());
+        //    }
+        //}
+
+        //TODO: set stored line position. will prob remove option to have None. but do other asserts first + test
+
+        instance
     }
 
-    //TODO: definitely test this!!!
+    //TODO: this should be removed once new takes text and semantics as args
     pub fn assert_invariants(&self, text: &Rope, semantics: CursorSemantics){
         //assert!(self.range.start >= 0);   //already ensured by `usize` type
         //assert!(self.range.end >= 0);   //already ensured by `usize` type
@@ -97,7 +91,7 @@ impl Selection{
             CursorSemantics::Bar => {
                 assert!(self.range.start <= text.len_chars());
                 assert!(self.range.end <= text.len_chars());
-                assert!(self.range.start <= self.range.end);
+                //assert!(self.range.start <= self.range.end);  //should be ensured in Range
             }
             CursorSemantics::Block => {
                 if self.is_extended(semantics){
@@ -140,8 +134,19 @@ impl Selection{
         debug_string
     }
 
-    // TODO: make fn to_rope_slice
-    // TODO: make fn to_string
+    ///
+    /// ```
+    /// use edit_core::selection::{Selection, Direction};
+    /// use edit_core::range::Range;
+    /// use ropey::Rope;
+    /// 
+    /// let text = Rope::from("idk\nsome\nshit\n");
+    /// let selection = Selection::new(Range::new(0, 3), Direction::Forward);
+    /// assert_eq!("idk".to_string(), selection.contents_as_string(&text));
+    /// ```
+    #[must_use] pub fn contents_as_string(&self, text: &Rope) -> String{
+        text.slice(self.range.start..self.range.end).to_string()
+    }
     
     /// Returns the char index of [`Selection`] anchor. Anchor is the stationary portion of an extended [`Selection`].
     #[must_use] pub fn anchor(&self) -> usize{
@@ -193,20 +198,6 @@ impl Selection{
 
         // all other cases
         true
-    }
-
-    ///
-    /// ```
-    /// use edit_core::selection::{Selection, Direction};
-    /// use edit_core::range::Range;
-    /// use ropey::Rope;
-    /// 
-    /// let text = Rope::from("idk\nsome\nshit\n");
-    /// let selection = Selection::new(Range::new(0, 3), Direction::Forward);
-    /// assert_eq!("idk".to_string(), selection.contents_as_string(&text));
-    /// ```
-    #[must_use] pub fn contents_as_string(&self, text: &Rope) -> String{
-        text.slice(self.range.start..self.range.end).to_string()
     }
     
     /// Returns a new [`Selection`] from the overlapping [`Range`]s of `self` and `other`, with a reasonable `stored_line_position` calculated.
@@ -276,25 +267,27 @@ impl Selection{
     pub fn put_cursor(&self, to: usize, text: &Rope, movement: Movement, semantics: CursorSemantics, update_stored_line_position: bool) -> Result<Self, SelectionError>{
         let mut selection = match (semantics, movement){
             (CursorSemantics::Bar, Movement::Move) => {
-                //assert!(to <= text.len_chars());
                 let to = to.min(text.len_chars());
                 //if self.range.start == to && self.range.end == to{return Err(SelectionError::ResultsInSameState);}
                 Selection::new(Range::new(to, to), Direction::Forward)
             }
             (CursorSemantics::Bar, Movement::Extend) => {
-                //assert!(to <= text.len_chars());
                 let to = to.min(text.len_chars());
+                let (start, end, direction) = if to < self.anchor(){
+                    (to, self.anchor(), Direction::Backward)
+                }else{
+                    (self.anchor(), to, Direction::Forward)
+                };
                 //if self.range.start == self.anchor() && self.range.end == to{return Err(SelectionError::ResultsInSameState);}
-                Selection::new(Range::new(self.anchor(), to), if to < self.anchor(){Direction::Backward}else{Direction::Forward})
+                //Selection::new(Range::new(self.anchor(), to), if to < self.anchor(){Direction::Backward}else{Direction::Forward})
+                Selection::new(Range::new(start, end), direction)
             }
             (CursorSemantics::Block, Movement::Move) => {
-                //assert!(to <= text.len_chars());
                 let to = to.min(text.len_chars());
                 //if self.range.start == to && self.range.end == text_util::next_grapheme_index(to, text).min(text.len_chars().saturating_add(1)){return Err(SelectionError::ResultsInSameState);}
                 Selection::new(Range::new(to, text_util::next_grapheme_index(to, text).min(text.len_chars().saturating_add(1))), Direction::Forward)
             }
             (CursorSemantics::Block, Movement::Extend) => {
-                //assert!(to <= text_util::previous_grapheme_index(text.len_chars(), text));
                 let to = to.min(text_util::previous_grapheme_index(text.len_chars(), text));
                 let new_anchor = match self.direction{
                     Direction::Forward => {
@@ -389,13 +382,13 @@ impl Selection{
 
 
 
-    /// Returns a new instance of [`Selection`] with the [`Selection`] extended up by the height of `client_view`.
+    // Returns a new instance of [`Selection`] with the [`Selection`] extended up by the height of `client_view`.
     //pub fn extend_page_up(&self, text: &Rope, client_view: &View, semantics: CursorSemantics) -> Result<Self, SelectionError>{
     //    self.assert_invariants(text, semantics);
     //    if text.char_to_line(self.cursor(text, semantics)) == 0{return Err(SelectionError::ResultsInSameState);}
     //    self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Extend, Direction::Backward, semantics)
     //}
-    /// Returns a new instance of [`Selection`] with the [`Selection`] extended down by the height of `client_view`.
+    // Returns a new instance of [`Selection`] with the [`Selection`] extended down by the height of `client_view`.
     //pub fn extend_page_down(&self, text: &Rope, client_view: &View, semantics: CursorSemantics) -> Result<Self, SelectionError>{    //TODO: ensure this can't extend past doc text end
     //    self.assert_invariants(text, semantics);
     //    //if text.char_to_line(self.cursor(text, semantics)) == text.len_lines().saturating_sub(1){return Err(SelectionError::ResultsInSameState);}
@@ -415,13 +408,13 @@ impl Selection{
     //    else{self.move_vertically(saturated_amount, text, Movement::Extend, Direction::Forward, semantics)}
     //    //self.move_vertically(client_view.height().saturating_sub(1), text, Movement::Extend, Direction::Forward, semantics)
     //}
-    /// Returns a new instance of [`Selection`] with the [`Selection`] extended to doc start.
+    // Returns a new instance of [`Selection`] with the [`Selection`] extended to doc start.
     //pub fn extend_doc_start(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{
     //    self.assert_invariants(text, semantics);
     //    if self.cursor(text, semantics) == 0{return Err(SelectionError::ResultsInSameState);}
     //    self.put_cursor(0, text, Movement::Extend, semantics, true)
     //}
-    /// Returns a new instance of [`Selection`] with the [`Selection`] extended to doc end.
+    // Returns a new instance of [`Selection`] with the [`Selection`] extended to doc end.
     //pub fn extend_doc_end(&self, text: &Rope, semantics: CursorSemantics) -> Result<Self, SelectionError>{  //TODO: ensure this can't extend past doc text end
     //    self.assert_invariants(text, semantics);
     //    if self.range.start == text.len_chars()
@@ -491,7 +484,7 @@ impl Selection{
     //TODO: future improvement: for each char search loop, spawn a thread to do the search, so we can process them simultaneously.
     //TODO: error if searching backwards and reach previous selection range end, or if searching forward and reach next selection range start   //maybe this logic needs to be in selections
         //should operate over a rope slice from (start of doc if no previous selection, or previous selection end) to (end of doc text if no next selection, or next selection start)
-    /// Returns a new [`Selection`] inside but excluding specified input char.
+    // Returns a new [`Selection`] inside but excluding specified input char.
     //pub fn select_inside_instances_of_single_char(&self, input: char, text: &Rope) -> Result<Self, SelectionError>{     //TODO: this is really more of a "search around selection for instances of single char"
     //    let mut new_selection = self.clone();
     //    
@@ -521,7 +514,7 @@ impl Selection{
     //        Err(SelectionError::ResultsInSameState)
     //    }
     //}
-    /// Returns a new [`Selection`] inside but excluding specified char pair.
+    // Returns a new [`Selection`] inside but excluding specified char pair.
     //pub fn select_inside_pair(&self, leading_char: char, trailing_char: char, text: &Rope) -> Result<Self, SelectionError>{     //TODO: this is really more of a "search around selection for char pair"
     //    let mut new_selection = self.clone();
 //
@@ -558,36 +551,16 @@ impl Selection{
     //TODO: should this pass up possible errors from move/extend calls?
     pub fn shift_and_extend(&mut self, amount: usize, text: &Rope, semantics: CursorSemantics){ //-> Result<(), SelectionError>{
         for _ in 0..amount{
-            //if let Ok(new_selection) = self.move_left(text, semantics){
-            if let Ok(new_selection) = crate::utilities::move_cursor_left::selection_impl(&self, text, semantics){
+            if let Ok(new_selection) = crate::utilities::move_cursor_left::selection_impl(self, text, semantics){
                 *self = new_selection;
             }
         }
         if amount > 1{
-            //match semantics{
-            //    CursorSemantics::Bar => {
-            //        for _ in 0..amount{
-            //            //*self = self.extend_right(text, semantics);
-            //            if let Ok(new_selection) = self.extend_right(text, semantics){
-            //                *self = new_selection;
-            //            }
-            //        }
-            //    }
-            //    CursorSemantics::Block => {
-            //        for _ in 0..amount.saturating_sub(1){
-            //            //*self = self.extend_right(text, semantics);
-            //            if let Ok(new_selection) = self.extend_right(text, semantics){
-            //                *self = new_selection;
-            //            }
-            //        }
-            //    }
-            //}
             for _ in match semantics{   //match semantics to determine our iter range
                 CursorSemantics::Bar => 0..amount,
                 CursorSemantics::Block => 0..amount.saturating_sub(1)
             }{
-                //if let Ok(new_selection) = self.extend_right(text, semantics){*self = new_selection;}
-                if let Ok(new_selection) = crate::utilities::extend_selection_right::selection_impl(&self, text, semantics){
+                if let Ok(new_selection) = crate::utilities::extend_selection_right::selection_impl(self, text, semantics){
                     *self = new_selection;
                 }
             }

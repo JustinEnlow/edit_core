@@ -35,6 +35,9 @@ mod tests{
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
             .with_selections(Selections::new(selections, primary, &text));
+        //for selection in doc.selections.clone().iter(){
+        //    println!("{}, {}", selection.range.start, selection.range.end);
+        //}
         let result = extend_selection_up::document_impl(&mut doc, semantics);
         assert!(!result.is_err());
         let expected_selections = Selections::new(expected_selections, expected_primary, &text);

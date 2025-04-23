@@ -22,7 +22,7 @@ pub fn document_impl(document: &mut Document, string: &str, use_hard_tab: bool, 
                     else{handle_insert(document, "\t", i, semantics)}
                 }
                 else{
-                    let tab_distance = text_util::distance_to_next_multiple_of_tab_width(selection, &document.text, semantics);
+                    let tab_distance = text_util::distance_to_next_multiple_of_tab_width(selection, &document.text, semantics, tab_width);
                     let modified_tab_width = if tab_distance > 0 && tab_distance < tab_width{tab_distance}else{tab_width};
                     let soft_tab = " ".repeat(modified_tab_width);
 

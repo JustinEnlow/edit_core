@@ -9,7 +9,7 @@ Features:
             [x] doc start/end
             [x] word boundaries
             [x] to line number
-            [ ] to matching surround (like ( to ), or " to ")
+            [ ] to matching surround (like ( to ), or " to ")   <ctrl-m in frontend?>
         [ ] extend selection(UTF-8 is WIP)
             [x] up, down, left, right
             [x] line start/end

@@ -48,7 +48,7 @@ impl View{
     /// Returns a `bool` indicating whether the [`View`] should be scrolled or not. If `head` of primary [`Selection2d`]
     /// is outside [`View`] boundaries, [`View`] should be scrolled.
     /// # Panics
-    ///     - if `selection` is invalid.
+    ///     //if `selection` is invalid.
     #[must_use] pub fn should_scroll(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> bool{
         assert!(selection.cursor(text, semantics) <= text.len_chars());
 
@@ -66,7 +66,7 @@ impl View{
     /// [`Selection`] in [`View`].
     /// Can follow any specified selection, not just primary selection.
     /// # Panics
-    ///     - if `selection` is invalid.
+    ///     //if `selection` is invalid.
     #[must_use] pub fn scroll_following_cursor(&self, selection: &Selection, text: &Rope, semantics: CursorSemantics) -> Self{
         assert!(selection.cursor(text, semantics) <= text.len_chars());
 

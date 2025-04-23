@@ -9,8 +9,8 @@ use ropey::Rope;
 
 
 pub fn document_impl(document: &mut Document, semantics: CursorSemantics) -> Result<(), DocumentError>{
-    match selections_impl(document.selections(), document.text(), semantics){
-        Ok(new_selections) => {*document.selections_mut() = new_selections;}
+    match selections_impl(&document.selections, &document.text, semantics){
+        Ok(new_selections) => {document.selections = new_selections;}
         Err(e) => {return Err(DocumentError::SelectionsError(e));}
     }
     Ok(())
@@ -21,8 +21,8 @@ fn selections_impl(selections: &Selections, text: &Rope, semantics: CursorSemant
     let mut new_selections = Vec::with_capacity(2 * selections.count());
     let mut num_pushed: usize = 0;
     let primary_selection = selections.primary();
-    let mut primary_selection_index = selections.primary_selection_index();
-    for selection in selections.inner_selections(){
+    let mut primary_selection_index = selections.primary_selection_index;
+    for selection in &selections.selections{
         let surrounds = selection_impl(selection, text);
         if selection == primary_selection{
             primary_selection_index = num_pushed;
@@ -38,7 +38,7 @@ fn selections_impl(selections: &Selections, text: &Rope, semantics: CursorSemant
             }
         }
     }
-    if new_selections.is_empty() || &new_selections == selections.inner_selections(){Err(SelectionsError::ResultsInSameState)}
+    if new_selections.is_empty() || new_selections == selections.selections{Err(SelectionsError::ResultsInSameState)}
     else{
         //Ok(Selections::new(new_selections, primary_selection_index, text))
         Selections::new(new_selections, primary_selection_index, text).sort().merge_overlapping(text, semantics)

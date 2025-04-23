@@ -103,6 +103,7 @@ mod tests{
             CursorSemantics::Block
         );
     }
+    //TODO: maybe test direction backward too?...
 
     #[test] fn with_valid_selection_and_cursor_at_doc_end(){
         test(

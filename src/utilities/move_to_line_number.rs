@@ -8,12 +8,12 @@ use ropey::Rope;
 pub fn document_impl(document: &mut Document, line_number: usize, semantics: CursorSemantics) -> Result<(), DocumentError>{
     //assert!(line_number > 0);
     //let line_number = line_number.saturating_sub(1);    //convert to zero based //should this conversion really be happening on the back end?
-    if line_number >= document.text().len_lines(){return Err(DocumentError::InvalidInput);}
+    if line_number >= document.text.len_lines(){return Err(DocumentError::InvalidInput);}
     
     //if let Ok(()) = document.clear_non_primary_selections(){};
     if let Ok(()) = crate::utilities::clear_non_primary_selections::document_impl(document){};
-    match selection_impl(document.selections().primary(), line_number, document.text(), Movement::Move, semantics){
-        Ok(new_selection) => {*document.selections_mut().primary_mut() = new_selection;}
+    match selection_impl(document.selections.primary(), line_number, &document.text, Movement::Move, semantics){
+        Ok(new_selection) => {*document.selections.primary_mut() = new_selection;}
         Err(_) => {return Err(DocumentError::InvalidInput);}    //should be same state error
     }
     Ok(())
@@ -65,6 +65,8 @@ mod tests{
         assert!(move_to_line_number::document_impl(&mut doc, line_number, semantics).is_err());
         assert!(!doc.is_modified());
     }
+
+    //TODO: restricts cursor to line end, when stored line position > line width
 
     #[test] fn moves_to_line_number_bar_semantics(){
         test(
