@@ -76,28 +76,60 @@ mod tests{
     use crate::{
         document::Document,
         selections::Selections,
-        selection::{Selection, CursorSemantics, Direction},
-        range::Range,
+        selection::{Selection, CursorSemantics},
     };
     use ropey::Rope;
 
-    fn test(text: &str, selections: Vec<Selection>, primary: usize, expected_selections: Vec<Selection>, expected_primary: usize, semantics: CursorSemantics){
+    //fn test(text: &str, selections: Vec<Selection>, primary: usize, expected_selections: Vec<Selection>, expected_primary: usize, semantics: CursorSemantics){
+    //    let text = Rope::from(text);
+    //    let mut doc = Document::new(semantics)
+    //        .with_text(text.clone())
+    //        .with_selections(Selections::new(selections, primary, &text, semantics));
+    //    let result = add_selection_above::document_impl(&mut doc, semantics);
+    //    assert!(!result.is_err());
+    //    let expected_selections = Selections::new(expected_selections, expected_primary, &text, semantics);
+    //    assert_eq!(expected_selections, doc.selections);
+    //    assert!(!doc.is_modified());
+    //}
+    //fn test_error(text: &str, selections: Vec<Selection>, primary: usize, semantics: CursorSemantics){
+    //    let text = Rope::from(text);
+    //    let mut doc = Document::new(semantics)
+    //        .with_text(text.clone())
+    //        .with_selections(Selections::new(selections, primary, &text, semantics));
+    //    assert!(add_selection_above::document_impl(&mut doc, semantics).is_err());
+    //}
+    fn test(semantics: CursorSemantics, text: &str, tuple_selections: Vec<(usize, usize, Option<usize>)>, primary: usize, tuple_expected_selections: Vec<(usize, usize, Option<usize>)>, expected_primary: usize){
         let text = Rope::from(text);
+        let mut vec_selections = Vec::new();
+        for tuple in tuple_selections{
+            vec_selections.push(Selection::new_from_components(tuple.0, tuple.1, tuple.2, &text, semantics));
+        }
+        let selections = Selections::new(vec_selections, primary, &text, semantics);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
-            .with_selections(Selections::new(selections, primary, &text, semantics));
+            .with_selections(selections);
         let result = add_selection_above::document_impl(&mut doc, semantics);
         assert!(!result.is_err());
-        let expected_selections = Selections::new(expected_selections, expected_primary, &text, semantics);
+        let mut vec_expected_selections = Vec::new();
+        for tuple in tuple_expected_selections{
+            vec_expected_selections.push(Selection::new_from_components(tuple.0, tuple.1, tuple.2, &text, semantics));
+        }
+        let expected_selections = Selections::new(vec_expected_selections, expected_primary, &text, semantics);
         assert_eq!(expected_selections, doc.selections);
         assert!(!doc.is_modified());
     }
-    fn test_error(text: &str, selections: Vec<Selection>, primary: usize, semantics: CursorSemantics){
+    fn test_error(semantics: CursorSemantics, text: &str, tuple_selections: Vec<(usize, usize, Option<usize>)>, primary: usize){
         let text = Rope::from(text);
+        let mut vec_selections = Vec::new();
+        for tuple in tuple_selections{
+            vec_selections.push(Selection::new_from_components(tuple.0, tuple.1, tuple.2, &text, semantics));
+        }
+        let selections = Selections::new(vec_selections, primary, &text, semantics);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
-            .with_selections(Selections::new(selections, primary, &text, semantics));
+            .with_selections(selections);
         assert!(add_selection_above::document_impl(&mut doc, semantics).is_err());
+        assert!(!doc.is_modified());
     }
 
     //to line with same len or more
@@ -105,26 +137,49 @@ mod tests{
             //bar
                 //selection direction forward
                 #[test] fn to_line_with_same_len_or_more_with_non_extended_selection_with_direction_forward_bar_semantics(){
+                    //test(
+                    //    "idk\nsome\nshit\n", 
+                    //    vec![Selection::new(Range::new(9, 9), Direction::Forward)], 0, 
+                    //    vec![
+                    //        Selection::new(Range::new(4, 4), Direction::Forward),
+                    //        Selection::new(Range::new(9, 9), Direction::Forward)
+                    //    ], 1, 
+                    //    CursorSemantics::Bar
+                    //);
                     test(
+                        CursorSemantics::Bar, 
                         "idk\nsome\nshit\n", 
-                        vec![Selection::new(Range::new(9, 9), Direction::Forward)], 0, 
                         vec![
-                            Selection::new(Range::new(4, 4), Direction::Forward),
-                            Selection::new(Range::new(9, 9), Direction::Forward)
-                        ], 1, 
-                        CursorSemantics::Bar
+                            (9, 9, None),
+                        ], 0, 
+                        vec![
+                            (4, 4, None),
+                            (9, 9, None)
+                        ], 1
                     );
                 }
                 //selection direction backward
                 #[test] fn to_line_with_same_len_or_more_with_non_extended_selection_with_direction_backward_bar_semantics(){
+                    //test(
+                    //    "idk\nsome\nshit\n", 
+                    //    vec![Selection::new(Range::new(9, 9), Direction::Backward)], 0, 
+                    //    vec![
+                    //        Selection::new(Range::new(4, 4), Direction::Backward),
+                    //        Selection::new(Range::new(9, 9), Direction::Backward)
+                    //    ], 1, 
+                    //    CursorSemantics::Bar
+                    //);
+                    // this is the same as forward direction with Selection::new_from_components fn
                     test(
+                        CursorSemantics::Bar, 
                         "idk\nsome\nshit\n", 
-                        vec![Selection::new(Range::new(9, 9), Direction::Backward)], 0, 
                         vec![
-                            Selection::new(Range::new(4, 4), Direction::Backward),
-                            Selection::new(Range::new(9, 9), Direction::Backward)
-                        ], 1, 
-                        CursorSemantics::Bar
+                            (9, 9, None)
+                        ], 0, 
+                        vec![
+                            (4, 4, None),
+                            (9, 9, None)
+                        ], 1
                     );
                 }
             //block
@@ -134,26 +189,48 @@ mod tests{
             //bar
                 //selection direction forward
                 #[test] fn to_line_with_same_len_or_more_with_extended_selection_with_direction_forward_bar_semantics(){
+                    //test(
+                    //    "idk\nsome\nshit\n", 
+                    //    vec![Selection::new(Range::new(9, 13), Direction::Forward)], 0, 
+                    //    vec![
+                    //        Selection::new(Range::new(4, 8), Direction::Forward),
+                    //        Selection::new(Range::new(9, 13), Direction::Forward)
+                    //    ], 1, 
+                    //    CursorSemantics::Bar
+                    //);
                     test(
+                        CursorSemantics::Bar, 
                         "idk\nsome\nshit\n", 
-                        vec![Selection::new(Range::new(9, 13), Direction::Forward)], 0, 
                         vec![
-                            Selection::new(Range::new(4, 8), Direction::Forward),
-                            Selection::new(Range::new(9, 13), Direction::Forward)
-                        ], 1, 
-                        CursorSemantics::Bar
+                            (9, 13, None)
+                        ], 0, 
+                        vec![
+                            (4, 8, None),
+                            (9, 13, None)
+                        ], 1
                     );
                 }
                 //selection direction backward
                 #[test] fn to_line_with_same_len_or_more_with_extended_selection_with_direction_backward_bar_semantics(){
+                    //test(
+                    //    "idk\nsome\nshit\n", 
+                    //    vec![Selection::new(Range::new(9, 13), Direction::Backward)], 0, 
+                    //    vec![
+                    //        Selection::new(Range::new(4, 8), Direction::Backward),
+                    //        Selection::new(Range::new(9, 13), Direction::Backward)
+                    //    ], 1, 
+                    //    CursorSemantics::Bar
+                    //);
                     test(
+                        CursorSemantics::Bar, 
                         "idk\nsome\nshit\n", 
-                        vec![Selection::new(Range::new(9, 13), Direction::Backward)], 0, 
                         vec![
-                            Selection::new(Range::new(4, 8), Direction::Backward),
-                            Selection::new(Range::new(9, 13), Direction::Backward)
-                        ], 1, 
-                        CursorSemantics::Bar
+                            (13, 9, None)
+                        ], 0, 
+                        vec![
+                            (8, 4, None),
+                            (13, 9, None)
+                        ], 1
                     );
                 }
             //block
@@ -164,26 +241,48 @@ mod tests{
             //bar
                 //selection direction forward
                 #[test] fn to_shorter_line_with_non_extended_selection_with_direction_forward_bar_semantics(){
+                    //test(
+                    //    "idk\nsome\nshit\n", 
+                    //    vec![Selection::new(Range::new(4, 4), Direction::Forward)], 0, 
+                    //    vec![
+                    //        Selection::new(Range::new(0, 0), Direction::Forward),
+                    //        Selection::new(Range::new(4, 4), Direction::Forward)
+                    //    ], 1, 
+                    //    CursorSemantics::Bar
+                    //);
                     test(
+                        CursorSemantics::Bar, 
                         "idk\nsome\nshit\n", 
-                        vec![Selection::new(Range::new(4, 4), Direction::Forward)], 0, 
                         vec![
-                            Selection::new(Range::new(0, 0), Direction::Forward),
-                            Selection::new(Range::new(4, 4), Direction::Forward)
-                        ], 1, 
-                        CursorSemantics::Bar
+                            (4, 4, None)
+                        ], 0, 
+                        vec![
+                            (0, 0, None),
+                            (4, 4, None)
+                        ], 1
                     );
                 }
                 //selection direction backward
                 #[test] fn to_shorter_line_with_non_extended_selection_with_direction_backward_bar_semantics(){
+                    //test(
+                    //    "idk\nsome\nshit\n", 
+                    //    vec![Selection::new(Range::new(4, 4), Direction::Backward)], 0, 
+                    //    vec![
+                    //        Selection::new(Range::new(0, 0), Direction::Backward),
+                    //        Selection::new(Range::new(4, 4), Direction::Backward)
+                    //    ], 1, 
+                    //    CursorSemantics::Bar
+                    //);
                     test(
+                        CursorSemantics::Bar, 
                         "idk\nsome\nshit\n", 
-                        vec![Selection::new(Range::new(4, 4), Direction::Backward)], 0, 
                         vec![
-                            Selection::new(Range::new(0, 0), Direction::Backward),
-                            Selection::new(Range::new(4, 4), Direction::Backward)
-                        ], 1, 
-                        CursorSemantics::Bar
+                            (4, 4, None)
+                        ], 0, 
+                        vec![
+                            (0, 0, None),
+                            (4, 4, None)
+                        ], 1
                     );
                 }
             //block
@@ -193,26 +292,48 @@ mod tests{
             //bar
                 //selection direction forward
                 #[test] fn to_shorter_line_with_extended_selection_with_direction_forward_bar_semantics(){
+                    //test(
+                    //    "idk\nsome\nshit\n", 
+                    //    vec![Selection::new(Range::new(4, 8), Direction::Forward)], 0, 
+                    //    vec![
+                    //        Selection::new(Range::new(0, 4), Direction::Forward),
+                    //        Selection::new(Range::new(4, 8), Direction::Forward)
+                    //    ], 1, 
+                    //    CursorSemantics::Bar
+                    //);
                     test(
+                        CursorSemantics::Bar, 
                         "idk\nsome\nshit\n", 
-                        vec![Selection::new(Range::new(4, 8), Direction::Forward)], 0, 
                         vec![
-                            Selection::new(Range::new(0, 4), Direction::Forward),
-                            Selection::new(Range::new(4, 8), Direction::Forward)
-                        ], 1, 
-                        CursorSemantics::Bar
+                            (4, 8, None)
+                        ], 0, 
+                        vec![
+                            (0, 4, None),
+                            (4, 8, None)
+                        ], 1
                     );
                 }
                 //selection direction backward
                 #[test] fn to_shorter_line_with_extended_selection_with_direction_backward_bar_semantics(){
+                    //test(
+                    //    "idk\nsome\nshit\n", 
+                    //    vec![Selection::new(Range::new(4, 8), Direction::Backward)], 0, 
+                    //    vec![
+                    //        Selection::new(Range::new(0, 4), Direction::Backward),
+                    //        Selection::new(Range::new(4, 8), Direction::Backward)
+                    //    ], 1, 
+                    //    CursorSemantics::Bar
+                    //);
                     test(
+                        CursorSemantics::Bar, 
                         "idk\nsome\nshit\n", 
-                        vec![Selection::new(Range::new(4, 8), Direction::Backward)], 0, 
                         vec![
-                            Selection::new(Range::new(0, 4), Direction::Backward),
-                            Selection::new(Range::new(4, 8), Direction::Backward)
-                        ], 1, 
-                        CursorSemantics::Bar
+                            (8, 4, None)
+                        ], 0, 
+                        vec![
+                            (4, 0, None),
+                            (8, 4, None)
+                        ], 1
                     );
                 }
             //block
@@ -253,18 +374,32 @@ mod tests{
             //bar
                 //selection direction forward
                 #[test] fn should_error_if_on_top_line_with_non_extended_selection_with_direction_forward_bar_semantics(){
+                    //test_error(
+                    //    "idk\nsome\nshit\n", 
+                    //    vec![Selection::new(Range::new(0, 0), Direction::Forward)], 0, 
+                    //    CursorSemantics::Bar
+                    //);
                     test_error(
+                        CursorSemantics::Bar, 
                         "idk\nsome\nshit\n", 
-                        vec![Selection::new(Range::new(0, 0), Direction::Forward)], 0, 
-                        CursorSemantics::Bar
+                        vec![
+                            (0, 0, None)
+                        ], 0
                     );
                 }
                 //selection direction backward
                 #[test] fn should_error_if_on_top_line_with_non_extended_selection_with_direction_backward_bar_semantics(){
+                    //test_error(
+                    //    "idk\nsome\nshit\n", 
+                    //    vec![Selection::new(Range::new(0, 0), Direction::Backward)], 0, 
+                    //    CursorSemantics::Bar
+                    //);
                     test_error(
+                        CursorSemantics::Bar, 
                         "idk\nsome\nshit\n", 
-                        vec![Selection::new(Range::new(0, 0), Direction::Backward)], 0, 
-                        CursorSemantics::Bar
+                        vec![
+                            (0, 0, None)
+                        ], 0
                     );
                 }
             //block
@@ -274,18 +409,32 @@ mod tests{
             //bar
                 //selection direction forward
                 #[test] fn should_error_if_on_top_line_with_extended_selection_with_direction_forward_bar_semantics(){
+                    //test_error(
+                    //    "idk\nsome\nshit\n", 
+                    //    vec![Selection::new(Range::new(0, 3), Direction::Forward)], 0, 
+                    //    CursorSemantics::Bar
+                    //);
                     test_error(
+                        CursorSemantics::Bar, 
                         "idk\nsome\nshit\n", 
-                        vec![Selection::new(Range::new(0, 3), Direction::Forward)], 0, 
-                        CursorSemantics::Bar
+                        vec![
+                            (0, 3, None)
+                        ], 0
                     );
                 }
                 //selection direction backward
                 #[test] fn should_error_if_on_top_line_with_extended_selection_with_direction_backward_bar_semantics(){
+                    //test_error(
+                    //    "idk\nsome\nshit\n", 
+                    //    vec![Selection::new(Range::new(0, 3), Direction::Backward)], 0, 
+                    //    CursorSemantics::Bar
+                    //);
                     test_error(
+                        CursorSemantics::Bar, 
                         "idk\nsome\nshit\n", 
-                        vec![Selection::new(Range::new(0, 3), Direction::Backward)], 0, 
-                        CursorSemantics::Bar
+                        vec![
+                            (3, 0, None)
+                        ], 0
                     );
                 }
             //block
@@ -303,18 +452,32 @@ mod tests{
             //bar
                 //selection direction forward
                 #[test] fn should_error_if_any_selection_is_multiline_with_direction_forward_bar_semantics(){
+                    //test_error(
+                    //    "idk\nsome\nshit\n", 
+                    //    vec![Selection::new(Range::new(0, 9), Direction::Forward)], 0, 
+                    //    CursorSemantics::Bar
+                    //);
                     test_error(
+                        CursorSemantics::Bar, 
                         "idk\nsome\nshit\n", 
-                        vec![Selection::new(Range::new(0, 9), Direction::Forward)], 0, 
-                        CursorSemantics::Bar
+                        vec![
+                            (0, 9, None)
+                        ], 0
                     );
                 }
                 //selection direction backward
                 #[test] fn should_error_if_any_selection_is_multiline_with_direction_backward_bar_semantics(){
+                    //test_error(
+                    //    "idk\nsome\nshit\n", 
+                    //    vec![Selection::new(Range::new(0, 9), Direction::Backward)], 0, 
+                    //    CursorSemantics::Bar
+                    //);
                     test_error(
+                        CursorSemantics::Bar, 
                         "idk\nsome\nshit\n", 
-                        vec![Selection::new(Range::new(0, 9), Direction::Backward)], 0, 
-                        CursorSemantics::Bar
+                        vec![
+                            (9, 0, None)
+                        ], 0
                     );
                 }
             //block

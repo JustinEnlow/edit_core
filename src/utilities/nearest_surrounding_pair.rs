@@ -138,27 +138,59 @@ mod tests{
     use crate::{
         document::Document,
         selections::Selections,
-        selection::{Selection, CursorSemantics, Direction},
-        range::Range,
+        selection::{Selection, CursorSemantics},
     };
     use ropey::Rope;
 
-    fn test(semantics: CursorSemantics, text: &str, selections: Vec<Selection>, primary: usize, expected_selections: Vec<Selection>, expected_primary: usize){
+    //fn test(semantics: CursorSemantics, text: &str, selections: Vec<Selection>, primary: usize, expected_selections: Vec<Selection>, expected_primary: usize){
+    //    let text = Rope::from(text);
+    //    let mut doc = Document::new(semantics)
+    //        .with_text(text.clone())
+    //        .with_selections(Selections::new(selections, primary, &text, semantics));
+    //    let result = nearest_surrounding_pair::document_impl(&mut doc, semantics);
+    //    assert!(!result.is_err());
+    //    let expected_selections = Selections::new(expected_selections, expected_primary, &text, semantics);
+    //    assert_eq!(expected_selections, doc.selections);
+    //    assert!(!doc.is_modified());
+    //}
+    //fn test_error(semantics: CursorSemantics, text: &str, selections: Vec<Selection>, primary: usize){
+    //    let text = Rope::from(text);
+    //    let mut doc = Document::new(semantics)
+    //        .with_text(text.clone())
+    //        .with_selections(Selections::new(selections, primary, &text, semantics));
+    //    assert!(nearest_surrounding_pair::document_impl(&mut doc, semantics).is_err());
+    //    assert!(!doc.is_modified());
+    //}
+    fn test(semantics: CursorSemantics, text: &str, tuple_selections: Vec<(usize, usize, Option<usize>)>, primary: usize, tuple_expected_selections: Vec<(usize, usize, Option<usize>)>, expected_primary: usize){
         let text = Rope::from(text);
+        let mut vec_selections = Vec::new();
+        for tuple in tuple_selections{
+            vec_selections.push(Selection::new_from_components(tuple.0, tuple.1, tuple.2, &text, semantics));
+        }
+        let selections = Selections::new(vec_selections, primary, &text, semantics);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
-            .with_selections(Selections::new(selections, primary, &text, semantics));
+            .with_selections(selections);
         let result = nearest_surrounding_pair::document_impl(&mut doc, semantics);
         assert!(!result.is_err());
-        let expected_selections = Selections::new(expected_selections, expected_primary, &text, semantics);
+        let mut vec_expected_selections = Vec::new();
+        for tuple in tuple_expected_selections{
+            vec_expected_selections.push(Selection::new_from_components(tuple.0, tuple.1, tuple.2, &text, semantics));
+        }
+        let expected_selections = Selections::new(vec_expected_selections, expected_primary, &text, semantics);
         assert_eq!(expected_selections, doc.selections);
         assert!(!doc.is_modified());
     }
-    fn test_error(semantics: CursorSemantics, text: &str, selections: Vec<Selection>, primary: usize){
+    fn test_error(semantics: CursorSemantics, text: &str, tuple_selections: Vec<(usize, usize, Option<usize>)>, primary: usize){
         let text = Rope::from(text);
+        let mut vec_selections = Vec::new();
+        for tuple in tuple_selections{
+            vec_selections.push(Selection::new_from_components(tuple.0, tuple.1, tuple.2, &text, semantics));
+        }
+        let selections = Selections::new(vec_selections, primary, &text, semantics);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
-            .with_selections(Selections::new(selections, primary, &text, semantics));
+            .with_selections(selections);
         assert!(nearest_surrounding_pair::document_impl(&mut doc, semantics).is_err());
         assert!(!doc.is_modified());
     }
@@ -168,27 +200,53 @@ mod tests{
         // 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7
         //|i>d k ( s|o>m e|[>] _ t h|i>n g _ {|}>e l s e ) _ i|d>k
         //|i>d k|(>s o m e|[>]>_ t h i n g _|{>}>e l s e|)>_ i|d>k
+        //test(
+        //    CursorSemantics::Block, 
+        //    "idk(some[] thing {}else) idk", 
+        //    vec![
+        //        Selection::new(Range::new(0, 1), Direction::Forward),   //no pair
+        //        Selection::new(Range::new(5, 6), Direction::Forward),   //pair
+        //        Selection::new(Range::new(8, 9), Direction::Forward),   //pair
+        //        Selection::new(Range::new(13, 14), Direction::Forward), //pair
+        //        Selection::new(Range::new(18, 19), Direction::Forward), //pair
+        //        Selection::new(Range::new(26, 27), Direction::Forward), //no pair
+        //    ], 0, 
+        //    vec![
+        //        //same as above, but sorted and merged, if needed
+        //        Selection::new(Range::new(0, 1), Direction::Forward),
+        //        Selection::with_stored_line_position(Range::new(3, 4), Direction::Forward, 3),      //idk why these have stored line position and others don't
+        //        Selection::new(Range::new(8, 9), Direction::Forward),
+        //        Selection::new(Range::new(9, 10), Direction::Forward),
+        //        Selection::new(Range::new(17, 18), Direction::Forward),
+        //        Selection::new(Range::new(18, 19), Direction::Forward),
+        //        Selection::with_stored_line_position(Range::new(23, 24), Direction::Forward, 23),   //idk why these have stored line position and others don't
+        //        Selection::new(Range::new(26, 27), Direction::Forward),
+        //        //TODO: merge overlapping in selection.rs causing the stored line position. only the overlapping selections have it
+        //        //if so, this should def be fixed in merge_overlapping impl
+        //        //or more correctly, every movement fn should update the stored line position...
+        //            //the only reason we have a None variant is so that we don't need to take a &Rope in Selection::new()
+        //    ], 0
+        //);
         test(
             CursorSemantics::Block, 
             "idk(some[] thing {}else) idk", 
             vec![
-                Selection::new(Range::new(0, 1), Direction::Forward),   //no pair
-                Selection::new(Range::new(5, 6), Direction::Forward),   //pair
-                Selection::new(Range::new(8, 9), Direction::Forward),   //pair
-                Selection::new(Range::new(13, 14), Direction::Forward), //pair
-                Selection::new(Range::new(18, 19), Direction::Forward), //pair
-                Selection::new(Range::new(26, 27), Direction::Forward), //no pair
+                (0, 1, None),   //no pair
+                (5, 6, None),   //pair
+                (8, 9, None),   //pair
+                (13, 14, None), //pair
+                (18, 19, None), //pair
+                (26, 27, None)  //no pair
             ], 0, 
             vec![
-                //same as above, but sorted and merged, if needed
-                Selection::new(Range::new(0, 1), Direction::Forward),
-                Selection::with_stored_line_position(Range::new(3, 4), Direction::Forward, 3),      //idk why these have stored line position and others don't
-                Selection::new(Range::new(8, 9), Direction::Forward),
-                Selection::new(Range::new(9, 10), Direction::Forward),
-                Selection::new(Range::new(17, 18), Direction::Forward),
-                Selection::new(Range::new(18, 19), Direction::Forward),
-                Selection::with_stored_line_position(Range::new(23, 24), Direction::Forward, 23),   //idk why these have stored line position and others don't
-                Selection::new(Range::new(26, 27), Direction::Forward),
+                (0, 1, None),
+                (3, 4, Some(3)),    //idk why these have stored line position and others don't
+                (8, 9, None),
+                (9, 10, None),
+                (17, 18, None),
+                (18, 19, None),
+                (23, 24, Some(23)), //idk why these have stored line position and others don't
+                (26, 27, None)
                 //TODO: merge overlapping in selection.rs causing the stored line position. only the overlapping selections have it
                 //if so, this should def be fixed in merge_overlapping impl
                 //or more correctly, every movement fn should update the stored line position...
@@ -199,99 +257,182 @@ mod tests{
 
     ////|i>d k ( s o m e [ ] _ t h i n g _ { } e l s e ) _ i d k     //no surrounding pair with cursor at this location
     #[test] fn at_start_with_no_surrounding_pair(){
+        //test_error(
+        //    CursorSemantics::Block, 
+        //    "idk(some[] thing {}else) idk", 
+        //    vec![Selection::new(Range::new(0, 1), Direction::Forward)], 0
+        //);
         test_error(
             CursorSemantics::Block, 
             "idk(some[] thing {}else) idk", 
-            vec![Selection::new(Range::new(0, 1), Direction::Forward)], 0
+            vec![
+                (0, 1, None)
+            ], 0
         );
     }
 
     //// i d k ( s|o>m e [ ] _ t h i n g _ { } e l s e ) _ i d k     //paren surrounding pair with cursor at this location
     #[test] fn normal_case(){
+        //test(
+        //    CursorSemantics::Block, 
+        //    "idk(some[] thing {}else) idk", 
+        //    vec![Selection::new(Range::new(5, 6), Direction::Forward)], 0, 
+        //    vec![
+        //        Selection::new(Range::new(3, 4), Direction::Forward),
+        //        Selection::new(Range::new(23, 24), Direction::Forward)
+        //    ], 0
+        //);
         test(
             CursorSemantics::Block, 
             "idk(some[] thing {}else) idk", 
-            vec![Selection::new(Range::new(5, 6), Direction::Forward)], 0, 
             vec![
-                Selection::new(Range::new(3, 4), Direction::Forward),
-                Selection::new(Range::new(23, 24), Direction::Forward)
+                (5, 6, None)
+            ], 0, 
+            vec![
+                (3, 4, None),
+                (23, 24, None)
             ], 0
         );
     }
 
     //// i d k ( s o m e|[>] _ t h i n g _ { } e l s e ) _ i d k     //square bracket surrounding pair with cursor at this location
     #[test] fn with_cursor_over_surrounding_pair_opening(){
+        //test(
+        //    CursorSemantics::Block, 
+        //    "idk(some[] thing {}else) idk", 
+        //    vec![Selection::new(Range::new(8, 9), Direction::Forward)], 0, 
+        //    vec![
+        //        Selection::new(Range::new(8, 9), Direction::Forward),
+        //        Selection::new(Range::new(9, 10), Direction::Forward)
+        //    ], 0
+        //);
         test(
             CursorSemantics::Block, 
             "idk(some[] thing {}else) idk", 
-            vec![Selection::new(Range::new(8, 9), Direction::Forward)], 0, 
             vec![
-                Selection::new(Range::new(8, 9), Direction::Forward),
-                Selection::new(Range::new(9, 10), Direction::Forward)
+                (8, 9, None)
+            ], 0, 
+            vec![
+                (8, 9, None),
+                (9, 10, None)
             ], 0
         );
     }
 
     //// i d k ( s o m e [ ] _ t h|i>n g _ { } e l s e ) _ i d k     //paren surrounding pair with cursor at this location
     #[test] fn with_other_pairs_inside_surrounding_pair(){
+        //test(
+        //    CursorSemantics::Block, 
+        //    "idk(some[] thing {}else) idk", 
+        //    vec![Selection::new(Range::new(13, 14), Direction::Forward)], 0, 
+        //    vec![
+        //        Selection::new(Range::new(3, 4), Direction::Forward),
+        //        Selection::new(Range::new(23, 24), Direction::Forward)
+        //    ], 0
+        //);
         test(
             CursorSemantics::Block, 
             "idk(some[] thing {}else) idk", 
-            vec![Selection::new(Range::new(13, 14), Direction::Forward)], 0, 
             vec![
-                Selection::new(Range::new(3, 4), Direction::Forward),
-                Selection::new(Range::new(23, 24), Direction::Forward)
+                (13, 14, None)
+            ], 0, 
+            vec![
+                (3, 4, None),
+                (23, 24, None)
             ], 0
         );
     }
 
     //// i d k ( s o m e [ ] _ t h i n g _ {|}>e l s e ) _ i d k     //curly bracket surrounding pair with cursor at this location
     #[test] fn with_cursor_over_surrounding_pair_closing(){
+        //test(
+        //    CursorSemantics::Block, 
+        //    "idk(some[] thing {}else) idk", 
+        //    vec![Selection::new(Range::new(18, 19), Direction::Forward)], 0, 
+        //    vec![
+        //        Selection::new(Range::new(17, 18), Direction::Forward),
+        //        Selection::new(Range::new(18, 19), Direction::Forward)
+        //    ], 0
+        //);
         test(
             CursorSemantics::Block, 
             "idk(some[] thing {}else) idk", 
-            vec![Selection::new(Range::new(18, 19), Direction::Forward)], 0, 
             vec![
-                Selection::new(Range::new(17, 18), Direction::Forward),
-                Selection::new(Range::new(18, 19), Direction::Forward)
+                (18, 19, None)
+            ], 0, 
+            vec![
+                (17, 18, None),
+                (18, 19, None)
             ], 0
         );
     }
 
     //// i d k ( s o m e [ ] _ t h i n g _ { } e l s e ) _ i|d>k     //no surrounding pair with cursor at this location
     #[test] fn at_end_with_no_surrounding_pair(){
+        //test_error(
+        //    CursorSemantics::Block, 
+        //    "idk(some[] thing {}else) idk", 
+        //    vec![Selection::new(Range::new(26, 27), Direction::Forward)], 0
+        //);
         test_error(
             CursorSemantics::Block, 
             "idk(some[] thing {}else) idk", 
-            vec![Selection::new(Range::new(26, 27), Direction::Forward)], 0
+            vec![
+                (26, 27, None)
+            ], 0
         );
     }
 
     //These two seem redundant given previous tests...
     #[test] fn no_opening_bracket_pair_returns_empty_vec(){
+        //test_error(
+        //    CursorSemantics::Block, 
+        //    "idk\nsomething)\n", 
+        //    vec![Selection::new(Range::new(3, 4), Direction::Forward)], 0
+        //);
         test_error(
             CursorSemantics::Block, 
             "idk\nsomething)\n", 
-            vec![Selection::new(Range::new(3, 4), Direction::Forward)], 0
+            vec![
+                (3, 4, None)
+            ], 0
         );
     }
     #[test] fn no_closing_bracket_pair_returns_empty_vec(){
+        //test_error(
+        //    CursorSemantics::Block, 
+        //    "(idk\nsomething\n", 
+        //    vec![Selection::new(Range::new(3, 4), Direction::Forward)], 0
+        //);
         test_error(
             CursorSemantics::Block, 
             "(idk\nsomething\n", 
-            vec![Selection::new(Range::new(3, 4), Direction::Forward)], 0
+            vec![
+                (3, 4, None)
+            ], 0
         );
     }
 
     ////idk(some()t(h(i)n)g()else)    //test from multiple levels of same surrounding pair
     #[test] fn with_multiple_levels_of_same_surrounding_pair(){
+        //test(
+        //    CursorSemantics::Block, 
+        //    "idk(some()t(h(i)n)g()else", 
+        //    vec![Selection::new(Range::new(12, 13), Direction::Forward)], 0, 
+        //    vec![
+        //        Selection::new(Range::new(11, 12), Direction::Forward),
+        //        Selection::new(Range::new(17, 18), Direction::Forward)
+        //    ], 0
+        //);
         test(
             CursorSemantics::Block, 
             "idk(some()t(h(i)n)g()else", 
-            vec![Selection::new(Range::new(12, 13), Direction::Forward)], 0, 
             vec![
-                Selection::new(Range::new(11, 12), Direction::Forward),
-                Selection::new(Range::new(17, 18), Direction::Forward)
+                (12, 13, None)
+            ], 0, 
+            vec![
+                (11, 12, None),
+                (17, 18, None)
             ], 0
         );
     }

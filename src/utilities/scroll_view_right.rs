@@ -52,7 +52,7 @@ mod tests{
     };
     use ropey::Rope;
 
-    fn test(text: &str, view: View, amount: usize, expected_text: &str, expected_view: View, semantics: CursorSemantics){
+    fn test(semantics: CursorSemantics, text: &str, view: View, amount: usize, expected_text: &str, expected_view: View){
         let text = Rope::from(text);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
@@ -61,7 +61,7 @@ mod tests{
         assert_eq!(expected_text.to_string(), doc.client_view.text(&text));
         assert_eq!(expected_view, doc.client_view);
     }
-    fn test_error(text: &str, view: View, amount: usize, semantics: CursorSemantics){
+    fn test_error(semantics: CursorSemantics, text: &str, view: View, amount: usize){
         let text = Rope::from(text);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
@@ -71,28 +71,28 @@ mod tests{
 
     #[test] fn scroll_right(){
         test(
+            CursorSemantics::Block,
             "idk\nsome\nshit\n", 
             View::new(0, 0, 2, 2), 1, 
             "dk\nom\n", 
             View::new(1, 0, 2, 2), 
-            CursorSemantics::Block
         );
     }
     //TODO: test when amount > space left to scroll.    //does this saturate at doc bounds currently?
 
     #[test] fn errors_if_already_scrolled_right_all_the_way(){
         test_error(
+            CursorSemantics::Block,
             "idk\nsome\nshit\n", 
             View::new(2, 0, 2, 2), 1, 
-            CursorSemantics::Block
         );
     }
 
     #[test] fn errors_if_amount_is_zero(){
         test_error(
+            CursorSemantics::Block,
             "idk\nsome\nshit\n", 
             View::new(1, 0, 2, 2), 0, 
-            CursorSemantics::Block
         );
     }
 }

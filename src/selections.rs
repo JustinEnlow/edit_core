@@ -32,10 +32,6 @@ pub struct Selections{
     pub primary_selection_index: usize,
 }
 impl Selections{
-    pub fn unverified(selections: Vec<Selection>, primary_selection_index: usize) -> Self{
-        Self{selections, primary_selection_index}
-    }
-
     /// Returns new instance of [`Selections`] from provided input.
     /// # Panics
     /// `new` panics if `selections` input param is empty.

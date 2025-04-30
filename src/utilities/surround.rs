@@ -73,44 +73,90 @@ mod tests{
     use crate::{
         document::Document,
         selections::Selections,
-        selection::{Selection, CursorSemantics, Direction},
-        range::Range,
+        selection::{Selection, CursorSemantics},
     };
     use ropey::Rope;
 
-    fn test(semantics: CursorSemantics, text: &str, selections: Vec<Selection>, primary: usize, expected_selections: Vec<Selection>, expected_primary: usize){
+    //fn test(semantics: CursorSemantics, text: &str, selections: Vec<Selection>, primary: usize, expected_selections: Vec<Selection>, expected_primary: usize){
+    //    let text = Rope::from(text);
+    //    let mut doc = Document::new(semantics)
+    //        .with_text(text.clone())
+    //        .with_selections(Selections::new(selections, primary, &text, semantics));
+    //    let result = surround::document_impl(&mut doc, semantics);
+    //    assert!(!result.is_err());
+    //    let expected_selections = Selections::new(expected_selections, expected_primary, &text, semantics);
+    //    assert_eq!(expected_selections, doc.selections);
+    //    assert!(!doc.is_modified());
+    //}
+    //fn test_error(semantics: CursorSemantics, text: &str, selections: Vec<Selection>, primary: usize){
+    //    let text = Rope::from(text);
+    //    let mut doc = Document::new(semantics)
+    //        .with_text(text.clone())
+    //        .with_selections(Selections::new(selections, primary, &text, semantics));
+    //    assert!(surround::document_impl(&mut doc, semantics).is_err());
+    //    assert!(!doc.is_modified());
+    //}
+    fn test(semantics: CursorSemantics, text: &str, tuple_selections: Vec<(usize, usize, Option<usize>)>, primary: usize, tuple_expected_selections: Vec<(usize, usize, Option<usize>)>, expected_primary: usize){
         let text = Rope::from(text);
+        let mut vec_selections = Vec::new();
+        for tuple in tuple_selections{
+            vec_selections.push(Selection::new_from_components(tuple.0, tuple.1, tuple.2, &text, semantics));
+        }
+        let selections = Selections::new(vec_selections, primary, &text, semantics);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
-            .with_selections(Selections::new(selections, primary, &text, semantics));
+            .with_selections(selections);
         let result = surround::document_impl(&mut doc, semantics);
         assert!(!result.is_err());
-        let expected_selections = Selections::new(expected_selections, expected_primary, &text, semantics);
+        let mut vec_expected_selections = Vec::new();
+        for tuple in tuple_expected_selections{
+            vec_expected_selections.push(Selection::new_from_components(tuple.0, tuple.1, tuple.2, &text, semantics));
+        }
+        let expected_selections = Selections::new(vec_expected_selections, expected_primary, &text, semantics);
         assert_eq!(expected_selections, doc.selections);
         assert!(!doc.is_modified());
     }
-    fn test_error(semantics: CursorSemantics, text: &str, selections: Vec<Selection>, primary: usize){
+    fn test_error(semantics: CursorSemantics, text: &str, tuple_selections: Vec<(usize, usize, Option<usize>)>, primary: usize){
         let text = Rope::from(text);
+        let mut vec_selections = Vec::new();
+        for tuple in tuple_selections{
+            vec_selections.push(Selection::new_from_components(tuple.0, tuple.1, tuple.2, &text, semantics));
+        }
+        let selections = Selections::new(vec_selections, primary, &text, semantics);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
-            .with_selections(Selections::new(selections, primary, &text, semantics));
+            .with_selections(selections);
         assert!(surround::document_impl(&mut doc, semantics).is_err());
         assert!(!doc.is_modified());
     }
 
     #[test] fn with_non_extended_selection(){   //also ensures primary updates properly
+        //test(
+        //    CursorSemantics::Block, 
+        //    "idk\nsome\nshit\n", 
+        //    vec![
+        //        Selection::new(Range::new(0, 1), Direction::Forward),
+        //        Selection::new(Range::new(4, 5), Direction::Forward),
+        //    ], 1, 
+        //    vec![
+        //        Selection::new(Range::new(0, 1), Direction::Forward),
+        //        Selection::new(Range::new(1, 2), Direction::Forward),
+        //        Selection::new(Range::new(4, 5), Direction::Forward),
+        //        Selection::new(Range::new(5, 6), Direction::Forward),
+        //    ], 2
+        //);
         test(
             CursorSemantics::Block, 
             "idk\nsome\nshit\n", 
             vec![
-                Selection::new(Range::new(0, 1), Direction::Forward),
-                Selection::new(Range::new(4, 5), Direction::Forward),
+                (0, 1, None),
+                (4, 5, None)
             ], 1, 
             vec![
-                Selection::new(Range::new(0, 1), Direction::Forward),
-                Selection::new(Range::new(1, 2), Direction::Forward),
-                Selection::new(Range::new(4, 5), Direction::Forward),
-                Selection::new(Range::new(5, 6), Direction::Forward),
+                (0, 1, None),
+                (1, 2, None),
+                (4, 5, None),
+                (5, 6, None)
             ], 2
         );
     }
@@ -133,44 +179,78 @@ mod tests{
     //}
     
     #[test] fn with_extended_selection(){
+        //test(
+        //    CursorSemantics::Block, 
+        //    "idk\nsome\nshit\n", 
+        //    vec![
+        //        Selection::new(Range::new(0, 3), Direction::Forward),
+        //        Selection::new(Range::new(4, 8), Direction::Forward)
+        //    ], 0, 
+        //    vec![
+        //        Selection::new(Range::new(0, 1), Direction::Forward),
+        //        Selection::new(Range::new(3, 4), Direction::Forward),
+        //        Selection::new(Range::new(4, 5), Direction::Forward),
+        //        Selection::new(Range::new(8, 9), Direction::Forward)
+        //    ], 0
+        //);
         test(
             CursorSemantics::Block, 
             "idk\nsome\nshit\n", 
             vec![
-                Selection::new(Range::new(0, 3), Direction::Forward),
-                Selection::new(Range::new(4, 8), Direction::Forward)
+                (0, 3, None),
+                (4, 8, None)
             ], 0, 
             vec![
-                Selection::new(Range::new(0, 1), Direction::Forward),
-                Selection::new(Range::new(3, 4), Direction::Forward),
-                Selection::new(Range::new(4, 5), Direction::Forward),
-                Selection::new(Range::new(8, 9), Direction::Forward)
+                (0, 1, None),
+                (3, 4, None),
+                (4, 5, None),
+                (8, 9, None)
             ], 0
         );
     }
 
     //mixed valid and invalid selections  //one at doc end, one not
     #[test] fn mixed_valid_and_invalid_selections(){    //also ensures primary updates properly
+        //test(
+        //    CursorSemantics::Block, 
+        //    "idk\nsome\nshit\n", 
+        //    vec![
+        //        Selection::new(Range::new(0, 1), Direction::Forward),
+        //        Selection::new(Range::new(14, 15), Direction::Forward)
+        //    ], 1, 
+        //    vec![
+        //        Selection::new(Range::new(0, 1), Direction::Forward),
+        //        Selection::new(Range::new(1, 2), Direction::Forward),
+        //        Selection::new(Range::new(14, 15), Direction::Forward)
+        //    ], 2
+        //);
         test(
             CursorSemantics::Block, 
             "idk\nsome\nshit\n", 
             vec![
-                Selection::new(Range::new(0, 1), Direction::Forward),
-                Selection::new(Range::new(14, 15), Direction::Forward)
+                (0, 1, None),
+                (14, 15, None)
             ], 1, 
             vec![
-                Selection::new(Range::new(0, 1), Direction::Forward),
-                Selection::new(Range::new(1, 2), Direction::Forward),
-                Selection::new(Range::new(14, 15), Direction::Forward)
+                (0, 1, None),
+                (1, 2, None),
+                (14, 15, None)
             ], 2
         );
     }
     
     #[test] fn errors_if_single_selection_at_doc_end(){
+        //test_error(
+        //    CursorSemantics::Block, 
+        //    "idk\nsome\nshit\n", 
+        //    vec![Selection::new(Range::new(14, 15), Direction::Forward)], 0
+        //);
         test_error(
             CursorSemantics::Block, 
             "idk\nsome\nshit\n", 
-            vec![Selection::new(Range::new(14, 15), Direction::Forward)], 0
+            vec![
+                (14, 15, None)
+            ], 0
         );
     }
 }

@@ -75,62 +75,124 @@ mod tests{
     use crate::{
         document::Document,
         selections::Selections,
-        selection::{Selection, CursorSemantics, Direction},
-        range::Range,
+        selection::{Selection, CursorSemantics},
     };
 
-    fn test(text: &str, selections: Vec<Selection>, primary: usize, string: &str, expected_text: &str, expected_selections: Vec<Selection>, expected_primary: usize, semantics: CursorSemantics){
+    //fn test(text: &str, selections: Vec<Selection>, primary: usize, string: &str, expected_text: &str, expected_selections: Vec<Selection>, expected_primary: usize, semantics: CursorSemantics){
+    //    let text = Rope::from(text);
+    //    let mut doc = Document::new(semantics)
+    //        .with_text(text.clone())
+    //        .with_selections(Selections::new(selections, primary, &text, semantics));
+    //    let _ = insert_string::document_impl(&mut doc, string, false, 4, semantics);
+    //    let expected_text = Rope::from(expected_text);
+    //    assert_eq!(expected_text, doc.text);
+    //    let expected_selections = Selections::new(expected_selections, expected_primary, &text, semantics);
+    //    assert_eq!(expected_selections, doc.selections);
+    //    assert!(doc.is_modified());
+    //}
+    //fn test_error(text: &str, selections: Vec<Selection>, primary: usize, string: &str, semantics: CursorSemantics){
+    //    let text = Rope::from(text);
+    //    let mut doc = Document::new(semantics)
+    //        .with_text(text.clone())
+    //        .with_selections(Selections::new(selections, primary, &text, semantics));
+    //    assert!(insert_string::document_impl(&mut doc, string, false, 4, semantics).is_err());
+    //    assert!(!doc.is_modified());
+    //}
+    fn test(semantics: CursorSemantics, text: &str, tuple_selections: Vec<(usize, usize, Option<usize>)>, primary: usize, insert_string: &str, expected_text: &str, tuple_expected_selections: Vec<(usize, usize, Option<usize>)>, expected_primary: usize){
         let text = Rope::from(text);
+        let mut vec_selections = Vec::new();
+        for tuple in tuple_selections{
+            vec_selections.push(Selection::new_from_components(tuple.0, tuple.1, tuple.2, &text, semantics));
+        }
+        let selections = Selections::new(vec_selections, primary, &text, semantics);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
-            .with_selections(Selections::new(selections, primary, &text, semantics));
-        let _ = insert_string::document_impl(&mut doc, string, false, 4, semantics);
+            .with_selections(selections);
+        let result = insert_string::document_impl(&mut doc, insert_string, false, 4, semantics);
+        assert!(!result.is_err());
         let expected_text = Rope::from(expected_text);
-        assert_eq!(expected_text, doc.text);
-        let expected_selections = Selections::new(expected_selections, expected_primary, &text, semantics);
+        assert_eq!(expected_text.clone(), doc.text);
+        let mut vec_expected_selections = Vec::new();
+        for tuple in tuple_expected_selections{
+            vec_expected_selections.push(Selection::new_from_components(tuple.0, tuple.1, tuple.2, &expected_text, semantics));
+        }
+        let expected_selections = Selections::new(vec_expected_selections, expected_primary, &expected_text, semantics);
         assert_eq!(expected_selections, doc.selections);
         assert!(doc.is_modified());
     }
-    fn test_error(text: &str, selections: Vec<Selection>, primary: usize, string: &str, semantics: CursorSemantics){
+    fn test_error(semantics: CursorSemantics, text: &str, tuple_selections: Vec<(usize, usize, Option<usize>)>, primary: usize, insert_string: &str){
         let text = Rope::from(text);
+        let mut vec_selections = Vec::new();
+        for tuple in tuple_selections{
+            vec_selections.push(Selection::new_from_components(tuple.0, tuple.1, tuple.2, &text, semantics));
+        }
+        let selections = Selections::new(vec_selections, primary, &text, semantics);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
-            .with_selections(Selections::new(selections, primary, &text, semantics));
-        assert!(insert_string::document_impl(&mut doc, string, false, 4, semantics).is_err());
+            .with_selections(selections);
+        assert!(insert_string::document_impl(&mut doc, insert_string, false, 4, semantics).is_err());
         assert!(!doc.is_modified());
     }
 
     #[test] fn insert_single_char_with_multi_selection_block_semantics(){
+        //test(
+        //    "some\nshit\n", 
+        //    vec![
+        //        Selection::new(Range::new(0, 1), Direction::Forward),
+        //        Selection::new(Range::new(5, 6), Direction::Forward)
+        //    ], 0, 
+        //    "x", 
+        //    "xsome\nxshit\n", 
+        //    vec![
+        //        Selection::with_stored_line_position(Range::new(1, 2), Direction::Forward, 1),
+        //        Selection::with_stored_line_position(Range::new(7, 8), Direction::Forward, 1)
+        //    ], 0, 
+        //    CursorSemantics::Block
+        //);
         test(
+            CursorSemantics::Block, 
             "some\nshit\n", 
             vec![
-                Selection::new(Range::new(0, 1), Direction::Forward),
-                Selection::new(Range::new(5, 6), Direction::Forward)
+                (0, 1, None),
+                (5, 6, None)
             ], 0, 
             "x", 
             "xsome\nxshit\n", 
             vec![
-                Selection::with_stored_line_position(Range::new(1, 2), Direction::Forward, 1),
-                Selection::with_stored_line_position(Range::new(7, 8), Direction::Forward, 1)
-            ], 0, 
-            CursorSemantics::Block
+                (1, 2, Some(1)),
+                (7, 8, Some(1))
+            ], 0
         );
     }
 
     #[test] fn insert_single_char_with_multi_selection_bar_semantics(){
+        //test(
+        //    "some\nshit\n", 
+        //    vec![
+        //        Selection::new(Range::new(0, 0), Direction::Forward),
+        //        Selection::new(Range::new(5, 5), Direction::Forward)
+        //    ], 0, 
+        //    "x", 
+        //    "xsome\nxshit\n", 
+        //    vec![
+        //        Selection::with_stored_line_position(Range::new(1, 1), Direction::Forward, 1),
+        //        Selection::with_stored_line_position(Range::new(7, 7), Direction::Forward, 1)
+        //    ], 0, 
+        //    CursorSemantics::Bar
+        //);
         test(
+            CursorSemantics::Bar, 
             "some\nshit\n", 
             vec![
-                Selection::new(Range::new(0, 0), Direction::Forward),
-                Selection::new(Range::new(5, 5), Direction::Forward)
+                (0, 0, None),
+                (5, 5, None)
             ], 0, 
             "x", 
             "xsome\nxshit\n", 
             vec![
-                Selection::with_stored_line_position(Range::new(1, 1), Direction::Forward, 1),
-                Selection::with_stored_line_position(Range::new(7, 7), Direction::Forward, 1)
-            ], 0, 
-            CursorSemantics::Bar
+                (1, 1, Some(1)),
+                (7, 7, Some(1))
+            ], 0
         );
     }
     
@@ -139,24 +201,42 @@ mod tests{
     //TODO: test insert newline
     
     #[test] fn errors_if_empty_insert_string(){
+        //test_error(
+        //    "some\nshit\n", 
+        //    vec![
+        //        Selection::new(Range::new(0, 1), Direction::Forward),
+        //        Selection::new(Range::new(5, 6), Direction::Forward)
+        //    ], 0, 
+        //    "", 
+        //    CursorSemantics::Block
+        //);
         test_error(
+            CursorSemantics::Block, 
             "some\nshit\n", 
             vec![
-                Selection::new(Range::new(0, 1), Direction::Forward),
-                Selection::new(Range::new(5, 6), Direction::Forward)
+                (0, 1, None),
+                (5, 6, None)
             ], 0, 
-            "", 
-            CursorSemantics::Block
+            ""
         );
     
+        //test_error(
+        //    "some\nshit\n", 
+        //    vec![
+        //        Selection::new(Range::new(0, 0), Direction::Forward),
+        //        Selection::new(Range::new(5, 5), Direction::Forward)
+        //    ], 0, 
+        //    "", 
+        //    CursorSemantics::Bar
+        //);
         test_error(
+            CursorSemantics::Bar, 
             "some\nshit\n", 
             vec![
-                Selection::new(Range::new(0, 0), Direction::Forward),
-                Selection::new(Range::new(5, 5), Direction::Forward)
+                (0, 0, None),
+                (5, 5, None)
             ], 0, 
-            "", 
-            CursorSemantics::Bar
+            ""
         );
     }
 }

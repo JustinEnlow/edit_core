@@ -7,8 +7,19 @@ use crate::selections::Selections;
 
 #[test] fn selections_are_sorted_by_ascending_position_in_doc(){
     let text = Rope::from("idk\nsome\nshit\n");
-    let selections = Selections::new(vec![Selection::new(Range::new(2, 4), Direction::Forward), Selection::new(Range::new(0, 5), Direction::Forward), Selection::new(Range::new(3, 6), Direction::Forward)], 0, &text, CursorSemantics::Block);
-    let expected = Selections::new(vec![Selection::new(Range::new(0, 5), Direction::Forward), Selection::new(Range::new(2, 4), Direction::Forward), Selection::new(Range::new(3, 6), Direction::Forward)], 1, &text, CursorSemantics::Block);
+    let selections = Selections::new(
+        vec![
+            Selection::new(Range::new(2, 4), Direction::Forward), 
+            Selection::new(Range::new(0, 5), Direction::Forward), 
+            Selection::new(Range::new(3, 6), Direction::Forward)
+        ], 0, &text, CursorSemantics::Block
+    );
+    let expected = Selections::new(
+        vec![
+            Selection::new(Range::new(0, 5), Direction::Forward), 
+            Selection::new(Range::new(2, 4), Direction::Forward), 
+            Selection::new(Range::new(3, 6), Direction::Forward)
+        ], 1, &text, CursorSemantics::Block);
     assert_eq!(expected, selections);
 }
 

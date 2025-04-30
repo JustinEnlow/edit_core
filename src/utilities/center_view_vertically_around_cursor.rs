@@ -60,30 +60,62 @@ mod tests{
     use crate::{
         document::Document,
         selections::Selections,
-        selection::{Selection, CursorSemantics, Direction},
-        range::Range,
+        selection::{Selection, CursorSemantics},
         view::View
     };
     use ropey::Rope;
 
-    fn test(text: &str, view: View, selections: Vec<Selection>, primary: usize, expected_text: &str, expected_view: View, semantics: CursorSemantics){
+    //fn test(text: &str, view: View, selections: Vec<Selection>, primary: usize, expected_text: &str, expected_view: View, semantics: CursorSemantics){
+    //    let text = Rope::from(text);
+    //    let mut doc = Document::new(semantics)
+    //        .with_text(text.clone())
+    //        .with_selections(Selections::new(selections, primary, &text, semantics))
+    //        .with_view(view);
+    //    let result = center_view_vertically_around_cursor::document_impl(&mut doc, semantics);
+    //    assert!(!result.is_err());
+    //    assert_eq!(expected_text.to_string(), doc.client_view.text(&text));
+    //    assert_eq!(expected_view, doc.client_view);
+    //}
+    //fn test_error(text: &str, view: View, selections: Vec<Selection>, primary: usize, semantics: CursorSemantics){
+    //    let text = Rope::from(text);
+    //    let mut doc = Document::new(semantics)
+    //        .with_text(text.clone())
+    //        .with_selections(Selections::new(selections, primary, &text, semantics))
+    //        .with_view(view);
+    //    assert!(center_view_vertically_around_cursor::document_impl(&mut doc, semantics).is_err());
+    //}
+    fn test(semantics: CursorSemantics, text: &str, view: View, tuple_selections: Vec<(usize, usize, Option<usize>)>, primary: usize, expected_text: &str, expected_view: View){
         let text = Rope::from(text);
+        let mut vec_selections = Vec::new();
+        for tuple in tuple_selections{
+            vec_selections.push(Selection::new_from_components(tuple.0, tuple.1, tuple.2, &text, semantics));
+        }
+        let selections = Selections::new(vec_selections, primary, &text, semantics);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
-            .with_selections(Selections::new(selections, primary, &text, semantics))
+            .with_selections(selections.clone())
             .with_view(view);
         let result = center_view_vertically_around_cursor::document_impl(&mut doc, semantics);
         assert!(!result.is_err());
         assert_eq!(expected_text.to_string(), doc.client_view.text(&text));
         assert_eq!(expected_view, doc.client_view);
+        //is it necessary to assert selections haven't changed?...
+        assert_eq!(selections, doc.selections);
+        assert!(!doc.is_modified());
     }
-    fn test_error(text: &str, view: View, selections: Vec<Selection>, primary: usize, semantics: CursorSemantics){
+    fn test_error(semantics: CursorSemantics, text: &str, view: View, tuple_selections: Vec<(usize, usize, Option<usize>)>, primary: usize){
         let text = Rope::from(text);
+        let mut vec_selections = Vec::new();
+        for tuple in tuple_selections{
+            vec_selections.push(Selection::new_from_components(tuple.0, tuple.1, tuple.2, &text, semantics));
+        }
+        let selections = Selections::new(vec_selections, primary, &text, semantics);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
-            .with_selections(Selections::new(selections, primary, &text, semantics))
+            .with_selections(selections)
             .with_view(view);
         assert!(center_view_vertically_around_cursor::document_impl(&mut doc, semantics).is_err());
+        assert!(!doc.is_modified());
     }
     
     #[test] fn works_when_cursor_in_valid_position_before_center(){
@@ -94,13 +126,23 @@ mod tests{
         //|o t h|e r                                    // o t h e r
         // r a n d o m                                  // r a n d o m
         // s h i t                                      // s h i t
+        //test(
+        //    "idk\nyet\nsome\nmore\nother\nrandom\nshit\n", 
+        //    View::new(0, 2, 3, 3), 
+        //    vec![Selection::new(Range::new(8, 9), Direction::Forward)], 0, 
+        //    "yet\nsom\nmor\n", 
+        //    View::new(0, 1, 3, 3), 
+        //    CursorSemantics::Block
+        //);
         test(
+            CursorSemantics::Block, 
             "idk\nyet\nsome\nmore\nother\nrandom\nshit\n", 
             View::new(0, 2, 3, 3), 
-            vec![Selection::new(Range::new(8, 9), Direction::Forward)], 0, 
+            vec![
+                (8, 9, None)
+            ], 0, 
             "yet\nsom\nmor\n", 
-            View::new(0, 1, 3, 3), 
-            CursorSemantics::Block
+            View::new(0, 1, 3, 3)
         );
     }
     #[test] fn works_when_cursor_in_valid_position_after_center(){
@@ -111,13 +153,23 @@ mod tests{
         //|o t h|e r    //<-- primary cursor here -->   //|o t h|e r
         // r a n d o m                                  //|r a n|d o m
         // s h i t                                      // s h i t
+        //test(
+        //    "idk\nyet\nsome\nmore\nother\nrandom\nshit\n", 
+        //    View::new(0, 2, 3, 3), 
+        //    vec![Selection::new(Range::new(18, 19), Direction::Forward)], 0, 
+        //    "mor\noth\nran\n", 
+        //    View::new(0, 3, 3, 3), 
+        //    CursorSemantics::Block
+        //);
         test(
+            CursorSemantics::Block, 
             "idk\nyet\nsome\nmore\nother\nrandom\nshit\n", 
             View::new(0, 2, 3, 3), 
-            vec![Selection::new(Range::new(18, 19), Direction::Forward)], 0, 
+            vec![
+                (18, 19, None)
+            ], 0, 
             "mor\noth\nran\n", 
-            View::new(0, 3, 3, 3), 
-            CursorSemantics::Block
+            View::new(0, 3, 3, 3)
         );
     }
 
@@ -127,11 +179,19 @@ mod tests{
         //|m o r|e                                      //|m o r|e
         // o t h e r                                    // o t h e r
         // s h i t                                      // s h i t
+        //test_error(
+        //    "idk\nsome\nmore\nother\nshit\n", 
+        //    View::new(0, 0, 3, 3), 
+        //    vec![Selection::new(Range::new(0, 1), Direction::Forward)], 0, 
+        //    CursorSemantics::Block
+        //);
         test_error(
+            CursorSemantics::Block, 
             "idk\nsome\nmore\nother\nshit\n", 
             View::new(0, 0, 3, 3), 
-            vec![Selection::new(Range::new(0, 1), Direction::Forward)], 0, 
-            CursorSemantics::Block
+            vec![
+                (0, 1, None)
+            ], 0
         );
     }
     
@@ -141,11 +201,19 @@ mod tests{
         //|m o r|e                                      //|m o r|e
         //|o t h|e r                                    //|o t h|e r
         //|s h i|t      //<-- primary cursor here -->   //|s h i|t
+        //test_error(
+        //    "idk\nsome\nmore\nother\nshit\n", 
+        //    View::new(0, 2, 3, 3), 
+        //    vec![Selection::new(Range::new(25, 26), Direction::Forward)], 0, 
+        //    CursorSemantics::Block
+        //);
         test_error(
+            CursorSemantics::Block, 
             "idk\nsome\nmore\nother\nshit\n", 
             View::new(0, 2, 3, 3), 
-            vec![Selection::new(Range::new(25, 26), Direction::Forward)], 0, 
-            CursorSemantics::Block
+            vec![
+                (25, 26, None)
+            ], 0
         );
     }
     
@@ -155,11 +223,19 @@ mod tests{
         //|m o r|e      //<-- primary cursor here -->   //|m o r|e
         //|o t h|e r                                    //|o t h|e r
         // s h i t                                      // s h i t
+        //test_error(
+        //    "idk\nsome\nmore\nother\nshit\n", 
+        //    View::new(0, 1, 3, 3), 
+        //    vec![Selection::new(Range::new(9, 10), Direction::Forward)], 0, 
+        //    CursorSemantics::Block
+        //);
         test_error(
+            CursorSemantics::Block, 
             "idk\nsome\nmore\nother\nshit\n", 
             View::new(0, 1, 3, 3), 
-            vec![Selection::new(Range::new(9, 10), Direction::Forward)], 0, 
-            CursorSemantics::Block
+            vec![
+                (9, 10, None)
+            ], 0
         );
     }
     #[test] fn errors_when_cursor_on_first_middle_line_with_even_num_lines(){
@@ -169,11 +245,19 @@ mod tests{
         //|m o r|e                                      //|m o r|e
         //|o t h|e r                                    //|o t h|e r
         // s h i t                                      // s h i t
+        //test_error(
+        //    "idk\nyet\nsome\nmore\nother\nshit\n", 
+        //    View::new(0, 1, 3, 4), 
+        //    vec![Selection::new(Range::new(8, 9), Direction::Forward)], 0, 
+        //    CursorSemantics::Block
+        //);
         test_error(
+            CursorSemantics::Block, 
             "idk\nyet\nsome\nmore\nother\nshit\n", 
             View::new(0, 1, 3, 4), 
-            vec![Selection::new(Range::new(8, 9), Direction::Forward)], 0, 
-            CursorSemantics::Block
+            vec![
+                (8, 9, None)
+            ], 0
         );
     }
     #[test] fn errors_when_cursor_on_other_middle_line_with_even_num_lines(){
@@ -183,11 +267,19 @@ mod tests{
         //|m o r|e      //<-- primary cursor here -->   //|m o r|e
         //|o t h|e r                                    //|o t h|e r
         // s h i t                                      // s h i t
+        //test_error(
+        //    "idk\nyet\nsome\nmore\nother\nshit\n", 
+        //    View::new(0, 1, 3, 4), 
+        //    vec![Selection::new(Range::new(13, 14), Direction::Forward)], 0, 
+        //    CursorSemantics::Block
+        //);
         test_error(
+            CursorSemantics::Block, 
             "idk\nyet\nsome\nmore\nother\nshit\n", 
             View::new(0, 1, 3, 4), 
-            vec![Selection::new(Range::new(13, 14), Direction::Forward)], 0, 
-            CursorSemantics::Block
+            vec![
+                (13, 14, None)
+            ], 0
         );
     }
 }

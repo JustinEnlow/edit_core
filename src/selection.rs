@@ -8,8 +8,8 @@ use crate::{
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum CursorSemantics{
-    Bar,    //difference between anchor and head is 0
-    Block   //difference between anchor and head is 1 grapheme
+    Bar,    //with non extended selection, difference between anchor and head is 0           //underlying range treated as exclusive
+    Block   //with non extended selection, difference between anchor and head is 1 grapheme  //underlying range treated as inclusive (although, right now we handle these with exclusive ranges with end + 1...)
 }
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Direction{
@@ -39,9 +39,13 @@ pub enum SelectionError{        //or should each fallible fn have its own fn spe
 #[derive(PartialEq, Clone, Debug)]
 pub struct Selection{
     pub range: Range,
-    pub direction: Direction,
+    pub direction: Direction,   //may become extension_direction, with non extended cursors being Direction::None
     /// the offset from the start of the line self.cursor is on
-    stored_line_position: Option<usize>,
+    // i think it may be reasonable to only have vertical movements return a selection with Some() stored line position
+    // any Selection with None stored_line_position, should be equivalent to a Selection with its cursor's offset from 
+    // line start as its stored line position
+    // or maybe more correctly, every movement should return a selection with a stored line position. is this worth the cost of any extra work?...
+    stored_line_position: Option<usize>,    //rename to stored_line_offset
 }
 impl Selection{
     /////////////////////////////////////////////////////////// Only for Testing ////////////////////////////////////////////////////////////////////
@@ -51,59 +55,55 @@ impl Selection{
     }
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     
-    /// Returns a new instance of [`Selection`].
-    #[must_use] pub fn new(range: Range, direction: Direction) -> Self{
+    //for testing...
+    pub fn new_from_components(anchor: usize, head: usize, stored_line_position: Option<usize>, text: &Rope, semantics: CursorSemantics) -> Self{
+        let (start, end, direction) = if head >= anchor{(anchor, head, Direction::Forward)}else{(head, anchor, Direction::Backward)};
+        let instance = Self{
+            range: Range::new(start, end),
+            direction,
+            stored_line_position
+        };
+        
+        instance.assert_invariants(text, semantics);
+
+        instance
+    }
+    pub fn new_from_range(range: Range, direction: Direction, text: &Rope, semantics: CursorSemantics) -> Self{
         let instance = Self{range, direction, stored_line_position: None};
 
-        //assert!(instance.anchor() >= 0);  //should be ensured by `usize` type
-        //assert!(instance.head() >= 0);   //should be ensured by `usize` type
-
-        //match semantics{
-        //    CursorSemantics::Bar => {
-        //        assert!(instance.anchor() <= text.len_chars());
-        //        assert!(instance.head() <= text.len_chars());
-        //    }
-        //    CursorSemantics::Block => {
-        //        if instance.is_extended(semantics){
-        //            assert!(instance.anchor() <= text.len_chars());
-        //            assert!(instance.head() <= text.len_chars());
-        //        }else{    //cursor can be 1 past text end
-        //            assert!(instance.anchor() <= text.len_chars().saturating_add(1));
-        //            assert!(instance.head() <= text.len_chars().saturating_add(1));
-        //        }
-        //        assert!(instance.anchor() != instance.head());
-        //    }
-        //}
-
-        //TODO: set stored line position. will prob remove option to have None. but do other asserts first + test
+        instance.assert_invariants(text, semantics);
 
         instance
     }
 
-    //TODO: this should be removed once new takes text and semantics as args
+    //TODO: eventually, this should be removed, and replaced with either new_from_range or new_from_components
+    /// Returns a new instance of [`Selection`].
+    #[must_use] pub fn new(range: Range, direction: Direction) -> Self{
+        Self{range, direction, stored_line_position: None}
+    }
+
+    //TODO: make private, to determine where this is being called unnecessarily and delete calling code
     pub fn assert_invariants(&self, text: &Rope, semantics: CursorSemantics){
-        //assert!(self.range.start >= 0);   //already ensured by `usize` type
-        //assert!(self.range.end >= 0);   //already ensured by `usize` type
-        
-        //TODO: assert!(self.stored_line_position.is_some());
-        
+        //assert!(self.anchor() >= 0);  //should be ensured by `usize` type
+        //assert!(self.head() >= 0);   //should be ensured by `usize` type
+
         match semantics{
             CursorSemantics::Bar => {
-                assert!(self.range.start <= text.len_chars());
-                assert!(self.range.end <= text.len_chars());
-                //assert!(self.range.start <= self.range.end);  //should be ensured in Range
+                assert!(self.anchor() <= text.len_chars());
+                assert!(self.head() <= text.len_chars());
             }
             CursorSemantics::Block => {
                 if self.is_extended(semantics){
-                    assert!(self.range.start <= text.len_chars());
-                    assert!(self.range.end <= text.len_chars());
-                }else{
-                    assert!(self.range.start <= text.len_chars().saturating_add(1));    //sat_add(1) for if cursor on last empty line, and direction backwards
-                    assert!(self.range.end <= text.len_chars().saturating_add(1));
+                    assert!(self.anchor() <= text.len_chars());
+                    assert!(self.head() <= text.len_chars());
+                }else{    //cursor can be 1 past text end
+                    assert!(self.anchor() <= text.len_chars().saturating_add(1));
+                    assert!(self.head() <= text.len_chars().saturating_add(1));
                 }
-                assert!(self.range.start < self.range.end);
+                assert!(self.anchor() != self.head());
             }
         }
+        assert!(self.cursor(text, semantics) <= text.len_chars());
     }
 
     /// Returns a string for debugging selections over a text.

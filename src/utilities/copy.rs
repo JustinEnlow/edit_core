@@ -21,25 +21,52 @@ mod tests{
     use crate::{
         document::Document,
         selections::Selections,
-        selection::{Selection, CursorSemantics, Direction},
-        range::Range,
+        selection::{Selection, CursorSemantics},
     };
     use ropey::Rope;
 
-    fn test(text: &str, selections: Vec<Selection>, primary: usize, expected_clipboard: &str, semantics: CursorSemantics){
+    //fn test(text: &str, selections: Vec<Selection>, primary: usize, expected_clipboard: &str, semantics: CursorSemantics){
+    //    let text = Rope::from(text);
+    //    let mut doc = Document::new(semantics)
+    //        .with_text(text.clone())
+    //        .with_selections(Selections::new(selections, primary, &text, semantics));
+    //    let _ = copy::document_impl(&mut doc);
+    //    assert_eq!(expected_clipboard.to_string(), doc.clipboard);
+    //}
+    //fn test_error(text: &str, selections: Vec<Selection>, primary: usize, semantics: CursorSemantics){
+    //    let text = Rope::from(text);
+    //    let mut doc = Document::new(semantics)
+    //        .with_text(text.clone())
+    //        .with_selections(Selections::new(selections, primary, &text, semantics));
+    //    assert!(copy::document_impl(&mut doc).is_err());
+    //}
+    fn test(semantics: CursorSemantics, text: &str, tuple_selections: Vec<(usize, usize, Option<usize>)>, primary: usize, expected_clipboard: &str){
         let text = Rope::from(text);
+        let mut vec_selections = Vec::new();
+        for tuple in tuple_selections{
+            vec_selections.push(Selection::new_from_components(tuple.0, tuple.1, tuple.2, &text, semantics));
+        }
+        let selections = Selections::new(vec_selections, primary, &text, semantics);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
-            .with_selections(Selections::new(selections, primary, &text, semantics));
-        let _ = copy::document_impl(&mut doc);
+            .with_selections(selections);
+        let result = copy::document_impl(&mut doc);
+        assert!(!result.is_err());
         assert_eq!(expected_clipboard.to_string(), doc.clipboard);
+        assert!(!doc.is_modified());
     }
-    fn test_error(text: &str, selections: Vec<Selection>, primary: usize, semantics: CursorSemantics){
+    fn test_error(semantics: CursorSemantics, text: &str, tuple_selections: Vec<(usize, usize, Option<usize>)>, primary: usize){
         let text = Rope::from(text);
+        let mut vec_selections = Vec::new();
+        for tuple in tuple_selections{
+            vec_selections.push(Selection::new_from_components(tuple.0, tuple.1, tuple.2, &text, semantics));
+        }
+        let selections = Selections::new(vec_selections, primary, &text, semantics);
         let mut doc = Document::new(semantics)
             .with_text(text.clone())
-            .with_selections(Selections::new(selections, primary, &text, semantics));
+            .with_selections(selections);
         assert!(copy::document_impl(&mut doc).is_err());
+        assert!(!doc.is_modified());
     }
 
     //TODO: copy with no selection extension
@@ -47,55 +74,103 @@ mod tests{
         //should copy single char with block semantics
 
     #[test] fn copy_with_selection_direction_forward_block_semantics(){
+        //test(
+        //    "idk\nsome\nshit\n", 
+        //    vec![Selection::new(Range::new(4, 9), Direction::Forward)], 0, 
+        //    "some\n", 
+        //    CursorSemantics::Block
+        //);
         test(
+            CursorSemantics::Block, 
             "idk\nsome\nshit\n", 
-            vec![Selection::new(Range::new(4, 9), Direction::Forward)], 0, 
-            "some\n", 
-            CursorSemantics::Block
+            vec![
+                (4, 9, None)
+            ], 0, 
+            "some\n"
         );
     }
     #[test] fn copy_with_selection_direction_forward_bar_semantics(){
+        //test(
+        //    "idk\nsome\nshit\n", 
+        //    vec![Selection::new(Range::new(4, 9), Direction::Forward)], 0, 
+        //    "some\n", 
+        //    CursorSemantics::Bar
+        //);
         test(
+            CursorSemantics::Bar, 
             "idk\nsome\nshit\n", 
-            vec![Selection::new(Range::new(4, 9), Direction::Forward)], 0, 
-            "some\n", 
-            CursorSemantics::Bar
+            vec![
+                (4, 9, None)
+            ], 0, 
+            "some\n"
         );
     }
 
     #[test] fn copy_with_selection_direction_backward_block_semantics(){
+        //test(
+        //    "idk\nsome\nshit\n", 
+        //    vec![Selection::new(Range::new(4, 9), Direction::Backward)], 0, 
+        //    "some\n", 
+        //    CursorSemantics::Block
+        //);
         test(
+            CursorSemantics::Block, 
             "idk\nsome\nshit\n", 
-            vec![Selection::new(Range::new(4, 9), Direction::Backward)], 0, 
-            "some\n", 
-            CursorSemantics::Block
+            vec![
+                (9, 4, None)
+            ], 0, 
+            "some\n"
         );
     }
     #[test] fn copy_with_selection_direction_backward_bar_semantics(){
+        //test(
+        //    "idk\nsome\nshit\n", 
+        //    vec![Selection::new(Range::new(4, 9), Direction::Backward)], 0, 
+        //    "some\n", 
+        //    CursorSemantics::Bar
+        //);
         test(
+            CursorSemantics::Bar, 
             "idk\nsome\nshit\n", 
-            vec![Selection::new(Range::new(4, 9), Direction::Backward)], 0, 
-            "some\n", 
-            CursorSemantics::Bar
+            vec![
+                (9, 4, None)
+            ], 0, 
+            "some\n"
         );
     }
 
     #[test] fn copy_with_multiple_selections_should_error(){
+        //test_error(
+        //    "idk\nsome\nshit\n", 
+        //    vec![
+        //        Selection::new(Range::new(0, 1), Direction::Forward), 
+        //        Selection::new(Range::new(4, 5), Direction::Forward)
+        //    ], 0, 
+        //    CursorSemantics::Block
+        //);
         test_error(
+            CursorSemantics::Block, 
             "idk\nsome\nshit\n", 
             vec![
-                Selection::new(Range::new(0, 1), Direction::Forward), 
-                Selection::new(Range::new(4, 5), Direction::Forward)
-            ], 0, 
-            CursorSemantics::Block
+                (0, 1, None),
+                (4, 5, None)
+            ], 0
         );
+        //test_error(
+        //    "idk\nsome\nshit\n", 
+        //    vec![
+        //        Selection::new(Range::new(0, 0), Direction::Forward), 
+        //        Selection::new(Range::new(4, 4), Direction::Forward)
+        //    ], 0, 
+        //    CursorSemantics::Bar
+        //);
         test_error(
+            CursorSemantics::Bar, 
             "idk\nsome\nshit\n", 
             vec![
-                Selection::new(Range::new(0, 0), Direction::Forward), 
-                Selection::new(Range::new(4, 4), Direction::Forward)
-            ], 0, 
-            CursorSemantics::Bar
+                (0, 0, None),
+                (4, 4, None)
+            ], 0
         );
     }
 }
