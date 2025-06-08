@@ -259,4 +259,7 @@ mod tests{
     //TODO: test tab deletion with soft tabs
     //TODO: test tab deletion with hard tabs
     //TODO: test with various tab widths
+
+
+    //TODO: test error described in range.rs:15:9
 }

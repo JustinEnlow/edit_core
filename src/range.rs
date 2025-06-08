@@ -12,7 +12,7 @@ pub struct Range{
 impl Range{
     /// Returns a new [`Range`].
     #[must_use] pub fn new(start: usize, end: usize) -> Self{
-        assert!(start <= end);
+        assert!(start <= end);  //TODO: debug: when multiple cursors, at start of line text, and selection extended line start, and delete pressed, this fails. figure out why...
 
         Self{start, end}
     }
